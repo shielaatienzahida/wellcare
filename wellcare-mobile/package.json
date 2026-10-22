@@ -1,0 +1,19 @@
+{
+  "name": "wellcare-mobile-runner",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "concurrently \"npm run backend\" \"npm run app:chrome\"",
+    "start:phone": "concurrently \"npm run backend\" \"npm run app:phone\"",
+    "start:windows": "concurrently \"npm run backend\" \"npm run app:windows\"",
+    "backend": "cd backend && npm start",
+    "app": "flutter run",
+    "app:chrome": "flutter run -d chrome",
+    "app:phone": "node run-phone.js",
+    "app:phone:auto": "flutter run",
+    "app:windows": "flutter run -d windows"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

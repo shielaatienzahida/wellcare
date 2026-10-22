@@ -1,0 +1,32 @@
+name: wellcare_mobile
+description: "HEIWA - Health & Life Mobile App"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  http: ^1.2.0
+  shared_preferences: ^2.2.3
+  google_fonts: ^6.2.1
+  fluttersdk_wind: ^1.8.0
+  url_launcher: ^6.3.2
+  image_picker: ^1.2.3
+  path_provider: ^2.1.6
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/heiwa_logo.jpg
+    - assets/card_alkaline.jpg
+    - assets/card_health.jpg
+    - assets/card_records.jpg
+    - assets/card_analytics.jpg

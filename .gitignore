@@ -1,0 +1,50 @@
+# Dependencies
+node_modules/
+*/node_modules/
+*/*/node_modules/
+.pnp
+.pnp.js
+
+# Build and distribution
+dist/
+*/dist/
+build/
+*/build/
+.dart_tool/
+*/.dart_tool/
+
+# Flutter/Dart artifacts
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+*.iml
+.idea/
+*/.idea/
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+*.env
+*/.env
+*/*/.env
+*/.env.*
+*/*/.env.*
+!*.env.example
+!*/*.env.example
+!*/*/*.env.example
+
+# Logs and databases
+*.log
+*.sqlite
+*.sqlite3
+
+# Git backups
+*.git_bak
+*/.git_bak
+
+# OS and Editor files
+.DS_Store
+Thumbs.db
+.vscode/
+*/.vscode/

@@ -1,0 +1,81 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700;800&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+*, *::before, *::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  --emerald-950: #022c22;
+  --emerald-900: #064e3b;
+  --emerald-800: #065f46;
+  --emerald-700: #046a38;
+  --emerald-600: #059669;
+  --emerald-500: #10b981;
+  --emerald-400: #34d399;
+  --emerald-300: #6ee7b7;
+  --emerald-200: #a7f3d0;
+  --emerald-100: #d1fae5;
+  --emerald-50:  #ecfdf5;
+
+  --emerald: #046a38;
+  --emerald-dark: #064e3b;
+  --kelly: #10b981;
+  --sand: #f4fbf7;
+  --sand-dark: #e8f5ee;
+  --sand-darker: #dbedd5;
+
+  --bg-gradient: linear-gradient(135deg, #f4fbf7 0%, #edf7f2 50%, #f8fafc 100%);
+  --glass-bg: rgba(255, 255, 255, 0.65);
+  --glass-border: rgba(255, 255, 255, 0.7);
+  --glass-shadow: 0 10px 30px -5px rgba(6, 78, 59, 0.06), 0 4px 12px rgba(0, 0, 0, 0.02);
+  --glass-inset: inset 0 1px 1px rgba(255, 255, 255, 0.95);
+  --subtle-glass-bg: rgba(255, 255, 255, 0.65);
+  --subtle-glass-border: 1px solid rgba(255, 255, 255, 0.7);
+  --subtle-glass-blur: blur(16px);
+
+  --text-main: #0f172a;
+  --text-muted: #475569;
+  --text-light: #64748b;
+
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-xl: 24px;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(244, 251, 247, 0.8);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(16, 185, 129, 0.35);
+  border-radius: 99px;
+  border: 2px solid rgba(244, 251, 247, 0.8);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(4, 106, 56, 0.65);
+}
+
+body {
+  font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  min-height: 100vh;
+  background: var(--bg-gradient);
+  color: var(--text-main);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
