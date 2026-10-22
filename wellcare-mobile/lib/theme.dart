@@ -394,24 +394,23 @@ String? _activeBackendUrl;
 
 String get kBackendUrl {
   if (_activeBackendUrl != null) return _activeBackendUrl!;
-  if (kIsWeb) return 'http://localhost:5000/api/v1';
-  return 'http://$kLanIp:5000/api/v1';
+  return 'https://wellcare-1zo0.onrender.com/api/v1';
 }
 
 List<String> get candidateBackendUrls {
-  if (kIsWeb) {
-    return [
+  return [
+    'https://wellcare-1zo0.onrender.com/api/v1', // Live Cloud Backend (Render)
+    if (kIsWeb) ...[
       'http://localhost:5000/api/v1',
       'http://localhost:5001/api/v1',
-    ];
-  }
-  return [
-    'http://localhost:5000/api/v1', // USB adb reverse (port 5000)
-    'http://localhost:5001/api/v1', // USB adb reverse (port 5001)
-    'http://$kLanIp:5000/api/v1',   // Wi-Fi Phone (port 5000)
-    'http://$kLanIp:5001/api/v1',   // Wi-Fi Phone (port 5001)
-    'http://10.0.2.2:5000/api/v1',  // Android Emulator (port 5000)
-    'http://10.0.2.2:5001/api/v1',  // Android Emulator (port 5001)
+    ] else ...[
+      'http://localhost:5000/api/v1', // USB adb reverse (port 5000)
+      'http://localhost:5001/api/v1', // USB adb reverse (port 5001)
+      'http://$kLanIp:5000/api/v1',   // Wi-Fi Phone (port 5000)
+      'http://$kLanIp:5001/api/v1',   // Wi-Fi Phone (port 5001)
+      'http://10.0.2.2:5000/api/v1',  // Android Emulator (port 5000)
+      'http://10.0.2.2:5001/api/v1',  // Android Emulator (port 5001)
+    ],
   ];
 }
 
