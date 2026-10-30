@@ -547,35 +547,27 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
   // ──────────────────────────────────────── SLIM HEADER ────────────────────────────
   Widget _buildHeader() {
     return Container(
-      decoration: BoxDecoration(
-        color: kDarkSurface,
-        border: const Border(bottom: BorderSide(color: Color(0xFF1A5C40), width: 1)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.3),
-            blurRadius: 12,
-            offset: const Offset(0, 3),
-            spreadRadius: -3,
-          ),
-        ],
+      decoration: const BoxDecoration(
+        color: Color(0xFF061A12),
+        border: Border(bottom: BorderSide(color: Color(0xFF103626), width: 1)),
       ),
       child: SafeArea(
         bottom: false,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(14, 8, 14, 8),
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
           child: Row(
             children: [
               // Logo
               Container(
-                width: 36,
-                height: 36,
+                width: 38,
+                height: 38,
                 decoration: BoxDecoration(
-                  gradient: kGradientDarkTeal,
-                  borderRadius: BorderRadius.circular(9),
-                  border: Border.all(color: kCyan.withValues(alpha: 0.25), width: 1.2),
+                  color: const Color(0xFF0C251C),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFF153C2C), width: 1.2),
                 ),
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(9),
                   child: Image.asset('assets/heiwa_logo.jpg', fit: BoxFit.cover),
                 ),
               ),
@@ -588,59 +580,72 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(
-                      'Wellcare',
-                      style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w900,
-                          color: kTextPrimary,
-                          letterSpacing: -0.4),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Heiwa ',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w900,
+                            color: Colors.white,
+                            letterSpacing: -0.4,
+                            height: 1.1,
+                          ),
+                        ),
+                        Text(
+                          'Wellcare',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w900,
+                            color: Colors.white,
+                            letterSpacing: -0.4,
+                            height: 1.1,
+                          ),
+                        ),
+                      ],
                     ),
+                    SizedBox(height: 1),
                     Text(
                       'Client Portal',
                       style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                          color: kTurquoise,
-                          letterSpacing: 0.2),
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF9BB3A5),
+                        letterSpacing: 0.2,
+                      ),
                     ),
                   ],
                 ),
               ),
 
-              // Boxed action icons — green tint
+              // Boxed action icons
               _headerIcon(Icons.search_rounded, 'Search', () => _showWellnessSearch(context)),
-              const SizedBox(width: 4),
-              _headerIcon(Icons.chat_bubble_outline_rounded, 'Messages', () => _showMessagesModal(context)),
-              const SizedBox(width: 4),
-              _headerIcon(Icons.notifications_none_rounded, 'Notifications', () => _showNotificationsModal(context)),
               const SizedBox(width: 6),
+              _headerIcon(Icons.chat_bubble_outline_rounded, 'Messages', () => _showMessagesModal(context)),
+              const SizedBox(width: 6),
+              _headerIcon(Icons.notifications_none_rounded, 'Notifications', () => _showNotificationsModal(context), badge: 1),
+              const SizedBox(width: 8),
 
-              // Profile avatar — far right, tapping => Profile tab (index 4)
+              // Profile avatar — circular amber with initials
               GestureDetector(
                 onTap: () => _switchTab(4),
                 child: Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    gradient: _profilePhotoBytes == null ? kGradientDarkMint : null,
-                    color: _profilePhotoBytes == null ? null : Colors.transparent,
+                  width: 38,
+                  height: 38,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFF5A623), // Amber
                     shape: BoxShape.circle,
-                    border: Border.all(color: kCyan.withValues(alpha: 0.35), width: 1.5),
                   ),
-                  clipBehavior: Clip.antiAlias,
-                  child: _profilePhotoBytes == null
-                      ? Center(
-                          child: Text(
-                            _initials,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w800,
-                              color: Colors.white,
-                            ),
-                          ),
-                        )
-                      : Image.memory(_profilePhotoBytes!, fit: BoxFit.cover, width: 36, height: 36),
+                  alignment: Alignment.center,
+                  child: Text(
+                    _initials,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w900,
+                      color: Color(0xFF071F15),
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -655,46 +660,34 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
       message: tooltip,
       child: Material(
         color: Colors.transparent,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(10),
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(10),
           child: Container(
-            width: 34,
-            height: 34,
+            width: 38,
+            height: 38,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: const Color(0xFF0D3B2F),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: const Color(0xFF1A5C40), width: 1),
+              color: const Color(0xFF0C251C),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFF153C2C), width: 1.2),
             ),
             child: Stack(
               clipBehavior: Clip.none,
               alignment: Alignment.center,
               children: [
-                Icon(icon, color: kEmeraldLight, size: 18),
+                Icon(icon, color: const Color(0xFFF5EFE6), size: 19),
                 if (badge > 0)
                   Positioned(
-                    right: -4,
-                    top: -4,
+                    right: -2,
+                    top: -2,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 3.5, vertical: 1),
-                      constraints: const BoxConstraints(minWidth: 14, minHeight: 14),
-                      decoration: BoxDecoration(
-                        color: kRose,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: kDarkSurface, width: 1.2),
-                      ),
-                      child: Center(
-                        child: Text(
-                          badge > 9 ? '9+' : '$badge',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 8,
-                            fontWeight: FontWeight.w800,
-                            height: 1,
-                          ),
-                        ),
+                      width: 7,
+                      height: 7,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFF5A623), // Amber notification dot
+                        shape: BoxShape.circle,
                       ),
                     ),
                   ),
@@ -706,53 +699,50 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
     );
   }
 
-  // ── Floating pill-style bottom navigation — green theme ──────────────────
+  // ── Floating pill-style bottom navigation — Dark Green & Amber ─────────
   Widget _buildFloatingNav() {
-    // New order: Home, Wellness, Reports, Alkaline, Profile (profile last)
     const items = [
-      (label: 'Home',     icon: Icons.home_outlined,         active: Icons.home_rounded,         color: kEmerald),
-      (label: 'Wellness', icon: Icons.favorite_outline_rounded, active: Icons.favorite_rounded,  color: kMint),
-      (label: 'Reports',  icon: Icons.query_stats_outlined,   active: Icons.query_stats_rounded,  color: kEmeraldLight),
-      (label: 'Alkaline', icon: Icons.water_drop_outlined,    active: Icons.water_drop_rounded,   color: kTurquoise),
-      (label: 'Profile',  icon: Icons.person_outline_rounded, active: Icons.person_rounded,       color: kAmber),
+      (label: 'Home',     icon: Icons.home_outlined,         active: Icons.home_rounded),
+      (label: 'Wellness', icon: Icons.favorite_outline_rounded, active: Icons.favorite_rounded),
+      (label: 'Reports',  icon: Icons.bar_chart_rounded,       active: Icons.bar_chart_rounded),
+      (label: 'Alkaline', icon: Icons.water_drop_outlined,    active: Icons.water_drop_rounded),
+      (label: 'Profile',  icon: Icons.person_outline_rounded, active: Icons.person_rounded),
     ];
 
     return Container(
-      height: 64,
+      height: 66,
       decoration: BoxDecoration(
-        color: kDarkBg,
-        borderRadius: BorderRadius.circular(32),
-        border: Border.all(color: const Color(0xFF1A5C40), width: 1.2),
+        color: const Color(0xFF071E15),
+        borderRadius: BorderRadius.circular(33),
+        border: Border.all(color: const Color(0xFF133829), width: 1.2),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.5),
+            color: Colors.black.withOpacity(0.55),
             blurRadius: 28,
             offset: const Offset(0, 10),
             spreadRadius: -4,
           ),
-          BoxShadow(
-            color: kEmerald.withValues(alpha: 0.12),
-            blurRadius: 20,
-            spreadRadius: -2,
-          ),
         ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(32),
-        child: Row(
-          children: [
-            for (var i = 0; i < items.length; i++)
-              Expanded(
-                child: _FloatingNavItem(
-                  label: items[i].label,
-                  icon: items[i].icon,
-                  activeIcon: items[i].active,
-                  color: items[i].color,
-                  isActive: _navIndex == i,
-                  onTap: () => _switchTab(i),
+        borderRadius: BorderRadius.circular(33),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+          child: Row(
+            children: [
+              for (var i = 0; i < items.length; i++)
+                Expanded(
+                  child: _FloatingNavItem(
+                    label: items[i].label,
+                    icon: items[i].icon,
+                    activeIcon: items[i].active,
+                    color: const Color(0xFFF5A623),
+                    isActive: _navIndex == i,
+                    onTap: () => _switchTab(i),
+                  ),
                 ),
-              ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -1290,7 +1280,7 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
   }
   Widget _buildCurrentTab() {
     switch (_navIndex) {
-      case 0: return HomeScreen(client: _client);
+      case 0: return HomeScreen(client: _client, onSwitchTab: _switchTab);
       case 1: return WellnessScreen(client: _client);
       case 2: return _buildReportTab();          // Reports at index 2
       case 3: return _buildAlkalineUseTab();     // Alkaline at index 3
@@ -4148,40 +4138,32 @@ class _FloatingNavItem extends StatelessWidget {
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 220),
+        duration: const Duration(milliseconds: 200),
         curve: Curves.easeOutCubic,
-        margin: const EdgeInsets.symmetric(horizontal: 3, vertical: 8),
+        margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
         decoration: BoxDecoration(
-          color: isActive ? color.withValues(alpha: 0.18) : Colors.transparent,
+          color: isActive ? const Color(0xFFF5A623) : Colors.transparent, // Solid Amber pill
           borderRadius: BorderRadius.circular(24),
-          border: isActive
-              ? Border.all(color: color.withValues(alpha: 0.35), width: 1)
-              : null,
         ),
+        padding: const EdgeInsets.symmetric(vertical: 4),
         child: Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(
                 isActive ? activeIcon : icon,
                 size: 20,
-                color: isActive ? color : const Color(0xFF4A6070),
+                color: isActive ? const Color(0xFF071F15) : const Color(0xFF9BB3A5),
               ),
               const SizedBox(height: 2),
-              AnimatedDefaultTextStyle(
-                duration: const Duration(milliseconds: 200),
+              Text(
+                label,
+                maxLines: 1,
                 style: TextStyle(
-                  fontSize: 9.5,
-                  fontWeight: isActive ? FontWeight.w800 : FontWeight.w500,
-                  color: isActive ? color : const Color(0xFF4A6070),
-                  letterSpacing: isActive ? 0.2 : 0,
-                ),
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Text(
-                    label,
-                    maxLines: 1,
-                  ),
+                  fontSize: 10,
+                  fontWeight: isActive ? FontWeight.w900 : FontWeight.w600,
+                  color: isActive ? const Color(0xFF071F15) : const Color(0xFF9BB3A5),
                 ),
               ),
             ],

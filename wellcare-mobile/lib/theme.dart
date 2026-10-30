@@ -7,10 +7,10 @@ import 'package:http/http.dart' as http;
 // WellCare Premium Dark Teal & Turquoise Wellness Aesthetic
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Dark green base (#0B1F1A)
-const kDarkBg = Color(0xFF0B1F1A);
-const kDarkSurface = Color(0xFF132F28);
-const kDarkSurfaceAlt = Color(0xFF1A3D34);
+// Dark green base (#061A12)
+const kDarkBg = Color(0xFF061A12);
+const kDarkSurface = Color(0xFF0C251C);
+const kDarkSurfaceAlt = Color(0xFF133628);
 
 // Turquoise and teal accents
 const kTurquoise = Color(0xFF14B8A6);
@@ -21,11 +21,11 @@ const kCyanLight = Color(0xFF22D3EE);
 const kMint = Color(0xFF10B981);
 const kMintLight = Color(0xFF6EE7B7);
 
-// Brand accents (#F5B942 Amber & #F4EFE6 Cream)
-const kAmber = Color(0xFFF5B942);
+// Brand accents (#F5A623 Amber & #F5EFE6 Cream)
+const kAmber = Color(0xFFF5A623);
 const kAmberLight = Color(0xFFFBD47D);
-const kCream = Color(0xFFF4EFE6);
-const kCreamMuted = Color(0xFFDCD5C8);
+const kCream = Color(0xFFF5EFE6);
+const kCreamMuted = Color(0xFF9BB3A5);
 
 // Accent colors
 const kLavender = Color(0xFF8B5CF6);

@@ -7,7 +7,13 @@ import '../models/client_model.dart';
 
 class HomeScreen extends StatefulWidget {
   final ClientModel client;
-  const HomeScreen({super.key, required this.client});
+  final void Function(int index)? onSwitchTab;
+
+  const HomeScreen({
+    super.key,
+    required this.client,
+    this.onSwitchTab,
+  });
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -22,6 +28,17 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   late final AnimationController _fadeCtrl;
   late final Animation<double> _fadeAnim;
+
+  // Custom palette for the new requested design:
+  static const Color _bgDark = Color(0xFF061A12);
+  static const Color _cardDark = Color(0xFF0C251C);
+  static const Color _cardBorder = Color(0xFF153C2C);
+  static const Color _iconBoxDark = Color(0xFF133628);
+  static const Color _amber = Color(0xFFF5A623);
+  static const Color _cream = Color(0xFFF5EFE6);
+  static const Color _creamMuted = Color(0xFF9BB3A5);
+  static const Color _darkInk = Color(0xFF071F15);
+  static const Color _oliveMuted = Color(0xFF6B7D74);
 
   @override
   void initState() {
@@ -136,214 +153,287 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     final sessions = _client.alkalineSessions;
-    final intake = (sessions * 0.5);
-    return SingleChildScrollView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: EdgeInsets.fromLTRB(14, 14, 14, 96 + MediaQuery.paddingOf(context).bottom),
-      child: FadeTransition(
-        opacity: _fadeAnim,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('$_greeting, ${_client.firstName}',
+    final intakeLitres = sessions * 0.5;
+
+    return Container(
+      color: _bgDark,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: EdgeInsets.fromLTRB(16, 12, 16, 96 + MediaQuery.paddingOf(context).bottom),
+        child: FadeTransition(
+          opacity: _fadeAnim,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ── Greeting Header ───────────────────────────────────────────
+              Text(
+                '$_greeting, ${_client.firstName}',
                 style: const TextStyle(
-                    fontSize: 12.5, fontWeight: FontWeight.w700, color: kTextTertiary)),
-            const SizedBox(height: 4),
-            const Text('Your wellness journey starts here.',
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: _creamMuted,
+                  letterSpacing: -0.2,
+                ),
+              ),
+              const SizedBox(height: 3),
+              const Text(
+                'Your wellness journey starts here.',
                 style: TextStyle(
-                    fontSize: 22,
-                    height: 1.15,
-                    fontWeight: FontWeight.w800,
-                    color: kTextPrimary,
-                    letterSpacing: -0.5)),
-            const SizedBox(height: 16),
-            _buildMembershipCard(),
-            const SizedBox(height: 12),
-            _buildProgressCard(),
-            const SizedBox(height: 10),
-            // Row 1: Check-ins & Absences
-            Row(
-              children: [
-                Expanded(
-                  child: _miniStat(
-                    icon: Icons.how_to_reg_rounded,
-                    value: _client.checkins.toString(),
-                    label: 'Check-ins',
-                    tint: kEmeraldLight.withValues(alpha: 0.15),
-                    iconColor: kEmeraldLight,
+                  fontSize: 23,
+                  height: 1.18,
+                  fontWeight: FontWeight.w900,
+                  color: Colors.white,
+                  letterSpacing: -0.6,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Container(
+                width: 30,
+                height: 3,
+                decoration: BoxDecoration(
+                  color: _amber,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+
+              const SizedBox(height: 18),
+
+              // ── 1. Membership Card (Cream & Amber) ────────────────────────
+              _buildMembershipCard(),
+
+              const SizedBox(height: 14),
+
+              // ── 2. Wellness Progress Card (Dark Green & Amber) ───────────
+              _buildProgressCard(),
+
+              const SizedBox(height: 14),
+
+              // ── 3. 2x2 Stat Cards Grid ───────────────────────────────────
+              Row(
+                children: [
+                  Expanded(
+                    child: _statCard(
+                      icon: Icons.person_pin_rounded,
+                      iconColor: const Color(0xFF6EE7B7),
+                      iconBg: const Color(0xFF123B2A),
+                      value: _client.checkins.toString(),
+                      label: 'Check-ins',
+                      onTap: () => widget.onSwitchTab?.call(2), // Reports
+                    ),
                   ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _miniStat(
-                    icon: Icons.event_busy_rounded,
-                    value: _client.absences.toString(),
-                    label: 'Absences',
-                    tint: kRose.withValues(alpha: 0.15),
-                    iconColor: kRose,
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _statCard(
+                      icon: Icons.event_busy_rounded,
+                      iconColor: const Color(0xFFF87171),
+                      iconBg: const Color(0xFF2C1A1C),
+                      value: _client.absences.toString(),
+                      label: 'Absences',
+                      onTap: () => widget.onSwitchTab?.call(2), // Reports
+                    ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            // Row 2: Sessions & Today's Hydration (alkaline intake)
-            Row(
-              children: [
-                Expanded(
-                  child: _miniStat(
-                    icon: Icons.spa_rounded,
-                    value: sessions.toString(),
-                    label: 'Sessions',
-                    tint: kLavender.withValues(alpha: 0.15),
-                    iconColor: kLavender,
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: _statCard(
+                      icon: Icons.spa_rounded,
+                      iconColor: _amber,
+                      iconBg: const Color(0xFF2E2412),
+                      value: sessions.toString(),
+                      label: 'Sessions',
+                      onTap: () => widget.onSwitchTab?.call(1), // Wellness
+                    ),
                   ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _hydrationCard(intake),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            _buildRecentVisitsSection(),
-          ],
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _statCard(
+                      icon: Icons.water_drop_rounded,
+                      iconColor: const Color(0xFF38BDF8),
+                      iconBg: const Color(0xFF0F2E36),
+                      value: '${intakeLitres.toStringAsFixed(1)}L',
+                      label: 'Alkaline intake',
+                      onTap: () => widget.onSwitchTab?.call(3), // Alkaline
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 24),
+
+              // ── 4. Recent Visits Section ───────────────────────────────────
+              _buildRecentVisitsSection(),
+            ],
+          ),
         ),
       ),
     );
   }
 
+  // ── MEMBERSHIP CARD ────────────────────────────────────────────────────────
   Widget _buildMembershipCard() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
       decoration: BoxDecoration(
-        gradient: kGradientDarkTeal,
-        borderRadius: BorderRadius.circular(AppRadius.xl),
-        border: Border.all(
-          color: const Color(0xFF14B8A6).withValues(alpha: 0.3),
-          width: 1.2,
-        ),
+        color: _cream,
+        borderRadius: BorderRadius.circular(22),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.3),
-            blurRadius: 16,
+            color: Colors.black.withOpacity(0.35),
+            blurRadius: 18,
             offset: const Offset(0, 8),
-            spreadRadius: -4,
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Stack(
+        clipBehavior: Clip.none,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          // Subtle watermark flame / petal on right
+          Positioned(
+            right: -6,
+            bottom: -12,
+            child: Opacity(
+              opacity: 0.12,
+              child: Icon(
+                Icons.spa_rounded,
+                size: 118,
+                color: _darkInk,
+              ),
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Top row: MEMBERSHIP dot + ACTIVE pill
               Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: 7,
+                        height: 7,
+                        margin: const EdgeInsets.only(right: 7),
+                        decoration: const BoxDecoration(
+                          color: _darkInk,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const Text(
+                        'MEMBERSHIP',
+                        style: TextStyle(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w800,
+                          color: _darkInk,
+                          letterSpacing: 1.4,
+                        ),
+                      ),
+                    ],
+                  ),
                   Container(
-                    width: 6,
-                    height: 6,
-                    margin: const EdgeInsets.only(right: 7),
-                    decoration: const BoxDecoration(
-                      color: kTurquoiseLight,
-                      shape: BoxShape.circle,
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: _amber,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 5,
+                          height: 5,
+                          margin: const EdgeInsets.only(right: 5),
+                          decoration: const BoxDecoration(
+                            color: _darkInk,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const Text(
+                          'ACTIVE',
+                          style: TextStyle(
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.w900,
+                            color: _darkInk,
+                            letterSpacing: 0.8,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const Text('MEMBERSHIP',
-                      style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w800,
-                          color: kTurquoiseLight,
-                          letterSpacing: 1.4)),
                 ],
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF10B981).withValues(alpha: 0.18),
-                  borderRadius: BorderRadius.circular(AppRadius.pill),
-                  border: Border.all(
-                    color: const Color(0xFF10B981).withValues(alpha: 0.45),
-                    width: 1,
-                  ),
+
+              const SizedBox(height: 14),
+
+              // Full Name
+              Text(
+                _client.fullName.isEmpty ? _client.username : _client.fullName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w900,
+                  color: _darkInk,
+                  letterSpacing: -0.4,
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 5,
-                      height: 5,
-                      margin: const EdgeInsets.only(right: 5),
-                      decoration: const BoxDecoration(
-                        color: Color(0xFF34D399),
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const Text('ACTIVE',
-                        style: TextStyle(
-                            fontSize: 9,
-                            fontWeight: FontWeight.w800,
-                            color: Color(0xFF6EE7B7),
-                            letterSpacing: 0.9)),
-                  ],
+              ),
+
+              const SizedBox(height: 2),
+
+              // @username
+              Text(
+                '@${_client.username}',
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: _oliveMuted,
+                ),
+              ),
+
+              const SizedBox(height: 12),
+
+              // ID Badge pill (Amber)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                decoration: BoxDecoration(
+                  color: _amber,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  'ID: ${_client.clientIdNumber.isNotEmpty ? _client.clientIdNumber : _client.id}',
+                  style: const TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w900,
+                    color: _darkInk,
+                    letterSpacing: 0.4,
+                  ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 14),
-          Text(_client.fullName,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                  fontSize: 19,
-                  fontWeight: FontWeight.w900,
-                  color: kTextPrimary,
-                  letterSpacing: -0.3)),
-          const SizedBox(height: 2),
-          Text('@${_client.username}',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: kTextTertiary)),
-          if (_client.clientIdNumber.isNotEmpty) ...{
-            const SizedBox(height: 10),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(
-                color: const Color(0xFF14B8A6).withValues(alpha: 0.14),
-                borderRadius: BorderRadius.circular(AppRadius.sm),
-                border: Border.all(
-                  color: const Color(0xFF14B8A6).withValues(alpha: 0.35),
-                  width: 1,
-                ),
-              ),
-              child: Text('ID: ${_client.clientIdNumber}',
-                  style: const TextStyle(
-                      fontSize: 10.5,
-                      fontWeight: FontWeight.w700,
-                      color: kTurquoiseLight,
-                      letterSpacing: 0.4)),
-            ),
-          },
         ],
       ),
     );
   }
 
+  // ── PROGRESS CARD ──────────────────────────────────────────────────────────
   Widget _buildProgressCard() {
     final sessions = _client.alkalineSessions;
     final remainder = sessions % 10;
     final progress = remainder == 0 && sessions > 0 ? 1.0 : remainder / 10;
     final toNext = sessions == 0 ? 10 : (10 - remainder) % 10;
+    final pct = (progress * 100).round();
+
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: kDarkSurfaceAlt,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: const Color(0xFF1B5E5B)),
+        color: _cardDark,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: _cardBorder, width: 1.2),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -351,297 +441,314 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           Row(
             children: [
               Container(
-                width: 34,
-                height: 34,
+                width: 36,
+                height: 36,
                 decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF0EA5E9), Color(0xFF14B8A6)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(AppRadius.sm),
+                  color: _iconBoxDark,
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(Icons.trending_up_rounded, color: Colors.white, size: 18),
+                child: const Icon(
+                  Icons.trending_up_rounded,
+                  color: _amber,
+                  size: 20,
+                ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Wellness progress',
-                        style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w800,
-                            color: kTextPrimary)),
+                    const Text(
+                      'Wellness progress',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
                     Text(
                       toNext == 0
                           ? 'Milestone reached — keep going!'
                           : '$toNext more session${toNext == 1 ? '' : 's'} to your next milestone',
                       style: const TextStyle(
-                          fontSize: 10.5, color: kTextTertiary),
+                        fontSize: 11.5,
+                        color: _creamMuted,
+                      ),
                     ),
                   ],
                 ),
               ),
               Text(
-                '${(progress * 100).round()}%',
+                '$pct%',
                 style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w900,
-                    color: kEmeraldLight),
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                  color: _amber,
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           ClipRRect(
-            borderRadius: BorderRadius.circular(AppRadius.pill),
-            child: TweenAnimationBuilder<double>(
-              tween: Tween(begin: 0, end: progress),
-              duration: const Duration(milliseconds: 700),
-              curve: Curves.easeOutCubic,
-              builder: (context, value, _) => LinearProgressIndicator(
-                value: value,
-                minHeight: 7,
-                backgroundColor: kEmeraldLight.withValues(alpha: 0.15),
-                valueColor: const AlwaysStoppedAnimation<Color>(kEmeraldLight),
-              ),
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: progress,
+              minHeight: 7,
+              backgroundColor: _bgDark,
+              valueColor: const AlwaysStoppedAnimation<Color>(_amber),
             ),
           ),
-          const SizedBox(height: 6),
-          Text('$sessions sessions · ${(progress * 100).round()}% to next 10-session milestone',
-              style: const TextStyle(fontSize: 10, color: kTextTertiary)),
+          const SizedBox(height: 8),
+          Text(
+            '$sessions sessions · $pct% to next 10-session milestone',
+            style: const TextStyle(fontSize: 11, color: _creamMuted),
+          ),
         ],
       ),
     );
   }
 
-  Widget _miniStat({
+  // ── 2x2 STAT CARD ──────────────────────────────────────────────────────────
+  Widget _statCard({
     required IconData icon,
+    required Color iconColor,
+    required Color iconBg,
     required String value,
     required String label,
-    required Color tint,
-    Color iconColor = kEmeraldLight,
+    VoidCallback? onTap,
   }) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: kDarkSurfaceAlt,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: const Color(0xFF1B5E5B)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-                color: tint,
-                borderRadius: BorderRadius.circular(AppRadius.xs + 2)),
-            child: Icon(icon, color: iconColor, size: 17),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: _cardDark,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: _cardBorder, width: 1.2),
           ),
-          const SizedBox(height: 10),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: Text(value,
-                style: const TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w900,
-                    color: kTextPrimary,
-                    height: 1)),
-          ),
-          const SizedBox(height: 3),
-          Text(label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: kTextTertiary)),
-        ],
-      ),
-    );
-  }
-
-  /// Vivid hydration card — replaces the old dull water drop
-  Widget _hydrationCard(double intakeLitres) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: kDarkSurfaceAlt,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: const Color(0xFF1B5E5B)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF0EA5E9), Color(0xFF38BDF8)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(AppRadius.xs + 2),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFF0EA5E9).withValues(alpha: 0.4),
-                  blurRadius: 8,
-                  spreadRadius: -2,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: iconBg,
+                  borderRadius: BorderRadius.circular(9),
                 ),
-              ],
-            ),
-            child: const Icon(Icons.water_drop_rounded, color: Colors.white, size: 17),
-          ),
-          const SizedBox(height: 10),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: Text('${intakeLitres.toStringAsFixed(1)}L',
+                child: Icon(icon, color: iconColor, size: 20),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                value,
                 style: const TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w900,
-                    color: Color(0xFF38BDF8),
-                    height: 1)),
+                  fontSize: 26,
+                  fontWeight: FontWeight.w900,
+                  color: Colors.white,
+                  height: 1.1,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: _creamMuted,
+                      ),
+                    ),
+                  ),
+                  const Icon(
+                    Icons.chevron_right_rounded,
+                    size: 18,
+                    color: _creamMuted,
+                  ),
+                ],
+              ),
+            ],
           ),
-          const SizedBox(height: 3),
-          const Text('Alkaline intake',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: kTextTertiary)),
-        ],
+        ),
       ),
     );
   }
 
+  // ── RECENT VISITS ──────────────────────────────────────────────────────────
   Widget _buildRecentVisitsSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Recent visits',
-            style: TextStyle(
-                fontSize: 18,
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              'Recent visits',
+              style: TextStyle(
+                fontSize: 20,
                 fontWeight: FontWeight.w800,
-                color: kTextPrimary)),
-        const SizedBox(height: 12),
+                color: Colors.white,
+              ),
+            ),
+            if (_visitHistory.isNotEmpty)
+              GestureDetector(
+                onTap: () => widget.onSwitchTab?.call(2), // View all in Reports
+                child: const Text(
+                  'View all',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: _amber,
+                  ),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Container(
+          width: 28,
+          height: 3,
+          decoration: BoxDecoration(
+            color: _amber,
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+        const SizedBox(height: 14),
+
         if (_historyLoading)
           const Padding(
-            padding: EdgeInsets.symmetric(vertical: 40),
-            child: Center(child: CircularProgressIndicator()),
+            padding: EdgeInsets.symmetric(vertical: 30),
+            child: Center(child: CircularProgressIndicator(color: _amber)),
           )
-        else if (_historyUnavailable)
-          _historyMessage(Icons.cloud_off_rounded, 'Visit history is unavailable.')
-        else if (_visitHistory.isEmpty)
-          _historyMessage(Icons.event_note_rounded, 'No visits have been recorded yet.')
-        else
+        else if (_historyUnavailable || _visitHistory.isEmpty)
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 24),
             decoration: BoxDecoration(
-              color: kDarkSurfaceAlt,
-              borderRadius: BorderRadius.circular(AppRadius.lg),
-              border: Border.all(color: const Color(0xFF1B5E5B)),
+              color: _cardDark,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: _cardBorder),
             ),
-            child: Column(
-              children: [
-                for (var i = 0; i < (_visitHistory.length > 3 ? 3 : _visitHistory.length); i++)
-                  _visitHistoryRow(_visitHistory[i], showDivider: i != (_visitHistory.length > 3 ? 2 : _visitHistory.length - 1)),
-              ],
+            child: const Center(
+              child: Text(
+                'No recent visits recorded yet.',
+                style: TextStyle(fontSize: 13, color: _creamMuted),
+              ),
             ),
+          )
+        else
+          Column(
+            children: [
+              for (var i = 0; i < (_visitHistory.length > 4 ? 4 : _visitHistory.length); i++)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: _visitCard(_visitHistory[i]),
+                ),
+            ],
           ),
       ],
     );
   }
 
-  Widget _historyMessage(IconData icon, String message) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 34),
-      decoration: BoxDecoration(
-        color: kDarkSurfaceAlt,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: const Color(0xFF1B5E5B)),
-      ),
-      child: Column(
-        children: [
-          Container(
-            width: 54,
-            height: 54,
-            decoration: BoxDecoration(
-              color: kEmeraldLight.withValues(alpha: 0.15),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, size: 25, color: kEmeraldLight),
-          ),
-          const SizedBox(height: 14),
-          Text(message,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 13, color: kTextTertiary)),
-        ],
-      ),
-    );
-  }
-
-  Widget _visitHistoryRow(Map<String, dynamic> visit, {required bool showDivider}) {
+  Widget _visitCard(Map<String, dynamic> visit) {
     final rawDate = (visit['date'] ?? visit['created_at'] ?? '').toString();
-    final parsedDate = DateTime.tryParse(rawDate.replaceFirst(' ', 'T'));
-    final dateLabel = parsedDate == null
-        ? (rawDate.isEmpty ? 'Visit date unavailable' : rawDate)
-        : '${_monthName(parsedDate.month)} ${parsedDate.day}, ${parsedDate.year}';
+    final displayDate = _formatVisitDate(rawDate);
     final type = (visit['type'] ?? 'Visit').toString();
-    final visitLabel = type.isEmpty ? 'Visit' : '${type[0].toUpperCase()}${type.substring(1)}';
-    final loggedBy = (visit['logged_by'] ?? '').toString();
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 14),
-      decoration: BoxDecoration(
-          border: showDivider
-              ? const Border(bottom: BorderSide(color: Color(0xFF1B5E5B)))
-              : null),
-      child: Row(
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: kEmeraldLight.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(AppRadius.sm + 2),
-            ),
-            child: const Icon(Icons.event_available_rounded,
-                color: kEmeraldLight, size: 20),
+    final loggedBy = (visit['logged_by'] ?? 'Staff').toString();
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => widget.onSwitchTab?.call(2), // Switch to Reports
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: _cream,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.2),
+                blurRadius: 8,
+                offset: const Offset(0, 3),
+              ),
+            ],
           ),
-          const SizedBox(width: 13),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(dateLabel,
-                    style: const TextStyle(
+          child: Row(
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: _cardDark,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  Icons.event_available_rounded,
+                  color: _cream,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      displayDate,
+                      style: const TextStyle(
                         fontSize: 13.5,
                         fontWeight: FontWeight.w800,
-                        color: kTextPrimary)),
-                const SizedBox(height: 3),
-                Text(
-                    loggedBy.isEmpty
-                        ? visitLabel
-                        : '$visitLabel · ${loggedBy[0].toUpperCase()}${loggedBy.substring(1)}',
-                    style: const TextStyle(
-                        fontSize: 11.5, color: kTextTertiary)),
-              ],
-            ),
+                        color: _darkInk,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '$type · ${loggedBy[0].toUpperCase()}${loggedBy.substring(1)}',
+                      style: const TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                        color: _oliveMuted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(
+                Icons.chevron_right_rounded,
+                color: _darkInk,
+                size: 20,
+              ),
+            ],
           ),
-          const Icon(Icons.check_circle_rounded, color: kEmeraldLight, size: 17),
-        ],
+        ),
       ),
     );
   }
 
-  String _monthName(int month) => const [
-        'January', 'February', 'March', 'April', 'May', 'June',
-        'July', 'August', 'September', 'October', 'November', 'December',
-      ][month - 1];
+  String _formatVisitDate(String raw) {
+    if (raw.isEmpty) return 'Recent visit';
+    try {
+      final dt = DateTime.parse(raw).toLocal();
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      final m = months[dt.month - 1];
+      final d = dt.day;
+      final y = dt.year;
+      final hour12 = dt.hour == 0 ? 12 : (dt.hour > 12 ? dt.hour - 12 : dt.hour);
+      final minStr = dt.minute.toString().padLeft(2, '0');
+      final ampm = dt.hour >= 12 ? 'PM' : 'AM';
+      final hourStr = hour12.toString().padLeft(2, '0');
+      return '$m $d, $y, $hourStr:$minStr $ampm';
+    } catch (_) {
+      return raw;
+    }
+  }
 }
