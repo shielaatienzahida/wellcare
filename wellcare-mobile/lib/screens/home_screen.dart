@@ -667,7 +667,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: () => widget.onSwitchTab?.call(2), // Switch to Reports
+        onTap: () => widget.onSwitchTab?.call(3), // Switch to Alkaline
         borderRadius: BorderRadius.circular(16),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),

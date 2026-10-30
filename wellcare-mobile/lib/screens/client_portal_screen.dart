@@ -1302,26 +1302,15 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
           // Compact Hero Card — sized down so Personal Information is clearly visible
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
             decoration: BoxDecoration(
-              gradient: kGradientDarkTeal,
-              borderRadius: BorderRadius.circular(AppRadius.lg),
-              border: Border.all(
-                color: const Color(0xFF14B8A6).withValues(alpha: 0.3),
-                width: 1.2,
-              ),
+              color: const Color(0xFFF5EFE6), // Cream
+              borderRadius: BorderRadius.circular(22),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.28),
-                  blurRadius: 14,
-                  offset: const Offset(0, 5),
-                  spreadRadius: -3,
-                ),
-                BoxShadow(
-                  color: const Color(0xFF14B8A6).withValues(alpha: 0.10),
-                  blurRadius: 16,
-                  offset: const Offset(0, 2),
-                  spreadRadius: -2,
+                  color: Colors.black.withOpacity(0.35),
+                  blurRadius: 18,
+                  offset: const Offset(0, 8),
                 ),
               ],
             ),
@@ -1334,15 +1323,11 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                     clipBehavior: Clip.none,
                     children: [
                       Container(
-                        width: 52,
-                        height: 52,
-                        decoration: BoxDecoration(
-                          color: kTurquoise.withValues(alpha: 0.2),
+                        width: 56,
+                        height: 56,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFF5A623), // Amber
                           shape: BoxShape.circle,
-                          border: Border.all(
-                            color: kTurquoise.withValues(alpha: 0.65),
-                            width: 2,
-                          ),
                         ),
                         clipBehavior: Clip.antiAlias,
                         child: _profilePhotoBytes == null
@@ -1350,110 +1335,111 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                                 child: Text(
                                   _initials,
                                   style: const TextStyle(
-                                    fontSize: 19,
-                                    fontWeight: FontWeight.w800,
-                                    color: Colors.white,
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.w900,
+                                    color: Color(0xFF071F15),
                                   ),
                                 ),
                               )
                             : Image.memory(
                                 _profilePhotoBytes!,
                                 fit: BoxFit.cover,
-                                width: 52,
-                                height: 52,
+                                width: 56,
+                                height: 56,
                               ),
                       ),
                       Positioned(
                         right: -2,
                         bottom: -2,
                         child: Container(
-                          width: 19,
-                          height: 19,
+                          width: 20,
+                          height: 20,
                           decoration: BoxDecoration(
-                            color: kEmeraldLight,
+                            color: const Color(0xFF071F15),
                             shape: BoxShape.circle,
-                            border: Border.all(color: kDarkSurface, width: 1.5),
+                            border: Border.all(color: const Color(0xFFF5EFE6), width: 1.5),
                           ),
-                          child: const Icon(Icons.camera_alt, size: 10.5, color: Colors.black),
+                          child: const Icon(Icons.camera_alt, size: 11, color: Color(0xFFF5EFE6)),
                         ),
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(width: 13),
+                const SizedBox(width: 14),
 
-                // Name, username, Client ID, and compact photo chip
+                // Name, username, Client ID, and photo button
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        _client.fullName,
+                        _client.fullName.isEmpty ? _client.username : _client.fullName,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                          fontSize: 16.5,
+                          fontSize: 18,
                           fontWeight: FontWeight.w900,
-                          color: Colors.white,
-                          letterSpacing: -0.3,
+                          color: Color(0xFF071F15),
+                          letterSpacing: -0.4,
                         ),
                       ),
                       const SizedBox(height: 2),
                       Wrap(
                         crossAxisAlignment: WrapCrossAlignment.center,
-                        spacing: 6,
+                        spacing: 8,
                         runSpacing: 4,
                         children: [
                           Text(
                             '@${_client.username}',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 12,
+                            style: const TextStyle(
+                              fontSize: 12.5,
                               fontWeight: FontWeight.w600,
-                              color: kTurquoiseLight.withValues(alpha: 0.85),
+                              color: Color(0xFF6B7D74),
                             ),
                           ),
-                          if (_client.clientIdNumber.isNotEmpty)
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: kAmber.withValues(alpha: 0.16),
-                                borderRadius: BorderRadius.circular(AppRadius.pill),
-                                border: Border.all(color: kAmber.withValues(alpha: 0.45)),
-                              ),
-                              child: Text(
-                                'ID: ${_client.clientIdNumber}',
-                                style: const TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w700,
-                                  color: kAmber,
-                                  letterSpacing: 0.4,
-                                ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF5A623), // Amber
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              'ID: ${_client.clientIdNumber.isNotEmpty ? _client.clientIdNumber : _client.id}',
+                              style: const TextStyle(
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w900,
+                                color: Color(0xFF071F15),
+                                letterSpacing: 0.4,
                               ),
                             ),
+                          ),
                         ],
                       ),
-                      const SizedBox(height: 6),
-                      // Compact change photo chip button
+                      const SizedBox(height: 8),
+                      // Upload photo chip button
                       GestureDetector(
                         onTap: _pickProfilePhoto,
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3.5),
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.10),
-                            borderRadius: BorderRadius.circular(AppRadius.pill),
-                            border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
+                            color: const Color(0xFF071F15),
+                            borderRadius: BorderRadius.circular(12),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(Icons.photo_camera_outlined, size: 12, color: Colors.white70),
-                              const SizedBox(width: 4),
+                              const Icon(Icons.photo_camera_outlined, size: 12, color: Color(0xFFF5EFE6)),
+                              const SizedBox(width: 5),
                               Text(
                                 _profilePhotoBytes == null ? 'Upload photo' : 'Change photo',
-                                style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: Colors.white),
+                                style: const TextStyle(
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFFF5EFE6),
+                                ),
                               ),
                             ],
                           ),
@@ -1650,6 +1636,28 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
     );
   }
 
+  bool _isSameCalendarDay(dynamic rawDateVal, dynamic rawCreatedVal, DateTime target) {
+    final dStr = (rawDateVal ?? '').toString();
+    final cStr = (rawCreatedVal ?? '').toString();
+    final iso = '${target.year.toString().padLeft(4, '0')}-${target.month.toString().padLeft(2, '0')}-${target.day.toString().padLeft(2, '0')}';
+    if (cStr.startsWith(iso) || dStr.startsWith(iso)) return true;
+
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    final mStr = months[target.month - 1];
+    final fmt1 = '$mStr ${target.day}, ${target.year}';
+    final fmt2 = '$mStr ${target.day.toString().padLeft(2, '0')}, ${target.year}';
+    if (dStr.contains(fmt1) || dStr.contains(fmt2)) return true;
+
+    try {
+      final parsed = DateTime.tryParse(cStr.isNotEmpty ? cStr : dStr);
+      if (parsed != null) {
+        final loc = parsed.toLocal();
+        if (loc.year == target.year && loc.month == target.month && loc.day == target.day) return true;
+      }
+    } catch (_) {}
+    return false;
+  }
+
   Widget _buildAlkalineUseTab() {
     final sessions = _client.alkalineSessions;
     final remainder = sessions % 10;
@@ -1661,12 +1669,12 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
     // ── Daily hydration tracker ──────────────────────────────────────────────
     // Goal: 8 glasses per day, each glass = 250 mL → 2,000 mL / day
     // Each alkaline session bottle = 500 mL = 2 glasses
-    // We use today's alkaline sessions from visitHistory (type = 'Alkaline Session', today's date)
-    final todayStr = DateTime.now().toIso8601String().substring(0, 10);
+    final now = DateTime.now();
     final todayAlkalineSessions = _visitHistory
         .where((v) {
-          final raw = (v['date'] ?? '').toString();
-          return raw.contains(todayStr) && (v['type'] ?? '').toString().toLowerCase().contains('alkaline');
+          final type = (v['type'] ?? '').toString().toLowerCase();
+          final isAlkaline = type.contains('alkaline') || type.contains('water');
+          return isAlkaline && _isSameCalendarDay(v['date'], v['created_at'], now);
         })
         .length;
     // mL consumed today via sessions
@@ -2305,21 +2313,17 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
 
           // ── 7-Day Alkaline History Chart ─────────────────────────────────
           Builder(builder: (_) {
-            // Build per-day alkaline counts for the last 7 days
             final now = DateTime.now();
-            final days = List.generate(7, (i) {
-              final d = now.subtract(Duration(days: 6 - i));
-              return '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
-            });
-            final dayCounts = <String, int>{};
-            for (final day in days) {
-              dayCounts[day] = _visitHistory.where((v) {
-                final raw = (v['date'] ?? '').toString();
-                return raw.contains(day) &&
-                    (v['type'] ?? '').toString().toLowerCase().contains('alkaline');
+            final days = List.generate(7, (i) => now.subtract(Duration(days: 6 - i)));
+            final dayCounts = List.generate(7, (i) {
+              final target = days[i];
+              return _visitHistory.where((v) {
+                final type = (v['type'] ?? '').toString().toLowerCase();
+                final isAlkaline = type.contains('alkaline') || type.contains('water');
+                return isAlkaline && _isSameCalendarDay(v['date'], v['created_at'], target);
               }).length;
-            }
-            final maxCount = dayCounts.values.fold(0, (a, b) => a > b ? a : b);
+            });
+            final maxCount = dayCounts.fold(0, (a, b) => a > b ? a : b);
             final safeMax = maxCount == 0 ? 1 : maxCount;
             final dayLabels = ['6d', '5d', '4d', '3d', '2d', 'Yst', 'Today'];
 
@@ -2383,8 +2387,7 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: List.generate(7, (i) {
-                        final day = days[i];
-                        final count = dayCounts[day] ?? 0;
+                        final count = dayCounts[i];
                         final fraction = count / safeMax;
                         final isToday = i == 6;
                         final barColor = isToday
@@ -2551,16 +2554,24 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
   }
 
   Widget _buildReportTab() {
-    // Derive visit-based totals from history for visualization
     final totalVisits = _visitHistory.length;
     final checkins = _client.checkins;
     final absences = _client.absences;
     final alkaline = _client.alkalineSessions;
+    final totalSessions = checkins + absences;
+    final safeTotal = totalSessions == 0 ? 1 : totalSessions;
+    final attendanceRate = ((checkins / safeTotal) * 100).round();
 
-    // Compute the max value across all metrics to scale mini bars
-    final metricMax = [checkins, absences, totalVisits, alkaline]
-        .reduce((a, b) => a > b ? a : b);
-    final safeMax = metricMax == 0 ? 1 : metricMax;
+    // 7-day activity data calculation
+    final now = DateTime.now();
+    final days = List.generate(7, (i) => now.subtract(Duration(days: 6 - i)));
+    final dayActivity = List.generate(7, (i) {
+      final target = days[i];
+      return _visitHistory.where((v) => _isSameCalendarDay(v['date'], v['created_at'], target)).length;
+    });
+    final maxActivity = dayActivity.fold(0, (a, b) => a > b ? a : b);
+    final safeMaxActivity = maxActivity == 0 ? 1 : maxActivity;
+    final dayLabels = ['6d', '5d', '4d', '3d', '2d', 'Yst', 'Today'];
 
     return SingleChildScrollView(
       physics: const AlwaysScrollableScrollPhysics(),
@@ -2568,198 +2579,372 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // ── Header ─────────────────────────────────────────────────────────
           const Text('My reports', style: AppText.h1),
-          const SizedBox(height: 6),
-          const Text('A summary of your Wellcare activity.',
-              style: TextStyle(fontSize: 13, color: kTextTertiary)),
+          const SizedBox(height: 3),
+          const Text(
+            'A summary of your Wellcare activity & analytics.',
+            style: TextStyle(fontSize: 13, color: Color(0xFF9BB3A5)),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            width: 30,
+            height: 3,
+            decoration: BoxDecoration(
+              color: const Color(0xFFF5A623),
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
           const SizedBox(height: 18),
-          GridView.count(
-            crossAxisCount: 2,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-            childAspectRatio: 0.88,
+
+          // ── 1. 2x2 Clean Metric Cards (Fixed natural height, no stretching) ──
+          Row(
             children: [
-              _reportMetric(
-                'Check-ins',
-                checkins.toString(),
-                Icons.how_to_reg_rounded,
-                barValue: checkins / safeMax,
-                barColor: kEmeraldLight,
-                tint: const Color(0xFF14B8A6).withValues(alpha: 0.15),
-                iconColor: kEmeraldLight,
-                subLabel: 'vs $safeMax total',
+              Expanded(
+                child: _reportStatCard(
+                  icon: Icons.how_to_reg_rounded,
+                  iconColor: const Color(0xFF6EE7B7),
+                  iconBg: const Color(0xFF123B2A),
+                  value: checkins.toString(),
+                  label: 'Check-ins',
+                  subtext: 'Active attendance',
+                ),
               ),
-              _reportMetric(
-                'Absences',
-                absences.toString(),
-                Icons.event_busy_rounded,
-                barValue: absences / safeMax,
-                barColor: kRose,
-                tint: kRose.withValues(alpha: 0.15),
-                iconColor: kRose,
-                subLabel: 'recorded',
+              const SizedBox(width: 12),
+              Expanded(
+                child: _reportStatCard(
+                  icon: Icons.event_busy_rounded,
+                  iconColor: const Color(0xFFF87171),
+                  iconBg: const Color(0xFF2C1A1C),
+                  value: absences.toString(),
+                  label: 'Absences',
+                  subtext: absences == 0 ? 'Perfect record' : 'Recorded absences',
+                ),
               ),
-              _reportMetric(
-                'Visits recorded',
-                totalVisits.toString(),
-                Icons.event_available_rounded,
-                barValue: totalVisits / safeMax,
-                barColor: kAmber,
-                tint: kAmber.withValues(alpha: 0.15),
-                iconColor: kAmber,
-                subLabel: 'all-time sessions',
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _reportStatCard(
+                  icon: Icons.water_drop_rounded,
+                  iconColor: const Color(0xFF38BDF8),
+                  iconBg: const Color(0xFF0F2E36),
+                  value: alkaline.toString(),
+                  label: 'Alkaline sessions',
+                  subtext: '${(alkaline * 0.5).toStringAsFixed(1)} L total intake',
+                ),
               ),
-              _reportMetric(
-                'Alkaline sessions',
-                alkaline.toString(),
-                Icons.water_drop_rounded,
-                barValue: alkaline / safeMax,
-                barColor: const Color(0xFF38BDF8),
-                tint: const Color(0xFF0EA5E9).withValues(alpha: 0.15),
-                iconColor: const Color(0xFF38BDF8),
-                subLabel: '${(alkaline * 0.5).toStringAsFixed(1)} L total',
+              const SizedBox(width: 12),
+              Expanded(
+                child: _reportStatCard(
+                  icon: Icons.event_available_rounded,
+                  iconColor: const Color(0xFFF5A623),
+                  iconBg: const Color(0xFF2E2412),
+                  value: totalVisits.toString(),
+                  label: 'Total visits',
+                  subtext: 'Recorded history logs',
+                ),
               ),
             ],
           ),
 
-          // Attendance breakdown bar chart
-          const SizedBox(height: 16),
+          const SizedBox(height: 18),
+
+          // ── 2. Visualization Graph: 7-Day Activity & Attendance Bar Chart ───
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
-              color: kDarkSurfaceAlt,
-              borderRadius: BorderRadius.circular(AppRadius.lg),
-              border: Border.all(color: const Color(0xFF1B5E5B), width: 1.2),
+              color: const Color(0xFF0C251C),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: const Color(0xFF153C2C), width: 1.2),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Attendance Breakdown',
-                    style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w800,
-                        color: kTextPrimary)),
-                const SizedBox(height: 4),
-                const Text('Check-ins vs absences — all time',
-                    style: TextStyle(fontSize: 11, color: kTextTertiary)),
-                const SizedBox(height: 16),
-                // Stacked attendance bar
-                () {
-                  final total = checkins + absences;
-                  final safeTotal = total == 0 ? 1 : total;
-                  final checkinFraction = checkins / safeTotal;
-                  return Column(
-                    children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(AppRadius.pill),
-                        child: LayoutBuilder(
-                          builder: (ctx, bc) {
-                            return SizedBox(
-                              height: 12,
-                              width: bc.maxWidth,
-                              child: Stack(
-                                children: [
-                                  Container(
-                                      width: bc.maxWidth,
-                                      color: kRose.withValues(alpha: 0.25)),
-                                  FractionallySizedBox(
-                                    widthFactor: checkinFraction,
-                                    child: Container(
-                                      decoration: const BoxDecoration(
-                                        gradient: LinearGradient(
-                                          colors: [kEmeraldLight, kTurquoiseLight],
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(children: [
-                            Container(width: 10, height: 10,
-                                decoration: const BoxDecoration(
-                                    color: kEmeraldLight,
-                                    shape: BoxShape.circle)),
-                            const SizedBox(width: 6),
-                            Text('Check-ins: $checkins',
-                                style: const TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                    color: kTextPrimary)),
-                          ]),
-                          Row(children: [
-                            Container(width: 10, height: 10,
-                                decoration: BoxDecoration(
-                                    color: kRose.withValues(alpha: 0.7),
-                                    shape: BoxShape.circle)),
-                            const SizedBox(width: 6),
-                            Text('Absences: $absences',
-                                style: const TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                    color: kTextPrimary)),
-                          ]),
-                        ],
-                      ),
-                      if (total > 0) ...[
-                        const SizedBox(height: 10),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                         Text(
-                          'Attendance rate: ${(checkinFraction * 100).round()}%',
-                          style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w800,
-                              color: kEmeraldLight),
+                          'Weekly Activity Graph',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                          ),
+                        ),
+                        SizedBox(height: 2),
+                        Text(
+                          'Client sessions recorded per day',
+                          style: TextStyle(fontSize: 11, color: Color(0xFF9BB3A5)),
                         ),
                       ],
-                    ],
-                  );
-                }(),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF5A623).withOpacity(0.18),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFF5A623).withOpacity(0.4)),
+                      ),
+                      child: Text(
+                        'Total: $totalVisits',
+                        style: const TextStyle(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFFF5A623),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 22),
+
+                // Bar Visualization
+                SizedBox(
+                  height: 120,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: List.generate(7, (i) {
+                      final count = dayActivity[i];
+                      final fraction = count / safeMaxActivity;
+                      final isToday = i == 6;
+
+                      return Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              // Number above bar
+                              Text(
+                                count > 0 ? '$count' : '0',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: count > 0 ? FontWeight.w800 : FontWeight.w500,
+                                  color: isToday
+                                      ? const Color(0xFFF5A623)
+                                      : (count > 0 ? Colors.white : const Color(0xFF5A6E63)),
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              // Bar Container
+                              AnimatedContainer(
+                                duration: const Duration(milliseconds: 600),
+                                curve: Curves.easeOutCubic,
+                                width: double.infinity,
+                                height: count == 0 ? 6 : (fraction * 75).clamp(12.0, 75.0),
+                                decoration: BoxDecoration(
+                                  color: count == 0
+                                      ? const Color(0xFF133628)
+                                      : (isToday ? const Color(0xFFF5A623) : const Color(0xFFD4972C)),
+                                  borderRadius: BorderRadius.circular(6),
+                                  boxShadow: isToday && count > 0
+                                      ? [
+                                          BoxShadow(
+                                            color: const Color(0xFFF5A623).withOpacity(0.4),
+                                            blurRadius: 10,
+                                            offset: const Offset(0, 2),
+                                          ),
+                                        ]
+                                      : null,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              // Day Label
+                              Text(
+                                dayLabels[i],
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: isToday ? FontWeight.w800 : FontWeight.w600,
+                                  color: isToday ? const Color(0xFFF5A623) : const Color(0xFF9BB3A5),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }),
+                  ),
+                ),
+
+                const SizedBox(height: 14),
+                Row(
+                  children: [
+                    const Icon(Icons.show_chart_rounded, size: 16, color: Color(0xFFF5A623)),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Peak day: $maxActivity activity event${maxActivity == 1 ? '' : 's'}',
+                      style: const TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFFF5A623),
+                      ),
+                    ),
+                  ],
+                ),
               ],
             ),
           ),
 
-          const SizedBox(height: 14),
-          _fingerprintStatusCard(),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
+
+          // ── 3. Attendance Rate & Breakdown Ring ──────────────────────────────
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
-              color: kDarkSurfaceAlt,
-              borderRadius: BorderRadius.circular(AppRadius.lg),
-              border: Border.all(color: const Color(0xFF1B5E5B), width: 1.2),
+              color: const Color(0xFF0C251C),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: const Color(0xFF153C2C), width: 1.2),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Attendance Rate & Health',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                const Text(
+                  'Check-in consistency vs recorded absences',
+                  style: TextStyle(fontSize: 11, color: Color(0xFF9BB3A5)),
+                ),
+                const SizedBox(height: 16),
+
+                // Stacked Bar
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(6),
+                  child: SizedBox(
+                    height: 12,
+                    child: Row(
+                      children: [
+                        Expanded(
+                          flex: (checkins * 100).clamp(1, 10000),
+                          child: Container(
+                            color: const Color(0xFF10B981),
+                          ),
+                        ),
+                        if (absences > 0)
+                          Expanded(
+                            flex: (absences * 100).clamp(1, 10000),
+                            child: Container(
+                              color: const Color(0xFFEF4444),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: const BoxDecoration(
+                            color: Color(0xFF10B981),
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Check-ins: $checkins',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Row(
+                      children: [
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFEF4444),
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Absences: $absences',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Text(
+                      'Rate: $attendanceRate%',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w900,
+                        color: Color(0xFFF5A623),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 16),
+
+          // ── 4. Last Recorded Visit Card ──────────────────────────────────────
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0C251C),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFF153C2C), width: 1.2),
             ),
             child: Row(
               children: [
                 Container(
-                  width: 40, height: 40,
+                  width: 38,
+                  height: 38,
                   decoration: BoxDecoration(
-                    color: kEmeraldLight.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(AppRadius.sm),
+                    color: const Color(0xFF133628),
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Icon(Icons.schedule_rounded, color: kEmeraldLight, size: 20),
+                  child: const Icon(
+                    Icons.schedule_rounded,
+                    color: Color(0xFFF5A623),
+                    size: 20,
+                  ),
                 ),
                 const SizedBox(width: 14),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Last visit',
-                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: kTextTertiary)),
-                      const SizedBox(height: 3),
+                      const Text(
+                        'Last recorded activity',
+                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF9BB3A5)),
+                      ),
+                      const SizedBox(height: 2),
                       Text(
                         _client.lastSeen.isEmpty ? 'No visit recorded yet' : _client.lastSeen,
-                        style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w800, color: kTextPrimary),
+                        style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800, color: Colors.white),
                       ),
                     ],
                   ),
@@ -2767,11 +2952,73 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
               ],
             ),
           ),
-          if (_historyUnavailable) ...[
-            const SizedBox(height: 12),
-            const Text('Visit totals may be incomplete while history is unavailable.',
-                style: TextStyle(fontSize: 12, color: kTextTertiary)),
-          ],
+
+          const SizedBox(height: 14),
+          _fingerprintStatusCard(),
+        ],
+      ),
+    );
+  }
+
+  Widget _reportStatCard({
+    required IconData icon,
+    required Color iconColor,
+    required Color iconBg,
+    required String value,
+    required String label,
+    required String subtext,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0C251C),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFF153C2C), width: 1.2),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: iconBg,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, color: iconColor, size: 18),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.w900,
+              color: Colors.white,
+              height: 1.1,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            subtext,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w500,
+              color: Color(0xFF9BB3A5),
+            ),
+          ),
         ],
       ),
     );
