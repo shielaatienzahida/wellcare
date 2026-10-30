@@ -626,7 +626,7 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
       (label: 'Wellness', icon: Icons.favorite_outline_rounded, active: Icons.favorite_rounded,  color: kMint),
       (label: 'Reports',  icon: Icons.query_stats_outlined,   active: Icons.query_stats_rounded,  color: kEmeraldLight),
       (label: 'Alkaline', icon: Icons.water_drop_outlined,    active: Icons.water_drop_rounded,   color: kTurquoise),
-      (label: 'Profile',  icon: Icons.person_outline_rounded, active: Icons.person_rounded,       color: kKelly),
+      (label: 'Profile',  icon: Icons.person_outline_rounded, active: Icons.person_rounded,       color: kAmber),
     ];
 
     return Container(
@@ -1341,16 +1341,16 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                               decoration: BoxDecoration(
-                                color: const Color(0xFF14B8A6).withValues(alpha: 0.16),
+                                color: kAmber.withValues(alpha: 0.16),
                                 borderRadius: BorderRadius.circular(AppRadius.pill),
-                                border: Border.all(color: const Color(0xFF14B8A6).withValues(alpha: 0.35)),
+                                border: Border.all(color: kAmber.withValues(alpha: 0.45)),
                               ),
                               child: Text(
                                 'ID: ${_client.clientIdNumber}',
                                 style: const TextStyle(
                                   fontSize: 10,
                                   fontWeight: FontWeight.w700,
-                                  color: kTurquoiseLight,
+                                  color: kAmber,
                                   letterSpacing: 0.4,
                                 ),
                               ),
@@ -1398,14 +1398,14 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
-                    color: kTurquoise.withValues(alpha: 0.15),
+                    color: kAmber.withValues(alpha: 0.14),
                     borderRadius: BorderRadius.circular(AppRadius.pill),
-                    border: Border.all(color: kTurquoise.withValues(alpha: 0.4)),
+                    border: Border.all(color: kAmber.withValues(alpha: 0.45)),
                   ),
                   child: const Row(children: [
-                    Icon(Icons.edit_rounded, size: 12, color: kTurquoiseLight),
+                    Icon(Icons.edit_rounded, size: 12, color: kAmber),
                     SizedBox(width: 4),
-                    Text('Edit profile', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: kTurquoiseLight)),
+                    Text('Edit profile', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: kAmber)),
                   ]),
                 ),
               ),
@@ -1417,8 +1417,7 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
             if (_client.clientIdNumber.isNotEmpty)
               _infoRowIcon(Icons.badge_rounded, 'Client ID', _client.clientIdNumber, highlight: true),
             _infoRowIcon(Icons.person_rounded, 'Full Name', _client.fullName),
-            _infoRowIcon(Icons.cake_rounded, 'Birthdate',
-                _client.birthdate.isNotEmpty ? _client.birthdate : '—'),
+            _infoRowIcon(Icons.cake_rounded, 'Birthdate', _formatDisplayDate(_client.birthdate)),
             _infoRowIcon(Icons.phone_rounded, 'Phone',
                 _client.phone.isNotEmpty ? _client.phone : '—'),
             _infoRowIcon(Icons.email_outlined, 'Email',
@@ -2787,6 +2786,38 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
     );
   }
 
+  String _formatDisplayDate(String? raw) {
+    if (raw == null || raw.trim().isEmpty || raw == '—') return '—';
+    try {
+      final clean = raw.trim();
+      final dt = DateTime.tryParse(clean);
+      if (dt != null) {
+        const months = [
+          'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+          'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+        ];
+        return '${months[dt.month - 1]} ${dt.day}, ${dt.year}';
+      }
+      if (clean.contains('T')) {
+        final datePart = clean.split('T')[0];
+        final parts = datePart.split('-');
+        if (parts.length == 3) {
+          final year = int.tryParse(parts[0]);
+          final month = int.tryParse(parts[1]);
+          final day = int.tryParse(parts[2]);
+          if (year != null && month != null && day != null && month >= 1 && month <= 12) {
+            const months = [
+              'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+              'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+            ];
+            return '${months[month - 1]} $day, $year';
+          }
+        }
+      }
+    } catch (_) {}
+    return raw;
+  }
+
   Widget _infoRowIcon(IconData icon, String label, String value,
       {bool highlight = false, bool last = false}) {
     return Container(
@@ -2796,7 +2827,7 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
         border: last ? null : const Border(bottom: BorderSide(color: Color(0xFF1B5E5B))),
       ),
       child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
-        Icon(icon, size: 18, color: kTurquoise),
+        Icon(icon, size: 18, color: highlight ? kAmber : kTurquoise),
         const SizedBox(width: 12),
         SizedBox(
           width: 90,
@@ -2811,14 +2842,14 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4.5),
                     decoration: BoxDecoration(
-                      color: kTurquoise.withValues(alpha: 0.16),
+                      color: kAmber.withValues(alpha: 0.16),
                       borderRadius: BorderRadius.circular(AppRadius.pill),
-                      border: Border.all(color: kTurquoise.withValues(alpha: 0.4)),
+                      border: Border.all(color: kAmber.withValues(alpha: 0.45)),
                     ),
                     child: Text(value,
                         style: const TextStyle(
                             fontSize: 12, fontWeight: FontWeight.w800,
-                            color: kTurquoiseLight, letterSpacing: 0.8)),
+                            color: kAmber, letterSpacing: 0.8)),
                   ),
                 )
               : Text(value,
@@ -3607,10 +3638,11 @@ class _EditProfileModalContentState extends State<_EditProfileModalContent> {
                   Container(
                     width: 34, height: 34,
                     decoration: BoxDecoration(
-                      color: kTurquoise.withValues(alpha: 0.16),
+                      color: kAmber.withValues(alpha: 0.16),
                       borderRadius: BorderRadius.circular(AppRadius.xs + 2),
+                      border: Border.all(color: kAmber.withValues(alpha: 0.35)),
                     ),
-                    child: const Icon(Icons.edit_rounded, color: kTurquoiseLight, size: 19),
+                    child: const Icon(Icons.edit_rounded, color: kAmber, size: 19),
                   ),
                   const SizedBox(width: 11),
                   const Text('Edit profile information',
@@ -3720,15 +3752,15 @@ class _EditProfileModalContentState extends State<_EditProfileModalContent> {
                     child: ElevatedButton(
                       onPressed: _saving ? null : _saveProfile,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: kTurquoise,
-                        foregroundColor: Colors.white,
+                        backgroundColor: kAmber,
+                        foregroundColor: Colors.black,
                         shape: const RoundedRectangleBorder(borderRadius: AppRadius.buttonBR),
                         textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
                       ),
                       child: _saving
                           ? const SizedBox(
                               width: 20, height: 20,
-                              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                              child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2))
                           : const Text('Save profile changes'),
                     ),
                   ),
@@ -3765,7 +3797,7 @@ class _EditProfileModalContentState extends State<_EditProfileModalContent> {
         ),
         child: Row(
           children: [
-            Icon(icon, size: 19, color: kTurquoise.withValues(alpha: 0.5)),
+            Icon(icon, size: 19, color: kAmber.withValues(alpha: 0.7)),
             const SizedBox(width: 10),
             Text(value,
                 style: const TextStyle(
@@ -3806,7 +3838,7 @@ class _EditProfileModalContentState extends State<_EditProfileModalContent> {
                   color: enabled ? kTextTertiary : kTextTertiary.withValues(alpha: 0.5),
                 )),
             icon: Icon(Icons.keyboard_arrow_down_rounded,
-                color: enabled ? kTurquoise : kTurquoise.withValues(alpha: 0.4)),
+                color: enabled ? kAmber : kAmber.withValues(alpha: 0.4)),
             isExpanded: true,
             dropdownColor: kDarkSurface,
             style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: kTextPrimary),
@@ -3829,7 +3861,7 @@ class _EditProfileModalContentState extends State<_EditProfileModalContent> {
         style: const TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w800,
-          color: kTurquoise,
+          color: kAmber,
           letterSpacing: 1.2,
         ),
       ),
@@ -3870,7 +3902,7 @@ class _EditProfileModalContentState extends State<_EditProfileModalContent> {
                 fontSize: 12.5,
                 color: kTextTertiary,
               ),
-              prefixIcon: Icon(icon, size: 19, color: kTurquoise),
+              prefixIcon: Icon(icon, size: 19, color: kAmber),
               filled: true,
               fillColor: kDarkSurfaceAlt,
               contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
@@ -3884,7 +3916,7 @@ class _EditProfileModalContentState extends State<_EditProfileModalContent> {
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(AppRadius.sm),
-                borderSide: const BorderSide(color: kTurquoise, width: 1.8),
+                borderSide: const BorderSide(color: kAmber, width: 1.8),
               ),
             ),
           ),
