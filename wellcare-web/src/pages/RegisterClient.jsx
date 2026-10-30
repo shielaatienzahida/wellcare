@@ -53,6 +53,8 @@ export default function RegisterClient() {
   const [form, setForm] = useState(emptyForm);
   const [errors, setErrors] = useState({});
   const [fpStatus, setFpStatus] = useState('idle');
+  const [deviceOnline, setDeviceOnline] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [enrollSessionId, setEnrollSessionId] = useState(null);
   const [capturedFingerprintId, setCapturedFingerprintId] = useState(null);
@@ -65,12 +67,75 @@ export default function RegisterClient() {
     }
   }, []);
 
-  // Fingerprint scan simulation (replace with real ESP32 polling when device is available)
-  // TODO: When ESP32 is connected, use api.startEnrollment() and api.checkEnrollmentStatus() instead
-  const handleEnrollFingerprint = () => {
+  // Check hardware heartbeat every 5s
+  useEffect(() => {
+    let mounted = true;
+    const checkDevice = async () => {
+      try {
+        const res = await api.getDeviceStatus();
+        if (mounted) setDeviceOnline(!!res.online);
+      } catch {
+        if (mounted) setDeviceOnline(false);
+      }
+    };
+    checkDevice();
+    const interval = setInterval(checkDevice, 5000);
+    return () => {
+      mounted = false;
+      clearInterval(interval);
+    };
+  }, []);
+
+  // Fingerprint scan: real ESP32 enrollment
+  const handleEnrollFingerprint = async () => {
     setFpStatus('waiting');
-    setTimeout(() => setFpStatus('success'), 3000);
+    setErrorMessage('');
+    try {
+      const clientName = `${form.first_name} ${form.last_name}`.trim();
+      const res = await api.startEnrollment(clientName);
+      if (res && res.session_id) {
+        setEnrollSessionId(res.session_id);
+      } else {
+        throw new Error('Failed to initiate biometric enrollment session');
+      }
+    } catch (err) {
+      console.error('Biometric enrollment start failed:', err);
+      setFpStatus('error');
+      setErrorMessage(err.message || 'Could not communicate with server or ESP32');
+    }
   };
+
+  const handleCancelEnrollment = async () => {
+    if (enrollSessionId) {
+      try { await api.cancelEnrollment(enrollSessionId); } catch {}
+    }
+    setEnrollSessionId(null);
+    setFpStatus('idle');
+  };
+
+  // Poll real ESP32 enrollment status
+  useEffect(() => {
+    if (!enrollSessionId || fpStatus !== 'waiting') return;
+
+    const interval = setInterval(async () => {
+      try {
+        const res = await api.checkEnrollmentStatus(enrollSessionId);
+        if (res.status === 'captured') {
+          setCapturedFingerprintId(res.fingerprint_id);
+          setFpStatus('success');
+          clearInterval(interval);
+        } else if (res.status === 'expired' || res.status === 'error') {
+          setFpStatus('error');
+          setErrorMessage('Enrollment session timed out. Please try again.');
+          clearInterval(interval);
+        }
+      } catch (err) {
+        console.error('Error checking enrollment status:', err);
+      }
+    }, 1500);
+
+    return () => clearInterval(interval);
+  }, [enrollSessionId, fpStatus]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -108,13 +173,18 @@ if (!form.gender) e.gender = 'Required';
     setStep(1);
   };
 
-  const handleSubmit = async () => {
-    if (fpStatus !== 'success') return;
+  const handleSubmit = async (skipFingerprint = false) => {
+    if (!skipFingerprint && fpStatus !== 'success') return;
     setSubmitting(true);
 
     try {
       const address = [form.city_municipality, form.province, form.region].join(', ');
-      const res = await api.registerClient({ ...form, address, fingerprint_enrolled: true });
+      const res = await api.registerClient({
+        ...form,
+        address,
+        fingerprint_enrolled: !skipFingerprint && capturedFingerprintId !== null,
+        fingerprint_id: (!skipFingerprint && capturedFingerprintId !== null) ? capturedFingerprintId : undefined,
+      });
       navigate('/clients', { state: { newClient: form, username: res.username, password: res.password, client_id_number: res.client_id_number } });
     } catch (err) {
       if (err.message.includes('No token')) {
@@ -250,9 +320,26 @@ if (!form.gender) e.gender = 'Required';
                   <path d="M35 38 C38 22, 62 22, 65 38" stroke="#046A38" strokeWidth="3.5" strokeLinecap="round" />
                 </svg>
               </span>
-              <div>
-                <div className="reg-card-title">Fingerprint Enrollment</div>
-                <div className="reg-card-sub">Scan the client's fingerprint to complete enrollment</div>
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+                <div>
+                  <div className="reg-card-title">Fingerprint Enrollment</div>
+                  <div className="reg-card-sub">Scan the client's fingerprint to complete enrollment</div>
+                </div>
+                <div style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '4px 10px',
+                  borderRadius: '99px',
+                  fontSize: '0.74rem',
+                  fontWeight: 700,
+                  background: deviceOnline ? '#ecfdf5' : '#fef2f2',
+                  color: deviceOnline ? '#047857' : '#b91c1c',
+                  border: `1px solid ${deviceOnline ? '#a7f3d0' : '#fecaca'}`,
+                }}>
+                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: deviceOnline ? '#10b981' : '#ef4444' }} />
+                  {deviceOnline ? 'ESP32 Device Online' : 'Device Offline / Standby'}
+                </div>
               </div>
             </div>
 
@@ -266,12 +353,14 @@ if (!form.gender) e.gender = 'Required';
                 <span className="fp-summary-value">{form.birthdate}</span>
               </div>
               <div className="fp-summary-row">
-                <span className="fp-summary-label">Gender</span>
-                <span className="fp-summary-value">{form.gender}</span>
-              </div>
-              <div className="fp-summary-row">
                 <span className="fp-summary-label">Contact</span>
                 <span className="fp-summary-value">{form.contact_number}</span>
+              </div>
+              <div className="fp-summary-row">
+                <span className="fp-summary-label">Biometric ID</span>
+                <span className="fp-summary-value" style={{ color: capturedFingerprintId !== null ? '#047857' : '#64748b', fontWeight: 800 }}>
+                  {capturedFingerprintId !== null ? `Sensor Slot #${capturedFingerprintId}` : 'Not captured yet'}
+                </span>
               </div>
             </div>
 
@@ -280,25 +369,72 @@ if (!form.gender) e.gender = 'Required';
                 <FingerprintSVG status={fpStatus} />
               </div>
               <div className="fp-status-text">
-                {fpStatus === 'idle' && <><p className="fp-status-title">Ready to Scan</p><p className="fp-status-sub">Click the button below to begin fingerprint enrollment</p></>}
-                {fpStatus === 'waiting' && <><p className="fp-status-title" style={{ color: 'var(--kelly)' }}>Scanning...</p><p className="fp-status-sub">Processing fingerprint enrollment. Please wait...</p></>}
-                {fpStatus === 'success' && <><p className="fp-status-title" style={{ color: 'var(--emerald)' }}>Fingerprint Enrolled!</p><p className="fp-status-sub">The fingerprint has been successfully enrolled.</p></>}
-                {fpStatus === 'error' && <><p className="fp-status-title" style={{ color: '#dc2626' }}>Scan Failed</p><p className="fp-status-sub">Could not complete enrollment. Please try again.</p></>}
+                {fpStatus === 'idle' && (
+                  <>
+                    <p className="fp-status-title">Ready for Biometric Enrollment</p>
+                    <p className="fp-status-sub">Click &quot;Start Fingerprint Scan&quot; and place the client&apos;s finger on the optical sensor</p>
+                  </>
+                )}
+                {fpStatus === 'waiting' && (
+                  <>
+                    <p className="fp-status-title" style={{ color: 'var(--kelly)' }}>Scanning on ESP32...</p>
+                    <p className="fp-status-sub">Place finger on sensor, lift when prompted on OLED, then place the same finger again to confirm</p>
+                  </>
+                )}
+                {fpStatus === 'success' && (
+                  <>
+                    <p className="fp-status-title" style={{ color: 'var(--emerald)' }}>Fingerprint Enrolled!</p>
+                    <p className="fp-status-sub">Biometric template stored in sensor slot #{capturedFingerprintId}. Ready to register.</p>
+                  </>
+                )}
+                {fpStatus === 'error' && (
+                  <>
+                    <p className="fp-status-title" style={{ color: '#dc2626' }}>Scan Failed</p>
+                    <p className="fp-status-sub">{errorMessage || 'Could not complete enrollment. Ensure ESP32 is powered on and retry.'}</p>
+                  </>
+                )}
               </div>
               <div className="fp-esp-note">
                 <span className="fp-esp-dot" />
-                <span>Fingerprint Enrollment — <strong>Enrollment will be processed automatically</strong></span>
+                <span>ESP32 Optical Sensor — <strong>2-step verification with OLED feedback</strong></span>
               </div>
             </div>
 
-            <div style={{ marginTop: '28px', display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-              {fpStatus !== 'success' && (
-                <button className="btn-primary btn-lg" onClick={handleEnrollFingerprint} disabled={fpStatus === 'waiting'} style={{ opacity: fpStatus === 'waiting' ? 0.6 : 1 }}>
-                  {fpStatus === 'waiting' ? 'Scanning...' : fpStatus === 'error' ? 'Retry Scan' : 'Start Fingerprint Scan'}
+            <div style={{ marginTop: '28px', display: 'flex', gap: '12px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+              {fpStatus === 'waiting' && (
+                <button type="button" className="btn-secondary" onClick={handleCancelEnrollment}>
+                  Cancel Scan
                 </button>
               )}
+              {fpStatus !== 'success' && (
+                <>
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={() => handleSubmit(true)}
+                    disabled={submitting}
+                  >
+                    Skip Fingerprint (Enroll Later)
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-primary btn-lg"
+                    onClick={handleEnrollFingerprint}
+                    disabled={fpStatus === 'waiting'}
+                    style={{ opacity: fpStatus === 'waiting' ? 0.6 : 1 }}
+                  >
+                    {fpStatus === 'waiting' ? 'Waiting for Hardware...' : fpStatus === 'error' ? 'Retry Scan' : 'Start Fingerprint Scan'}
+                  </button>
+                </>
+              )}
               {fpStatus === 'success' && (
-                <button className="btn-primary btn-lg" onClick={handleSubmit} disabled={submitting} style={{ background: 'var(--kelly)' }}>
+                <button
+                  type="button"
+                  className="btn-primary btn-lg"
+                  onClick={() => handleSubmit(false)}
+                  disabled={submitting}
+                  style={{ background: 'var(--kelly)' }}
+                >
                   {submitting ? 'Registering...' : 'Complete Registration ✓'}
                 </button>
               )}

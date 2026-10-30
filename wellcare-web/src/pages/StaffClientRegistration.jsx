@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { ArrowLeft, Check, Fingerprint, UserPlus, X } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ArrowLeft, Check, Fingerprint, UserPlus, X, RefreshCw, AlertCircle, Wifi, CheckCircle2 } from 'lucide-react';
 import { api } from '../api';
 import { formatPersonName } from '../nameValidation';
 import CalabarzonAddressFields from '../components/CalabarzonAddressFields';
@@ -39,14 +39,66 @@ function FingerprintSVG({ status }) {
     </svg>
   );
 }
+
 export default function StaffClientRegistration({ onRegistered, onBack }) {
   const [form, setForm] = useState(emptyForm);
   const [step, setStep] = useState(0);
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
-  const [fingerprintLoading, setFingerprintLoading] = useState(false);
   const [error, setError] = useState('');
   const [credentials, setCredentials] = useState(null);
+
+  // Biometric hardware states
+  const [fpStatus, setFpStatus] = useState('idle'); // idle, waiting, success, error
+  const [enrollSessionId, setEnrollSessionId] = useState(null);
+  const [capturedFingerprintId, setCapturedFingerprintId] = useState(null);
+  const [deviceOnline, setDeviceOnline] = useState(null);
+
+  // Check hardware heartbeat
+  useEffect(() => {
+    if (step !== 1) return;
+    let isMounted = true;
+    const checkHw = async () => {
+      try {
+        const res = await api.getDeviceStatus();
+        if (isMounted) setDeviceOnline(Boolean(res.online));
+      } catch {
+        if (isMounted) setDeviceOnline(false);
+      }
+    };
+    checkHw();
+    const timer = setInterval(checkHw, 4000);
+    return () => { isMounted = false; clearInterval(timer); };
+  }, [step]);
+
+  // Polling for ESP32 capture
+  useEffect(() => {
+    if (!enrollSessionId || fpStatus !== 'waiting') return;
+
+    let cancelled = false;
+    const interval = setInterval(async () => {
+      try {
+        const res = await api.checkEnrollmentStatus(enrollSessionId);
+        if (cancelled) return;
+        if (res.status === 'captured') {
+          setCapturedFingerprintId(res.fingerprint_id);
+          setFpStatus('success');
+          clearInterval(interval);
+        } else if (res.status === 'expired' || res.status === 'error') {
+          setFpStatus('error');
+          setError('Enrollment scan timed out. Please try again.');
+          clearInterval(interval);
+        }
+      } catch (err) {
+        console.error('Polling error:', err);
+      }
+    }, 1500);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [enrollSessionId, fpStatus]);
 
   const handleChange = event => {
     const { name, value } = event.target;
@@ -57,7 +109,7 @@ export default function StaffClientRegistration({ onRegistered, onBack }) {
     setErrors(current => ({ ...current, [name]: '' }));
   };
 
-const goToFingerprint = () => {
+  const goToFingerprint = () => {
     const nextErrors = {
       ...validatePersonNameFields(form),
       gender: validateRequired(form.gender, 'Gender'),
@@ -76,18 +128,49 @@ const goToFingerprint = () => {
     }
     setErrors({});
     setError('');
+    setFpStatus('idle');
+    setEnrollSessionId(null);
+    setCapturedFingerprintId(null);
     setStep(1);
   };
 
-  const registerClient = async () => {
-    setSubmitting(true);
-    setFingerprintLoading(true);
+  const handleStartScan = async () => {
+    setFpStatus('waiting');
     setError('');
     try {
-      const [result] = await Promise.all([
-        api.registerClient({ ...form, address: [form.city_municipality, form.province, form.region].join(', '), fingerprint_enrolled: false, fingerprint_id: null }),
-        new Promise(resolve => setTimeout(resolve, 4000)),
-      ]);
+      const clientName = `${form.first_name} ${form.last_name}`.trim();
+      const res = await api.startEnrollment(clientName);
+      if (res && res.session_id) {
+        setEnrollSessionId(res.session_id);
+      } else {
+        throw new Error('Failed to initiate device enrollment');
+      }
+    } catch (err) {
+      console.error('Enrollment start failed:', err);
+      setFpStatus('error');
+      setError('Could not connect to biometric system: ' + (err.message || 'Check connection'));
+    }
+  };
+
+  const handleCancelScan = async () => {
+    if (enrollSessionId) {
+      try { await api.cancelEnrollment(enrollSessionId); } catch {}
+    }
+    setEnrollSessionId(null);
+    setFpStatus('idle');
+  };
+
+  const registerClient = async (skipFingerprint = false) => {
+    setSubmitting(true);
+    setError('');
+    try {
+      const hasFp = !skipFingerprint && fpStatus === 'success' && capturedFingerprintId !== null;
+      const result = await api.registerClient({
+        ...form,
+        address: [form.city_municipality, form.province, form.region].join(', '),
+        fingerprint_enrolled: hasFp,
+        fingerprint_id: hasFp ? capturedFingerprintId : null,
+      });
       setCredentials(result);
       setForm(emptyForm);
       setStep(0);
@@ -96,48 +179,39 @@ const goToFingerprint = () => {
       setError(err.message || 'Could not register client.');
     } finally {
       setSubmitting(false);
-      setFingerprintLoading(false);
     }
   };
 
   return (
     <div className="modal-overlay" onClick={onBack}>
-      <div className="modal-card" style={{ maxWidth: 640, width: '100%', maxHeight: 'calc(100vh - 40px)', padding: 0, overflow: 'hidden' }} onClick={event => event.stopPropagation()}>
-        <div style={{ background: 'linear-gradient(135deg, var(--emerald-900) 0%, var(--emerald-700) 100%)', padding: '20px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
+      <div className="modal-card" style={{ maxWidth: 640, width: '100%', maxHeight: 'calc(100vh - 40px)', padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }} onClick={event => event.stopPropagation()}>
+        <div style={{ background: 'linear-gradient(135deg, var(--emerald-900) 0%, var(--emerald-700) 100%)', padding: '20px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <div style={{ width: 42, height: 42, borderRadius: 10, display: 'grid', placeItems: 'center', color: '#fff', background: 'rgba(255,255,255,0.14)', border: '1px solid rgba(255,255,255,0.22)' }}>
               {credentials ? <Check size={20} /> : step === 0 ? <UserPlus size={20} /> : <Fingerprint size={20} />}
             </div>
             <div>
-              <h2 style={{ color: '#fff', fontSize: '1.05rem', fontWeight: 800 }}>{credentials ? 'Client Registered' : step === 0 ? 'Add New Client' : 'Fingerprint Enrollment'}</h2>
-              <p style={{ color: 'rgba(255,255,255,0.72)', fontSize: '0.78rem', marginTop: 3 }}>{credentials ? 'Share the client’s login details.' : `Step ${step + 1} of 2 · ${step === 0 ? 'Personal Information' : 'Fingerprint'}`}</p>
+              <h2 style={{ color: '#fff', fontSize: '1.05rem', fontWeight: 800 }}>
+                {credentials ? 'Client Registered' : step === 0 ? 'Add New Client' : 'Fingerprint Enrollment'}
+              </h2>
+              <p style={{ color: 'rgba(255,255,255,0.72)', fontSize: '0.78rem', marginTop: 3 }}>
+                {credentials ? 'Account credentials generated' : `Step ${step + 1} of 2 · ${step === 0 ? 'Personal Information' : 'Biometric Sensor'}`}
+              </p>
             </div>
           </div>
-          <button onClick={onBack} aria-label="Close client registration" style={{ width: 34, height: 34, flexShrink: 0, border: 0, borderRadius: 8, display: 'grid', placeItems: 'center', color: '#fff', background: 'rgba(255,255,255,0.14)', cursor: 'pointer' }}>
-            <X size={18} />
+          <button onClick={onBack} aria-label="Close dialog" style={{ background: 'rgba(255,255,255,0.12)', border: 'none', borderRadius: 8, width: 32, height: 32, cursor: 'pointer', color: '#fff', display: 'grid', placeItems: 'center' }}>
+            <X size={16} />
           </button>
         </div>
 
-        {!credentials && (
-          <div style={{ display: 'flex', height: 4 }}>
-            {[0, 1].map(index => <div key={index} style={{ flex: 1, background: index <= step ? 'var(--emerald-500)' : 'rgba(16,185,129,0.2)' }} />)}
-          </div>
-        )}
-
-        <div style={{ padding: '18px 20px', maxHeight: 'calc(100vh - 130px)', overflowY: 'auto' }}>
-          {fingerprintLoading ? (
-            <div role="status" style={{ minHeight: 300, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14, textAlign: 'center' }}>
-              <div className="fp-scanner fp-scanning" style={{ width: 88, height: 88, borderRadius: '50%', display: 'grid', placeItems: 'center', background: 'rgba(16,185,129,0.08)', border: '2px solid rgba(16,185,129,0.3)' }}>
-                <FingerprintSVG status="waiting" />
+        <div style={{ padding: '24px 28px', overflowY: 'auto', flex: 1 }}>
+          {credentials ? (
+            <div>
+              <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'rgba(4,106,56,0.1)', color: 'var(--emerald)', display: 'grid', placeItems: 'center', margin: '0 auto 12px' }}>
+                <Check size={32} />
               </div>
-              <div>
-                <p className="fp-status-title">Processing Registration...</p>
-                <p className="fp-status-sub">Please wait while the account is prepared.</p>
-              </div>
-            </div>
-          ) : credentials ? (
-            <div role="status">
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', marginBottom: 14 }}>Client account was created successfully. Provide these credentials to the client.</p>
+              <h3 style={{ textAlign: 'center', fontSize: '1.2rem', fontWeight: 800, color: 'var(--emerald-950)', marginBottom: 6 }}>Registration Complete!</h3>
+              <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.84rem', marginBottom: 16 }}>Client account was created successfully. Provide these credentials to the client.</p>
               <div className="reg-grid-2" style={{ gap: 10 }}>
                 <div style={{ padding: 10, border: '1px solid rgba(16,185,129,0.18)', borderRadius: 8, background: 'rgba(16,185,129,0.035)' }}><span className="reg-label">Client ID</span><div className="td-slot" style={{ display: 'inline-block', marginTop: 4, padding: '4px 8px', fontSize: '0.78rem' }}>{credentials.client_id_number}</div></div>
                 <div style={{ padding: 10, border: '1px solid rgba(16,185,129,0.18)', borderRadius: 8, background: 'rgba(16,185,129,0.035)' }}><span className="reg-label">Username</span><div className="td-slot" style={{ display: 'inline-block', marginTop: 4, padding: '4px 8px', fontSize: '0.78rem' }}>{credentials.username}</div></div>
@@ -159,10 +233,10 @@ const goToFingerprint = () => {
                 <div className="reg-field"><label className="reg-label">Gender <span className="req">*</span></label><select name="gender" value={form.gender} onChange={handleChange} className={`reg-input ${errors.gender ? 'reg-input-error' : ''}`}><option value="">Select gender</option><option value="Male">Male</option><option value="Female">Female</option><option value="Other">Other</option></select>{errors.gender && <span className="reg-error-msg">{errors.gender}</span>}</div>
               </div>
               <CalabarzonAddressFields {...form} onChange={values => { setForm(current => ({ ...current, ...values })); setErrors(current => ({ ...current, address: '' })); }} error={errors.address} />
-                <div className="reg-grid-2">
-                  <div className="reg-field"><label className="reg-label">Contact Number <span className="req">*</span></label><input name="contact_number" value={form.contact_number} onChange={handleChange} className={`reg-input ${errors.contact_number ? 'reg-input-error' : ''}`} autoComplete="tel" inputMode="numeric" maxLength={11} />{errors.contact_number && <span className="reg-error-msg">{errors.contact_number}</span>}</div>
-                  <div className="reg-field"><label className="reg-label">Emergency Contact <span className="opt">(optional)</span></label><input name="emergency_contact" value={form.emergency_contact} onChange={handleChange} className={`reg-input ${errors.emergency_contact ? 'reg-input-error' : ''}`} maxLength={15} />{errors.emergency_contact && <span className="reg-error-msg">{errors.emergency_contact}</span>}</div>
-                </div>
+              <div className="reg-grid-2">
+                <div className="reg-field"><label className="reg-label">Contact Number <span className="req">*</span></label><input name="contact_number" value={form.contact_number} onChange={handleChange} className={`reg-input ${errors.contact_number ? 'reg-input-error' : ''}`} autoComplete="tel" inputMode="numeric" maxLength={11} />{errors.contact_number && <span className="reg-error-msg">{errors.contact_number}</span>}</div>
+                <div className="reg-field"><label className="reg-label">Emergency Contact <span className="opt">(optional)</span></label><input name="emergency_contact" value={form.emergency_contact} onChange={handleChange} className={`reg-input ${errors.emergency_contact ? 'reg-input-error' : ''}`} maxLength={15} />{errors.emergency_contact && <span className="reg-error-msg">{errors.emergency_contact}</span>}</div>
+              </div>
               <div className="reg-field"><label className="reg-label">Email <span className="req">*</span></label><input type="email" name="email" value={form.email} onChange={handleChange} className={`reg-input ${errors.email ? 'reg-input-error' : ''}`} autoComplete="email" />{errors.email && <span className="reg-error-msg">{errors.email}</span>}</div>
               <div className="reg-field"><label className="reg-label">Emergency Contact Number <span className="opt">(optional)</span></label><input name="emergency_number" value={form.emergency_number} onChange={handleChange} className={`reg-input ${errors.emergency_number ? 'reg-input-error' : ''}`} inputMode="numeric" maxLength={11} />{errors.emergency_number && <span className="reg-error-msg">{errors.emergency_number}</span>}</div>
               {error && <div className="login-error" role="alert">{error}</div>}
@@ -173,20 +247,97 @@ const goToFingerprint = () => {
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              <div style={{ width: 'min(100%, 280px)', aspectRatio: '1 / 1', alignSelf: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: 16, borderRadius: 8, background: 'linear-gradient(135deg, rgba(4,106,56,0.035), rgba(16,185,129,0.08))' }}>
-                <div className="fp-scanner" style={{ width: 108, height: 108, flexShrink: 0, borderRadius: '50%', display: 'grid', placeItems: 'center', background: 'rgba(255,255,255,0.76)', border: '2px solid rgba(16,185,129,0.32)' }}>
-                  <FingerprintSVG status="idle" />
+              {/* Summary of client */}
+              <div className="staff-fp-summary" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
+                <div className="staff-fp-summary-item" style={{ gridColumn: 'span 2' }}>
+                  <span className="staff-fp-summary-label">Client Name</span>
+                  <span className="staff-fp-summary-value">{[form.first_name, form.middle_name, form.last_name].filter(Boolean).join(' ')}</span>
+                </div>
+                <div className="staff-fp-summary-item">
+                  <span className="staff-fp-summary-label">Gender</span>
+                  <span className="staff-fp-summary-value">{form.gender}</span>
+                </div>
+              </div>
+
+              {/* Hardware Indicator */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 14px', borderRadius: 8, background: deviceOnline ? '#ecfdf5' : '#fffbeb', border: `1px solid ${deviceOnline ? '#a7f3d0' : '#fde68a'}` }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.8rem', color: deviceOnline ? '#065f46' : '#92400e', fontWeight: 700 }}>
+                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: deviceOnline ? '#10b981' : '#f59e0b', display: 'inline-block' }} />
+                  {deviceOnline ? 'ESP32 Biometric Hardware Online' : 'Hardware Idle / Offline'}
+                </div>
+                <span style={{ fontSize: '0.72rem', color: '#64748b' }}>AS608 Optical Sensor</span>
+              </div>
+
+              {/* Interactive Biometric Scanner Box */}
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: '24px 16px', borderRadius: 12, background: 'rgba(4,106,56,0.035)', border: '1px solid rgba(16,185,129,0.2)' }}>
+                <div className={`fp-scanner ${fpStatus === 'waiting' ? 'fp-scanning' : ''}`} style={{ width: 108, height: 108, flexShrink: 0, borderRadius: '50%', display: 'grid', placeItems: 'center', background: 'rgba(255,255,255,0.9)', border: `2px solid ${fpStatus === 'success' ? '#10b981' : fpStatus === 'error' ? '#ef4444' : 'rgba(16,185,129,0.35)'}` }}>
+                  <FingerprintSVG status={fpStatus} />
                 </div>
                 <div className="fp-status-text" style={{ width: '100%', textAlign: 'center' }}>
-                  <p className="fp-status-title">Fingerprint Not Enrolled</p>
-                  <p className="fp-status-sub">Save the account now. Fingerprint enrollment can be added when a scanner is available.</p>
+                  {fpStatus === 'idle' && (
+                    <>
+                      <p className="fp-status-title">Ready to Scan</p>
+                      <p className="fp-status-sub">Click <strong>Start Fingerprint Scan</strong> then guide client to place finger on sensor.</p>
+                    </>
+                  )}
+                  {fpStatus === 'waiting' && (
+                    <>
+                      <p className="fp-status-title" style={{ color: 'var(--kelly)' }}>Scanning on Device...</p>
+                      <p className="fp-status-sub">1. Place finger on optical sensor<br />2. Lift when prompted<br />3. Place same finger to confirm</p>
+                    </>
+                  )}
+                  {fpStatus === 'success' && (
+                    <>
+                      <p className="fp-status-title" style={{ color: 'var(--emerald)' }}>Fingerprint Enrolled! ✓</p>
+                      <p className="fp-status-sub">Successfully registered in biometric slot <strong>#{capturedFingerprintId}</strong>.</p>
+                    </>
+                  )}
+                  {fpStatus === 'error' && (
+                    <>
+                      <p className="fp-status-title" style={{ color: '#dc2626' }}>Scan Failed / Timed Out</p>
+                      <p className="fp-status-sub">Could not complete scan on ESP32. Try again or skip for now.</p>
+                    </>
+                  )}
                 </div>
               </div>
 
               {error && <div className="login-error" role="alert">{error}</div>}
-              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, width: '100%', marginTop: 8 }}>
-                <button className="btn-logout" onClick={() => { setStep(0); setError(''); }}>Back</button>
-                <button className="btn-primary" onClick={registerClient} disabled={submitting}>{submitting ? 'Saving...' : 'Save Client'}</button>
+
+              {/* Action Buttons */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, width: '100%', marginTop: 8 }}>
+                <button type="button" className="btn-logout" onClick={() => { setStep(0); setError(''); setFpStatus('idle'); }} disabled={submitting}>Back</button>
+
+                <div style={{ display: 'flex', gap: 8 }}>
+                  {fpStatus !== 'success' && (
+                    <button type="button" className="btn-secondary" onClick={() => registerClient(true)} disabled={submitting || fpStatus === 'waiting'}>
+                      Skip Fingerprint
+                    </button>
+                  )}
+
+                  {fpStatus === 'idle' && (
+                    <button type="button" className="btn-primary" onClick={handleStartScan} disabled={submitting}>
+                      Start Fingerprint Scan
+                    </button>
+                  )}
+
+                  {fpStatus === 'waiting' && (
+                    <button type="button" className="btn-logout" onClick={handleCancelScan} style={{ borderColor: '#fca5a5' }}>
+                      Cancel Scan
+                    </button>
+                  )}
+
+                  {fpStatus === 'error' && (
+                    <button type="button" className="btn-primary" onClick={handleStartScan} disabled={submitting}>
+                      Retry Scan
+                    </button>
+                  )}
+
+                  {fpStatus === 'success' && (
+                    <button type="button" className="btn-primary" onClick={() => registerClient(false)} disabled={submitting}>
+                      {submitting ? 'Saving Client...' : 'Complete Registration ✓'}
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           )}

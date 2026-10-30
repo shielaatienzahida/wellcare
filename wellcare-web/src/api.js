@@ -107,10 +107,16 @@ export const api = {
   // FINGERPRINT ENROLLMENT
   startEnrollment: (client_name) =>
     fetchAPI('/fingerprint/enroll/start', { method: 'POST', body: JSON.stringify({ client_name }) }),
+  cancelEnrollment: (session_id) =>
+    fetchAPI(`/fingerprint/enroll/cancel/${session_id}`, { method: 'POST' }),
   checkEnrollmentStatus: (session_id) =>
     fetchAPI(`/fingerprint/enroll/status/${session_id}`),
   enrollFingerprint: (client_id, fingerprint_id) =>
     fetchAPI('/fingerprint/enroll', { method: 'POST', body: JSON.stringify({ client_id, fingerprint_id }) }),
+  enrollStaffFingerprint: (staff_id, fingerprint_id) =>
+    fetchAPI('/fingerprint/staff/enroll', { method: 'POST', body: JSON.stringify({ staff_id, fingerprint_id }) }),
+  getDeviceStatus: () =>
+    fetchAPI('/fingerprint/device-status'),
 
   // ADMIN
   getAdminProfile: () => fetchAPI('/admin/me'),

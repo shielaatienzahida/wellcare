@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Edit, Archive as ArchiveIcon, X, Trash2 } from 'lucide-react';
+import { Edit, Archive as ArchiveIcon, X, Trash2, Fingerprint } from 'lucide-react';
 import { api } from '../api';
 import AdminLayout from '../components/AdminLayout';
 import CalabarzonAddressFields from '../components/CalabarzonAddressFields';
@@ -49,6 +49,113 @@ export default function ClientDirectory() {
   const [deleteTarget, setDeleteTarget] = useState(null);
 
   const [archivedCount, setArchivedCount] = useState(0);
+
+  // Fingerprint Enrollment Modal state
+  const [fpModalClient, setFpModalClient] = useState(null);
+  const [fpModalStatus, setFpModalStatus] = useState('idle');
+  const [fpModalSessionId, setFpModalSessionId] = useState(null);
+  const [fpModalCapturedId, setFpModalCapturedId] = useState(null);
+  const [fpModalError, setFpModalError] = useState('');
+  const [fpModalDeviceOnline, setFpModalDeviceOnline] = useState(false);
+
+  const openFingerprintModal = (client) => {
+    setFpModalClient(client);
+    setFpModalStatus('idle');
+    setFpModalSessionId(null);
+    setFpModalCapturedId(null);
+    setFpModalError('');
+  };
+
+  const closeFingerprintModal = () => {
+    if (fpModalSessionId && fpModalStatus === 'waiting') {
+      try { api.cancelEnrollment(fpModalSessionId); } catch {}
+    }
+    setFpModalClient(null);
+    setFpModalStatus('idle');
+    setFpModalSessionId(null);
+    setFpModalCapturedId(null);
+    setFpModalError('');
+  };
+
+  // Poll device heartbeat when modal is open
+  useEffect(() => {
+    if (!fpModalClient) return;
+    let mounted = true;
+    const checkHw = async () => {
+      try {
+        const res = await api.getDeviceStatus();
+        if (mounted) setFpModalDeviceOnline(!!res.online);
+      } catch {
+        if (mounted) setFpModalDeviceOnline(false);
+      }
+    };
+    checkHw();
+    const interval = setInterval(checkHw, 4000);
+    return () => { mounted = false; clearInterval(interval); };
+  }, [fpModalClient]);
+
+  // Poll ESP32 enrollment capture
+  useEffect(() => {
+    if (!fpModalSessionId || fpModalStatus !== 'waiting') return;
+    let cancelled = false;
+    const interval = setInterval(async () => {
+      try {
+        const res = await api.checkEnrollmentStatus(fpModalSessionId);
+        if (cancelled) return;
+        if (res.status === 'captured') {
+          setFpModalCapturedId(res.fingerprint_id);
+          setFpModalStatus('success');
+          clearInterval(interval);
+          if (fpModalClient?.id) {
+            try {
+              await api.enrollFingerprint(fpModalClient.id, res.fingerprint_id);
+              await loadClients();
+            } catch (linkErr) {
+              console.error('Failed to link fingerprint:', linkErr);
+              setFpModalError(linkErr.message || 'Captured on hardware, but failed to save to client record.');
+            }
+          }
+        } else if (res.status === 'expired' || res.status === 'error') {
+          setFpModalStatus('error');
+          setFpModalError('Enrollment scan timed out on device. Please try again.');
+          clearInterval(interval);
+        }
+      } catch (err) {
+        console.error('FP polling error:', err);
+      }
+    }, 1500);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [fpModalSessionId, fpModalStatus, fpModalClient]);
+
+  const startClientFpScan = async () => {
+    if (!fpModalClient) return;
+    setFpModalStatus('waiting');
+    setFpModalError('');
+    try {
+      const res = await api.startEnrollment(fpModalClient.full_name);
+      if (res && res.session_id) {
+        setFpModalSessionId(res.session_id);
+      } else {
+        throw new Error('Failed to initiate device enrollment');
+      }
+    } catch (err) {
+      console.error('Scan error:', err);
+      setFpModalStatus('error');
+      setFpModalError('Could not start fingerprint scan on device: ' + (err.message || 'Check connection'));
+    }
+  };
+
+  const cancelClientFpScan = async () => {
+    if (fpModalSessionId) {
+      try { await api.cancelEnrollment(fpModalSessionId); } catch {}
+    }
+    setFpModalSessionId(null);
+    setFpModalStatus('idle');
+  };
 
   const loadClients = async () => {
     if (!localStorage.getItem('heiwa_session_admin')) { navigate('/login'); return; }
@@ -342,6 +449,126 @@ export default function ClientDirectory() {
         />
       )}
 
+      {/* Biometric Enrollment Modal */}
+      {fpModalClient && (
+        <div className="modal-overlay" onMouseDown={e => { if (e.target === e.currentTarget && fpModalStatus !== 'waiting') closeFingerprintModal(); }}>
+          <div className="modal-card" style={{ maxWidth: '440px', width: '100%', padding: '24px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ width: 36, height: 36, borderRadius: '8px', background: '#ecfdf5', color: '#047857', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Fingerprint size={20} />
+                </div>
+                <div>
+                  <h3 className="modal-title" style={{ fontSize: '1.05rem', margin: 0 }}>Client Fingerprint</h3>
+                  <p style={{ margin: '2px 0 0', fontSize: '0.78rem', color: '#64748b' }}>Biometric Enrollment via ESP32</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={closeFingerprintModal}
+                disabled={fpModalStatus === 'waiting'}
+                style={{ border: 0, background: 'none', cursor: fpModalStatus === 'waiting' ? 'not-allowed' : 'pointer', color: '#64748b' }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div style={{ padding: '12px 14px', background: '#f8fafc', borderRadius: '10px', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <p style={{ margin: 0, fontSize: '0.72rem', textTransform: 'uppercase', color: '#64748b', fontWeight: 700 }}>Client</p>
+                <p style={{ margin: '2px 0 0', fontSize: '0.9rem', fontWeight: 800, color: '#064e3b' }}>{fpModalClient.full_name}</p>
+                <p style={{ margin: 0, fontSize: '0.75rem', color: '#64748b' }}>ID: {fpModalClient.client_id_number || 'N/A'}</p>
+              </div>
+              <div style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                padding: '3px 8px',
+                borderRadius: '99px',
+                fontSize: '0.7rem',
+                fontWeight: 700,
+                background: fpModalDeviceOnline ? '#ecfdf5' : '#fef2f2',
+                color: fpModalDeviceOnline ? '#047857' : '#b91c1c',
+                border: `1px solid ${fpModalDeviceOnline ? '#a7f3d0' : '#fecaca'}`,
+              }}>
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: fpModalDeviceOnline ? '#10b981' : '#ef4444' }} />
+                {fpModalDeviceOnline ? 'ESP32 Online' : 'ESP32 Offline'}
+              </div>
+            </div>
+
+            <div style={{ textAlign: 'center', padding: '16px 8px' }}>
+              <div style={{
+                width: 72,
+                height: 72,
+                borderRadius: '50%',
+                margin: '0 auto 12px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: fpModalStatus === 'waiting' ? '#ecfdf5' : fpModalStatus === 'success' ? '#dcfce7' : fpModalStatus === 'error' ? '#fee2e2' : '#f1f5f9',
+                color: fpModalStatus === 'waiting' ? '#10b981' : fpModalStatus === 'success' ? '#15803d' : fpModalStatus === 'error' ? '#b91c1c' : '#64748b',
+                boxShadow: fpModalStatus === 'waiting' ? '0 0 0 6px rgba(16,185,129,0.18)' : 'none',
+                transition: 'all 0.3s ease',
+              }}>
+                <Fingerprint size={36} />
+              </div>
+
+              {fpModalStatus === 'idle' && (
+                <>
+                  <p style={{ margin: 0, fontWeight: 700, color: '#0f172a', fontSize: '0.92rem' }}>Ready to Scan</p>
+                  <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: '0.8rem' }}>Click &quot;Start Scan&quot; and prompt the client to place their finger on the sensor.</p>
+                </>
+              )}
+              {fpModalStatus === 'waiting' && (
+                <>
+                  <p style={{ margin: 0, fontWeight: 700, color: '#047857', fontSize: '0.92rem' }}>Scanning on ESP32...</p>
+                  <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: '0.8rem' }}>Place finger on sensor, lift when prompted on OLED, then place the same finger again.</p>
+                </>
+              )}
+              {fpModalStatus === 'success' && (
+                <>
+                  <p style={{ margin: 0, fontWeight: 700, color: '#15803d', fontSize: '0.92rem' }}>Fingerprint Enrolled!</p>
+                  <p style={{ margin: '4px 0 0', color: '#047857', fontSize: '0.8rem' }}>Captured into sensor slot #{fpModalCapturedId} and linked to client profile.</p>
+                </>
+              )}
+              {fpModalStatus === 'error' && (
+                <>
+                  <p style={{ margin: 0, fontWeight: 700, color: '#b91c1c', fontSize: '0.92rem' }}>Enrollment Failed</p>
+                  <p style={{ margin: '4px 0 0', color: '#dc2626', fontSize: '0.8rem' }}>{fpModalError || 'Could not complete scan. Please try again.'}</p>
+                </>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '16px' }}>
+              {fpModalStatus === 'waiting' ? (
+                <button type="button" className="btn-secondary" onClick={cancelClientFpScan} style={{ fontSize: '0.82rem', padding: '8px 14px' }}>
+                  Cancel Scan
+                </button>
+              ) : fpModalStatus === 'success' ? (
+                <button type="button" className="btn-primary" onClick={closeFingerprintModal} style={{ fontSize: '0.82rem', padding: '8px 18px', background: '#047857' }}>
+                  Done ✓
+                </button>
+              ) : (
+                <>
+                  <button type="button" className="btn-secondary" onClick={closeFingerprintModal} style={{ fontSize: '0.82rem', padding: '8px 14px' }}>
+                    Close
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-primary"
+                    onClick={startClientFpScan}
+                    style={{ fontSize: '0.82rem', padding: '8px 16px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                  >
+                    <Fingerprint size={14} />
+                    {fpModalStatus === 'error' ? 'Retry Scan' : 'Start Scan'}
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       <main style={{ maxWidth: '1280px', margin: '0 auto', padding: '32px 24px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
           <div>
@@ -407,6 +634,14 @@ export default function ClientDirectory() {
                     </td>
                     <td>
                       <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                        <button
+                          onClick={() => openFingerprintModal(c)}
+                          title={c.fingerprint_enrolled ? "Re-enroll Fingerprint" : "Enroll Fingerprint"}
+                          style={{ padding: '4px 10px', borderRadius: '6px', border: '1px solid #10b981', background: '#ecfdf5', color: '#047857', cursor: 'pointer', fontWeight: 700, fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                        >
+                          <Fingerprint size={13} />
+                          {c.fingerprint_enrolled ? 'Re-scan' : 'Enroll FP'}
+                        </button>
                         <button onClick={() => openEdit(c)} style={{ padding: '4px 10px', borderRadius: '6px', border: '1px solid var(--kelly)', background: 'transparent', color: 'var(--kelly)', cursor: 'pointer', fontWeight: 600, fontSize: '12px' }}>
                           Edit
                         </button>

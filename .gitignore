@@ -53,3 +53,7 @@ secrets.h
 Thumbs.db
 .vscode/
 */.vscode/
+
+# Firebase cache
+.firebase/
+*/.firebase/

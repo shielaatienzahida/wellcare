@@ -1,10 +1,30 @@
 // ── PostgreSQL Adapter (Supabase Cloud Database) ───────────────────────────
 const { Pool } = require('pg');
 
+function parseDbUrl(urlStr) {
+  try {
+    const parsed = new URL(urlStr);
+    return {
+      user: decodeURIComponent(parsed.username),
+      password: decodeURIComponent(parsed.password),
+      host: parsed.hostname,
+      port: parsed.port ? parseInt(parsed.port, 10) : 5432,
+      database: parsed.pathname ? parsed.pathname.replace(/^\//, '') : 'postgres',
+    };
+  } catch {
+    return { connectionString: urlStr };
+  }
+}
+
 function createPostgresAdapter(connectionString) {
+  const connConfig = parseDbUrl(connectionString);
+  const sslRejectUnauthorized = process.env.DB_SSL_REJECT_UNAUTHORIZED === 'true';
   const pool = new Pool({
-    connectionString,
-    ssl: { rejectUnauthorized: false },
+    ...connConfig,
+    ssl: { rejectUnauthorized: sslRejectUnauthorized },
+  });
+  pool.on('error', (err) => {
+    console.error('⚠️ Supabase pool connection error (auto-recovering):', err.message);
   });
   console.log('✅ PostgreSQL (Supabase) connection pool active');
 

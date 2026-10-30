@@ -6,11 +6,30 @@ const jwt = require('jsonwebtoken');
 const db = require('./db');
 const { migrate } = require('./migrate');
 
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+
 const app = express();
-app.use(express.json());
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' }
+}));
+app.use(express.json({ limit: '1mb' }));
 app.use(cors());
 
+const isProd = process.env.NODE_ENV === 'production';
 const JWT_SECRET = process.env.JWT_SECRET || 'heiwa_secret_key';
+
+if (isProd && (JWT_SECRET === 'heiwa_secret_key' || JWT_SECRET.length < 32)) {
+  console.warn('⚠️ WARNING: Mobile Backend JWT_SECRET is using default or short key! Set a secure secret in environment variables.');
+}
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: { success: false, message: 'Too many login attempts. Please try again after 15 minutes.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 async function initDB() {
   await db.init();
@@ -18,11 +37,15 @@ async function initDB() {
 }
 
 // Auth middleware
-function auth(req, res, next) {
+async function auth(req, res, next) {
   const token = req.headers.authorization?.split(' ')[1];
   if (!token) return res.status(401).json({ success: false, message: 'No token' });
   try {
     req.user = jwt.verify(token, JWT_SECRET);
+    if (req.user.role === 'client') {
+      const [activeClient] = await db.execute('SELECT id FROM clients WHERE id = ?', [req.user.id]);
+      if (!activeClient.length) return res.status(401).json({ success: false, message: 'Client account is inactive or not found' });
+    }
     next();
   } catch {
     res.status(401).json({ success: false, message: 'Invalid token' });
@@ -55,7 +78,7 @@ function formatClient(c) {
 
 // ── CLIENT AUTH ────────────────────────────────────────
 
-app.post('/api/v1/login', async (req, res) => {
+app.post('/api/v1/login', authLimiter, async (req, res) => {
   const { username, password } = req.body;
   try {
     const [clients] = await db.execute('SELECT * FROM clients WHERE LOWER(username) = LOWER(?)', [username]);

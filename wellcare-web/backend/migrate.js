@@ -283,7 +283,31 @@ async function migrate(db) {
   if (rows.length === 0) {
     const hashed = await bcrypt.hash('heiwa2024', 10);
     await db.execute('INSERT INTO admins (username, email, password) VALUES (?, ?, ?)', ['admin', process.env.ADMIN_RECOVERY_EMAIL?.trim().toLowerCase() || null, hashed]);
-    console.log('👤 Default admin created: admin / heiwa2024');
+    console.log('👤 Default admin created: admin / heiwa2024 (Please rotate in production!)');
+  }
+
+  // Row-Level Security (RLS) for Supabase / PostgreSQL
+  if (isPostgres) {
+    const tables = [
+      'admins',
+      'business_profile',
+      'staff',
+      'staff_fingerprints',
+      'clients',
+      'archived_clients',
+      'session_history',
+      'fingerprints',
+      'messages',
+      'expenses'
+    ];
+    for (const tbl of tables) {
+      try {
+        await db.execute(`ALTER TABLE ${tbl} ENABLE ROW LEVEL SECURITY`);
+      } catch (e) {
+        // Table might not exist yet or already enabled
+      }
+    }
+    console.log('🛡️ Row Level Security (RLS) enabled on PostgreSQL tables');
   }
 
   console.log('✅ Web Backend tables initialized successfully!');

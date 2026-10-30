@@ -42,6 +42,9 @@ const [editForm, setEditForm] = useState({ name: '', birthdate: '', gender: '', 
   const [savingStaff, setSavingStaff] = useState(false);
   const [staffStep, setStaffStep] = useState(0);
   const [fingerprintStatus, setFingerprintStatus] = useState('idle');
+  const [staffEnrollSessionId, setStaffEnrollSessionId] = useState(null);
+  const [staffCapturedFpId, setStaffCapturedFpId] = useState(null);
+  const [staffDeviceOnline, setStaffDeviceOnline] = useState(null);
 
   const loadMonitoring = useCallback(async () => {
     try {
@@ -139,21 +142,106 @@ emergency_contact: member.emergency_contact || '', emergency_number: member.emer
     setNewStaff(emptyStaffForm);
     setStaffStep(0);
     setFingerprintStatus('idle');
+    setStaffEnrollSessionId(null);
+    setStaffCapturedFpId(null);
     setAddStaffError('');
     setStaffValidationErrors({});
   };
 
-  const addStaff = async () => {
+  const handleStartStaffScan = async () => {
+    setFingerprintStatus('waiting');
+    setAddStaffError('');
+    try {
+      const fullName = [newStaff.first_name, newStaff.middle_name, newStaff.last_name].map(p => p.trim()).filter(Boolean).join(' ');
+      const res = await api.startEnrollment(fullName);
+      if (res && res.session_id) {
+        setStaffEnrollSessionId(res.session_id);
+      } else {
+        throw new Error('Failed to start device session');
+      }
+    } catch (err) {
+      console.error('Staff scan start failed:', err);
+      setFingerprintStatus('error');
+      setAddStaffError('Could not start fingerprint scan on device: ' + (err.message || 'Check connection'));
+    }
+  };
+
+  const handleCancelStaffScan = async () => {
+    if (staffEnrollSessionId) {
+      try { await api.cancelEnrollment(staffEnrollSessionId); } catch {}
+    }
+    setStaffEnrollSessionId(null);
+    setFingerprintStatus('idle');
+  };
+
+  // Real-time polling for ESP32 capture
+  useEffect(() => {
+    if (!staffEnrollSessionId || fingerprintStatus !== 'waiting') return;
+
+    let cancelled = false;
+    const interval = setInterval(async () => {
+      try {
+        const res = await api.checkEnrollmentStatus(staffEnrollSessionId);
+        if (cancelled) return;
+        if (res.status === 'captured') {
+          setStaffCapturedFpId(res.fingerprint_id);
+          setFingerprintStatus('success');
+          clearInterval(interval);
+        } else if (res.status === 'expired' || res.status === 'error') {
+          setFingerprintStatus('error');
+          setAddStaffError('Enrollment scan timed out on device. Please try again.');
+          clearInterval(interval);
+        }
+      } catch (err) {
+        console.error('Staff enrollment polling error:', err);
+      }
+    }, 1500);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [staffEnrollSessionId, fingerprintStatus]);
+
+  // Check hardware heartbeat when on staff enrollment step
+  useEffect(() => {
+    if (!showAddStaff || staffStep !== 1) return;
+    let isMounted = true;
+    const checkHw = async () => {
+      try {
+        const res = await api.getDeviceStatus();
+        if (isMounted) setStaffDeviceOnline(Boolean(res.online));
+      } catch {
+        if (isMounted) setStaffDeviceOnline(false);
+      }
+    };
+    checkHw();
+    const timer = setInterval(checkHw, 4000);
+    return () => { isMounted = false; clearInterval(timer); };
+  }, [showAddStaff, staffStep]);
+
+  const addStaff = async (skipFingerprint = false) => {
     setAddStaffError('');
     setSavingStaff(true);
     try {
       const fullName = [newStaff.first_name, newStaff.middle_name, newStaff.last_name].map(part => part.trim()).filter(Boolean).join(' ');
       const address = [newStaff.city_municipality, newStaff.province, newStaff.region].join(', ');
-      await api.addStaff({ ...newStaff, name: fullName, email: newStaff.email.trim().toLowerCase(), gender: null, address, fingerprint_enrolled: fingerprintStatus === 'success' });
+      const hasFp = !skipFingerprint && fingerprintStatus === 'success' && staffCapturedFpId !== null;
+      await api.addStaff({
+        ...newStaff,
+        name: fullName,
+        email: newStaff.email.trim().toLowerCase(),
+        gender: null,
+        address,
+        fingerprint_enrolled: hasFp,
+        fingerprint_id: hasFp ? staffCapturedFpId : undefined,
+      });
       setShowAddStaff(false);
       setNewStaff(emptyStaffForm);
       setStaffStep(0);
       setFingerprintStatus('idle');
+      setStaffEnrollSessionId(null);
+      setStaffCapturedFpId(null);
       await loadMonitoring();
     } catch (err) {
       setAddStaffError(err.message || 'Could not add staff account.');
@@ -225,14 +313,81 @@ const fieldErrors = {
                     <div className="staff-fp-summary-item"><span className="staff-fp-summary-label">Email</span><span className="staff-fp-summary-value">{newStaff.email}</span></div>
                     <div className="staff-fp-summary-item"><span className="staff-fp-summary-label">Contact</span><span className="staff-fp-summary-value">{newStaff.contact_number}</span></div>
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, padding: '24px 12px', borderRadius: 12, background: 'rgba(4,106,56,0.04)' }}>
-                    <div style={{ width: 108, height: 108, borderRadius: '50%', display: 'grid', placeItems: 'center', color: 'var(--emerald-700)', background: 'rgba(16,185,129,0.08)', border: '2px solid rgba(16,185,129,0.3)' }}><Fingerprint size={62} /></div>
-                    <div className="fp-status-text" style={{ textAlign: 'center' }}><p className="fp-status-title">{fingerprintStatus === 'success' ? 'Fingerprint Enrolled!' : fingerprintStatus === 'waiting' ? 'Scanning...' : 'Ready to Scan'}</p><p className="fp-status-sub">{fingerprintStatus === 'success' ? 'Fingerprint enrollment completed.' : fingerprintStatus === 'waiting' ? 'Processing fingerprint enrollment. Please wait...' : 'Click below to begin fingerprint enrollment.'}</p></div>
+                  {/* Hardware Indicator */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 14px', borderRadius: 8, background: staffDeviceOnline ? '#ecfdf5' : '#fffbeb', border: `1px solid ${staffDeviceOnline ? '#a7f3d0' : '#fde68a'}` }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.8rem', color: staffDeviceOnline ? '#065f46' : '#92400e', fontWeight: 700 }}>
+                      <span style={{ width: 8, height: 8, borderRadius: '50%', background: staffDeviceOnline ? '#10b981' : '#f59e0b', display: 'inline-block' }} />
+                      {staffDeviceOnline ? 'ESP32 Biometric Hardware Online' : 'Hardware Idle / Offline'}
+                    </div>
+                    <span style={{ fontSize: '0.72rem', color: '#64748b' }}>AS608 Optical Sensor</span>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, padding: '24px 12px', borderRadius: 12, background: 'rgba(4,106,56,0.04)', border: '1px solid rgba(16,185,129,0.2)' }}>
+                    <div className={`fp-scanner ${fingerprintStatus === 'waiting' ? 'fp-scanning' : ''}`} style={{ width: 108, height: 108, borderRadius: '50%', display: 'grid', placeItems: 'center', color: fingerprintStatus === 'success' ? '#046A38' : fingerprintStatus === 'error' ? '#dc2626' : 'var(--emerald-700)', background: 'rgba(16,185,129,0.08)', border: `2px solid ${fingerprintStatus === 'success' ? '#10b981' : fingerprintStatus === 'error' ? '#ef4444' : 'rgba(16,185,129,0.3)'}` }}>
+                      <Fingerprint size={62} />
+                    </div>
+                    <div className="fp-status-text" style={{ textAlign: 'center' }}>
+                      {fingerprintStatus === 'idle' && (
+                        <>
+                          <p className="fp-status-title">Ready to Scan</p>
+                          <p className="fp-status-sub">Click <strong>Start Fingerprint Scan</strong> and place finger on the optical sensor.</p>
+                        </>
+                      )}
+                      {fingerprintStatus === 'waiting' && (
+                        <>
+                          <p className="fp-status-title" style={{ color: 'var(--kelly)' }}>Scanning on Device...</p>
+                          <p className="fp-status-sub">1. Place finger on sensor<br />2. Lift when prompted on OLED<br />3. Place same finger again</p>
+                        </>
+                      )}
+                      {fingerprintStatus === 'success' && (
+                        <>
+                          <p className="fp-status-title" style={{ color: 'var(--emerald)' }}>Fingerprint Enrolled! ✓</p>
+                          <p className="fp-status-sub">Stored in hardware slot <strong>#{staffCapturedFpId}</strong>.</p>
+                        </>
+                      )}
+                      {fingerprintStatus === 'error' && (
+                        <>
+                          <p className="fp-status-title" style={{ color: '#dc2626' }}>Scan Failed / Timed Out</p>
+                          <p className="fp-status-sub">Could not complete scan on ESP32. Try again or skip for now.</p>
+                        </>
+                      )}
+                    </div>
                   </div>
                   {addStaffError && <div className="login-error" role="alert">{addStaffError}</div>}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
                     <button type="button" className="btn-logout" onClick={() => { setStaffStep(0); setAddStaffError(''); setFingerprintStatus('idle'); }} disabled={savingStaff}>Back</button>
-                    {fingerprintStatus !== 'success' ? <button type="button" className="btn-primary" disabled={fingerprintStatus === 'waiting'} onClick={() => { setFingerprintStatus('waiting'); setTimeout(() => setFingerprintStatus('success'), 3000); }}>{fingerprintStatus === 'waiting' ? 'Scanning...' : 'Start Fingerprint Scan'}</button> : <button type="button" className="btn-primary" onClick={addStaff} disabled={savingStaff}>{savingStaff ? 'Saving...' : 'Complete Registration'}</button>}
+
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      {fingerprintStatus !== 'success' && (
+                        <button type="button" className="btn-secondary" onClick={() => addStaff(true)} disabled={savingStaff || fingerprintStatus === 'waiting'}>
+                          Skip Fingerprint
+                        </button>
+                      )}
+
+                      {fingerprintStatus === 'idle' && (
+                        <button type="button" className="btn-primary" onClick={handleStartStaffScan} disabled={savingStaff}>
+                          Start Fingerprint Scan
+                        </button>
+                      )}
+
+                      {fingerprintStatus === 'waiting' && (
+                        <button type="button" className="btn-logout" onClick={handleCancelStaffScan} style={{ borderColor: '#fca5a5' }}>
+                          Cancel Scan
+                        </button>
+                      )}
+
+                      {fingerprintStatus === 'error' && (
+                        <button type="button" className="btn-primary" onClick={handleStartStaffScan} disabled={savingStaff}>
+                          Retry Scan
+                        </button>
+                      )}
+
+                      {fingerprintStatus === 'success' && (
+                        <button type="button" className="btn-primary" onClick={() => addStaff(false)} disabled={savingStaff}>
+                          {savingStaff ? 'Saving...' : 'Complete Registration ✓'}
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}

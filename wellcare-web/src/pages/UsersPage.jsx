@@ -92,8 +92,56 @@ export default function UsersPage() {
   const [staffForm, setStaffForm] = useState(emptyStaffForm);
   const [staffError, setStaffError] = useState('');
   const [staffErrors, setStaffErrors] = useState({});
-  const [submittingStaff, setSubmittingStaff] = useState(false);
   const [staffFpStatus, setStaffFpStatus] = useState('idle');
+  const [staffEnrollSessionId, setStaffEnrollSessionId] = useState(null);
+  const [staffCapturedFpId, setStaffCapturedFpId] = useState(null);
+  const [staffDeviceOnline, setStaffDeviceOnline] = useState(null);
+
+  // Heartbeat check for hardware
+  useEffect(() => {
+    if (!showAddStaff || staffStep !== 1) return;
+    let isMounted = true;
+    const checkHw = async () => {
+      try {
+        const res = await api.getDeviceStatus();
+        if (isMounted) setStaffDeviceOnline(Boolean(res.online));
+      } catch {
+        if (isMounted) setStaffDeviceOnline(false);
+      }
+    };
+    checkHw();
+    const timer = setInterval(checkHw, 4000);
+    return () => { isMounted = false; clearInterval(timer); };
+  }, [showAddStaff, staffStep]);
+
+  // Polling for ESP32 capture
+  useEffect(() => {
+    if (!staffEnrollSessionId || staffFpStatus !== 'waiting') return;
+
+    let cancelled = false;
+    const interval = setInterval(async () => {
+      try {
+        const res = await api.checkEnrollmentStatus(staffEnrollSessionId);
+        if (cancelled) return;
+        if (res.status === 'captured') {
+          setStaffCapturedFpId(res.fingerprint_id);
+          setStaffFpStatus('success');
+          clearInterval(interval);
+        } else if (res.status === 'expired' || res.status === 'error') {
+          setStaffFpStatus('error');
+          setStaffError('Enrollment scan timed out on device. Please try again.');
+          clearInterval(interval);
+        }
+      } catch (err) {
+        console.error('Staff polling error:', err);
+      }
+    }, 1500);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [staffEnrollSessionId, staffFpStatus]);
 
   // Edit Client
   const [editClient, setEditClient] = useState(null);

@@ -9,11 +9,85 @@ const db = require('./db');
 const { migrate } = require('./migrate');
 const calabarzonPlaces = require('../src/calabarzonPlaces.json');
 
-const app = express();
-app.use(express.json());
-app.use(cors());
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 
+const app = express();
+
+// Security HTTP headers
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' }
+}));
+app.use(express.json({ limit: '1mb' }));
+
+// CORS whitelist
+const defaultAllowedOrigins = [
+  'https://shiela-4061c.web.app',
+  'https://shiela-4061c.firebaseapp.com',
+  'http://localhost:5173',
+  'http://localhost:5000',
+  'http://localhost:5001'
+];
+const envOrigins = process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',').map(s => s.trim()) : [];
+const allowedOrigins = [...new Set([...defaultAllowedOrigins, ...envOrigins])];
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow non-browser requests (e.g. mobile apps, ESP32, curl) or allowed origins
+    if (!origin || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error('Blocked by CORS policy'));
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Device-Key']
+}));
+
+// Strict secret enforcement
+const isProd = process.env.NODE_ENV === 'production';
 const JWT_SECRET = process.env.JWT_SECRET || 'heiwa_secret_key';
+const DEVICE_KEY = process.env.DEVICE_KEY || 'heiwa_device';
+
+if (isProd && (JWT_SECRET === 'heiwa_secret_key' || JWT_SECRET.length < 32)) {
+  console.warn('⚠️ WARNING: Production JWT_SECRET is using default or short key! Set a strong 64-char secret in Render environment variables.');
+}
+if (isProd && DEVICE_KEY === 'heiwa_device') {
+  console.warn('⚠️ WARNING: Production DEVICE_KEY is using default key! Set a unique DEVICE_KEY in Render environment variables.');
+}
+
+// Rate limiters for brute-force protection
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10,
+  message: { success: false, message: 'Too many login attempts. Please try again after 15 minutes.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const passwordResetLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 5,
+  message: { success: false, message: 'Too many password reset requests. Please wait an hour before requesting again.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const otpVerifyLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 15,
+  message: { success: false, message: 'Too many OTP verification attempts. Please request a new code.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const deviceApiLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 120, // Kiosk polling rate
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 const pendingPasswordResets = new Map();
 const passwordResetCooldowns = new Map();
 let smtpTransport = null;
@@ -110,6 +184,9 @@ async function auth(req, res, next) {
     if (req.user.role === 'staff') {
       const [activeStaff] = await db.execute('SELECT id FROM staff WHERE id = ? AND is_archived = FALSE', [req.user.id]);
       if (!activeStaff.length) return res.status(401).json({ success: false, message: 'Staff account is archived' });
+    } else if (req.user.role === 'client') {
+      const [activeClient] = await db.execute('SELECT id FROM clients WHERE id = ?', [req.user.id]);
+      if (!activeClient.length) return res.status(401).json({ success: false, message: 'Client account is inactive or not found' });
     }
     next();
   } catch (err) {
@@ -130,7 +207,7 @@ function isAdminOrStaff(req, res, next) {
 
 // ── AUTH ──────────────────────────────────────────────
 
-app.post('/api/v1/password-reset/request', async (req, res) => {
+app.post('/api/v1/password-reset/request', passwordResetLimiter, async (req, res) => {
   const { username, email, newPassword, confirmPassword } = req.body;
   const accountName = String(username || '').trim();
   const submittedEmail = String(email || '').trim().toLowerCase();
@@ -173,7 +250,7 @@ app.post('/api/v1/password-reset/request', async (req, res) => {
   }
 });
 
-app.post('/api/v1/password-reset/verify', async (req, res) => {
+app.post('/api/v1/password-reset/verify', otpVerifyLimiter, async (req, res) => {
   const resetKey = String(req.body.resetKey || '');
   const reset = pendingPasswordResets.get(resetKey);
   if (!reset || Date.now() >= reset.expiresAt) {
@@ -198,7 +275,7 @@ app.post('/api/v1/password-reset/verify', async (req, res) => {
   }
 });
 
-app.post('/api/v1/login', async (req, res) => {
+app.post('/api/v1/login', authLimiter, async (req, res) => {
   const { username, password } = req.body;
   try {
     // Admin
@@ -467,7 +544,7 @@ app.post('/api/v1/clients', auth, isAdminOrStaff, async (req, res) => {
   const full_name = `${first_name}${middle_name ? ' ' + middle_name : ''} ${last_name}`.trim();
   if (!email?.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return res.status(400).json({ success: false, message: 'A valid recovery email is required.' });
   const username = (first_name + last_name).toLowerCase().replace(/\s+/g, '');
-  const rawPassword = birthdate.replace(/-/g, '');
+  const rawPassword = `Wc-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
   const hashed = await bcrypt.hash(rawPassword, 10);
   
   const client_id_number = Math.floor(100000 + Math.random() * 900000).toString();
@@ -575,7 +652,14 @@ app.delete('/api/v1/clients/archived/:id', auth, isAdminOrStaff, async (req, res
 
 // Get archived clients
 app.get('/api/v1/clients/archived', auth, isAdminOrStaff, async (req, res) => {
-  const [rows] = await db.execute('SELECT * FROM archived_clients ORDER BY archived_at DESC');
+  const [rows] = await db.execute(`
+    SELECT id, client_id, slot_id, full_name, first_name, middle_name, last_name, 
+           username, email, birthdate, gender, contact_number, address, 
+           emergency_contact, emergency_number, client_id_number, 
+           fingerprint_enrolled, total_checkins, total_bottles, absences, 
+           last_seen, archived_at 
+    FROM archived_clients ORDER BY archived_at DESC
+  `);
   res.json({ success: true, clients: rows });
 });
 
@@ -699,9 +783,39 @@ app.post('/api/v1/clients/:id/log', auth, isAdminOrStaff, async (req, res) => {
 });
 
 // ── FINGERPRINT ───────────────────────────────────────
+let lastDeviceHeartbeat = 0;
+app.use('/api/v1/fingerprint', deviceApiLimiter);
+
+app.get('/api/v1/fingerprint/device-status', (req, res) => {
+  const device_key = req.query.device_key || req.headers['x-device-key'];
+  const token = req.headers.authorization?.split(' ')[1];
+  let authorized = false;
+  if (token) {
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET);
+      if (decoded.role === 'admin' || decoded.role === 'staff') authorized = true;
+    } catch (_) {}
+  }
+  if (!authorized && device_key !== DEVICE_KEY) {
+    return res.status(401).json({ success: false, message: 'Unauthorized' });
+  }
+  const isOnline = lastDeviceHeartbeat > 0 && (Date.now() - lastDeviceHeartbeat < 12000);
+  res.json({
+    success: true,
+    online: isOnline,
+    lastSeen: lastDeviceHeartbeat ? new Date(lastDeviceHeartbeat).toISOString() : null,
+    activeEnrollments: pendingEnrollments.size,
+  });
+});
 
 app.post('/api/v1/fingerprint/enroll/start', auth, isAdminOrStaff, (req, res) => {
   const { client_name } = req.body;
+  // Clear any stale waiting sessions to prevent queues
+  for (const [id, s] of pendingEnrollments) {
+    if (s.status === 'waiting' && Date.now() - new Date(s.created_at).getTime() > 45000) {
+      pendingEnrollments.delete(id);
+    }
+  }
   const session_id = 'enroll_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
   pendingEnrollments.set(session_id, {
     clientName: client_name || 'Unknown',
@@ -714,7 +828,12 @@ app.post('/api/v1/fingerprint/enroll/start', auth, isAdminOrStaff, (req, res) =>
   res.json({ success: true, session_id });
 });
 
-app.get('/api/v1/fingerprint/enroll/status/:session_id', auth, (req, res) => {
+app.post('/api/v1/fingerprint/enroll/cancel/:session_id', auth, isAdminOrStaff, (req, res) => {
+  pendingEnrollments.delete(req.params.session_id);
+  res.json({ success: true, message: 'Enrollment cancelled' });
+});
+
+app.get('/api/v1/fingerprint/enroll/status/:session_id', auth, isAdminOrStaff, (req, res) => {
   const session = pendingEnrollments.get(req.params.session_id);
   if (!session) return res.json({ success: true, status: 'expired' });
   res.json({ success: true, status: session.status, fingerprint_id: session.fingerprint_id });
@@ -725,6 +844,7 @@ app.get('/api/v1/fingerprint/enroll/pending', (req, res) => {
   if (device_key !== (process.env.DEVICE_KEY || 'heiwa_device')) {
     return res.status(401).json({ success: false, message: 'Invalid device key' });
   }
+  lastDeviceHeartbeat = Date.now();
   for (const [session_id, session] of pendingEnrollments) {
     if (session.status === 'waiting') {
       return res.json({ success: true, pending: true, session_id, client_name: session.clientName });
@@ -738,27 +858,59 @@ app.post('/api/v1/fingerprint/enroll/capture', (req, res) => {
   if (device_key !== (process.env.DEVICE_KEY || 'heiwa_device')) {
     return res.status(401).json({ success: false, message: 'Invalid device key' });
   }
+  lastDeviceHeartbeat = Date.now();
   const session = pendingEnrollments.get(session_id);
   if (!session) return res.status(404).json({ success: false, message: 'Session not found or expired' });
   
   session.status = 'captured';
-  session.fingerprint_id = fingerprint_id;
+  session.fingerprint_id = Number(fingerprint_id);
   console.log(`🟢 Fingerprint captured for session ${session_id}: fingerprint_id=${fingerprint_id}`);
   res.json({ success: true, message: 'Fingerprint captured' });
 });
 
-app.post('/api/v1/fingerprint/enroll', auth, isAdmin, async (req, res) => {
+app.post('/api/v1/fingerprint/enroll', auth, isAdminOrStaff, async (req, res) => {
   const { client_id, fingerprint_id } = req.body;
   if (!client_id || fingerprint_id === undefined) return res.status(400).json({ success: false, message: 'client_id and fingerprint_id required' });
   try {
+    const parsedId = Number(fingerprint_id);
+    const [existingClient] = await db.execute('SELECT id FROM fingerprints WHERE fingerprint_id = ? AND client_id != ?', [parsedId, client_id]);
+    const [existingStaff] = await db.execute('SELECT id FROM staff_fingerprints WHERE fingerprint_id = ?', [parsedId]);
+    if (existingClient.length || existingStaff.length) {
+      return res.status(409).json({ success: false, message: 'Fingerprint ID is already assigned to another account' });
+    }
+
     await db.execute(
       'INSERT INTO fingerprints (client_id, fingerprint_id) VALUES (?, ?) ON CONFLICT (client_id) DO UPDATE SET fingerprint_id = EXCLUDED.fingerprint_id',
-      [client_id, fingerprint_id]
+      [client_id, parsedId]
     );
     await db.execute('UPDATE clients SET fingerprint_enrolled = TRUE WHERE id = ?', [client_id]);
     res.json({ success: true, message: 'Fingerprint enrolled' });
   } catch (err) {
     if (err.code === 'ER_DUP_ENTRY') return res.status(409).json({ success: false, message: 'Fingerprint ID already assigned to another client' });
+    console.error(err);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+app.post('/api/v1/fingerprint/staff/enroll', auth, isAdmin, async (req, res) => {
+  const { staff_id, fingerprint_id } = req.body;
+  if (!staff_id || fingerprint_id === undefined) return res.status(400).json({ success: false, message: 'staff_id and fingerprint_id required' });
+  try {
+    const parsedId = Number(fingerprint_id);
+    const [existingClient] = await db.execute('SELECT id FROM fingerprints WHERE fingerprint_id = ?', [parsedId]);
+    const [existingStaff] = await db.execute('SELECT id FROM staff_fingerprints WHERE fingerprint_id = ? AND staff_id != ?', [parsedId, staff_id]);
+    if (existingClient.length || existingStaff.length) {
+      return res.status(409).json({ success: false, message: 'Fingerprint ID is already assigned to another account' });
+    }
+
+    await db.execute(
+      'INSERT INTO staff_fingerprints (staff_id, fingerprint_id) VALUES (?, ?) ON CONFLICT (staff_id) DO UPDATE SET fingerprint_id = EXCLUDED.fingerprint_id',
+      [staff_id, parsedId]
+    );
+    await db.execute('UPDATE staff SET fingerprint_enrolled = TRUE WHERE id = ?', [staff_id]);
+    res.json({ success: true, message: 'Staff fingerprint enrolled' });
+  } catch (err) {
+    if (err.code === 'ER_DUP_ENTRY') return res.status(409).json({ success: false, message: 'Fingerprint ID already assigned to another account' });
     console.error(err);
     res.status(500).json({ success: false, message: 'Server error' });
   }
@@ -770,32 +922,56 @@ app.post('/api/v1/fingerprint/verify', async (req, res) => {
     return res.status(401).json({ success: false, message: 'Invalid device key' });
   }
   if (fingerprint_id === undefined) return res.status(400).json({ success: false, message: 'fingerprint_id required' });
+  lastDeviceHeartbeat = Date.now();
 
-  const [rows] = await db.execute(
+  const [clientRows] = await db.execute(
     'SELECT c.* FROM clients c JOIN fingerprints f ON c.id = f.client_id WHERE f.fingerprint_id = ?',
     [fingerprint_id]
   );
 
-  if (rows.length === 0) return res.status(404).json({ success: false, message: 'No client matched' });
-
-  const client = rows[0];
   const now = new Date();
   const dateStr = now.toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 
-  await db.execute('INSERT INTO session_history (client_id, type, logged_by, date) VALUES (?, ?, ?, ?)', [client.id, 'Check-in', 'admin', dateStr]);
-  await db.execute('UPDATE clients SET total_checkins = total_checkins + 1, last_seen = ? WHERE id = ?', [dateStr, client.id]);
+  if (clientRows.length > 0) {
+    const client = clientRows[0];
+    await db.execute('INSERT INTO session_history (client_id, type, logged_by, date) VALUES (?, ?, ?, ?)', [client.id, 'Check-in', 'biometric', dateStr]);
+    await db.execute('UPDATE clients SET total_checkins = total_checkins + 1, last_seen = ? WHERE id = ?', [dateStr, client.id]);
 
-  res.json({
-    success: true,
-    message: 'Check-in logged',
-    client: {
-      id: client.id,
-      full_name: client.full_name,
-      slot_id: client.slot_id,
-      total_checkins: (client.total_checkins || 0) + 1,
-    },
-    date: dateStr,
-  });
+    return res.json({
+      success: true,
+      message: 'Check-in logged',
+      client: {
+        id: client.id,
+        full_name: client.full_name,
+        slot_id: client.slot_id,
+        total_checkins: (client.total_checkins || 0) + 1,
+      },
+      date: dateStr,
+    });
+  }
+
+  // Check if staff member
+  const [staffRows] = await db.execute(
+    'SELECT s.* FROM staff s JOIN staff_fingerprints sf ON s.id = sf.staff_id WHERE sf.fingerprint_id = ? AND s.is_archived = FALSE',
+    [fingerprint_id]
+  );
+
+  if (staffRows.length > 0) {
+    const staffMember = staffRows[0];
+    return res.json({
+      success: true,
+      message: 'Staff attendance verified',
+      client: {
+        id: staffMember.id,
+        full_name: staffMember.name || staffMember.first_name,
+        slot_id: 'Staff',
+        total_checkins: 1,
+      },
+      date: dateStr,
+    });
+  }
+
+  res.status(404).json({ success: false, message: 'No client or staff matched this fingerprint' });
 });
 
 app.get('/api/v1/fingerprint', auth, isAdmin, async (req, res) => {

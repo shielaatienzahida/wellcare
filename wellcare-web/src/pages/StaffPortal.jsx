@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, CheckCircle, CheckCircle2, AlertCircle, Bell, Droplets, MessageCircle, Users, Send, X, User, UserPlus, Search, SlidersHorizontal, ArchiveRestore, Trash2, Pencil, Archive as ArchiveIcon, LayoutDashboard, Activity, Lock, Eye, EyeOff, ShieldCheck, Mail, Save, Calendar, Shield, UserCheck, KeyRound } from 'lucide-react';
+import { ArrowLeft, CheckCircle, CheckCircle2, AlertCircle, Bell, Droplets, MessageCircle, Users, Send, X, User, UserPlus, Search, SlidersHorizontal, ArchiveRestore, Trash2, Pencil, Archive as ArchiveIcon, LayoutDashboard, Activity, Lock, Eye, EyeOff, ShieldCheck, Mail, Save, Calendar, Shield, UserCheck, KeyRound, Fingerprint } from 'lucide-react';
 import { api } from '../api';
 import AppLayout from '../components/AppLayout';
 import StaffClientRegistration from './StaffClientRegistration';
@@ -43,6 +43,13 @@ const [clientEditForm, setClientEditForm] = useState({});
   const [clientEditError, setClientEditError] = useState('');
   const [savingClientEdit, setSavingClientEdit] = useState(false);
   const [archiveClientTarget, setArchiveClientTarget] = useState(null);
+  const [fpModalClient, setFpModalClient] = useState(null);
+  const [fpModalStatus, setFpModalStatus] = useState('idle');
+  const [fpModalSessionId, setFpModalSessionId] = useState(null);
+  const [fpModalCapturedId, setFpModalCapturedId] = useState(null);
+  const [fpModalError, setFpModalError] = useState('');
+  const [fpModalDeviceOnline, setFpModalDeviceOnline] = useState(null);
+  const [enrollingFp, setEnrollingFp] = useState(false);
   const [allMessages, setAllMessages] = useState([]);
   const [activeClientId, setActiveClientId] = useState(null);
   const [msgInput, setMsgInput] = useState('');
@@ -298,6 +305,104 @@ setClientEditError('');
     }
   };
 
+  const openFingerprintModal = (client) => {
+    setFpModalClient(client);
+    setFpModalStatus('idle');
+    setFpModalSessionId(null);
+    setFpModalCapturedId(null);
+    setFpModalError('');
+  };
+
+  const closeFingerprintModal = () => {
+    if (fpModalSessionId && fpModalStatus === 'waiting') {
+      try { api.cancelEnrollment(fpModalSessionId); } catch {}
+    }
+    setFpModalClient(null);
+    setFpModalStatus('idle');
+    setFpModalSessionId(null);
+    setFpModalCapturedId(null);
+    setFpModalError('');
+  };
+
+  useEffect(() => {
+    if (!fpModalClient) return;
+    let isMounted = true;
+    const checkHw = async () => {
+      try {
+        const res = await api.getDeviceStatus();
+        if (isMounted) setFpModalDeviceOnline(Boolean(res.online));
+      } catch {
+        if (isMounted) setFpModalDeviceOnline(false);
+      }
+    };
+    checkHw();
+    const timer = setInterval(checkHw, 4000);
+    return () => { isMounted = false; clearInterval(timer); };
+  }, [fpModalClient]);
+
+  useEffect(() => {
+    if (!fpModalSessionId || fpModalStatus !== 'waiting') return;
+
+    let cancelled = false;
+    const interval = setInterval(async () => {
+      try {
+        const res = await api.checkEnrollmentStatus(fpModalSessionId);
+        if (cancelled) return;
+        if (res.status === 'captured') {
+          setFpModalCapturedId(res.fingerprint_id);
+          setFpModalStatus('success');
+          clearInterval(interval);
+          if (fpModalClient?.id) {
+            try {
+              await api.enrollFingerprint(fpModalClient.id, res.fingerprint_id);
+              await loadClients();
+            } catch (linkErr) {
+              console.error('Failed to link fingerprint:', linkErr);
+              setFpModalError(linkErr.message || 'Captured on hardware, but failed to save to client record.');
+            }
+          }
+        } else if (res.status === 'expired' || res.status === 'error') {
+          setFpModalStatus('error');
+          setFpModalError('Enrollment scan timed out on device. Please try again.');
+          clearInterval(interval);
+        }
+      } catch (err) {
+        console.error('FP polling error:', err);
+      }
+    }, 1500);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [fpModalSessionId, fpModalStatus, fpModalClient]);
+
+  const startClientFpScan = async () => {
+    if (!fpModalClient) return;
+    setFpModalStatus('waiting');
+    setFpModalError('');
+    try {
+      const res = await api.startEnrollment(fpModalClient.full_name);
+      if (res && res.session_id) {
+        setFpModalSessionId(res.session_id);
+      } else {
+        throw new Error('Failed to initiate device enrollment');
+      }
+    } catch (err) {
+      console.error('Scan error:', err);
+      setFpModalStatus('error');
+      setFpModalError('Could not start fingerprint scan on device: ' + (err.message || 'Check connection'));
+    }
+  };
+
+  const cancelClientFpScan = async () => {
+    if (fpModalSessionId) {
+      try { await api.cancelEnrollment(fpModalSessionId); } catch {}
+    }
+    setFpModalSessionId(null);
+    setFpModalStatus('idle');
+  };
+
   const handleSend = async () => {
     if (!msgInput.trim() || !activeClientId) return;
     
@@ -463,6 +568,16 @@ setClientEditError('');
       isMobile={false}
     >
 
+      {showClientRegistration && (
+        <StaffClientRegistration
+          onBack={() => setShowClientRegistration(false)}
+          onRegistered={() => {
+            setShowClientRegistration(false);
+            loadClients();
+          }}
+        />
+      )}
+
       {clientEditTarget && (
         <div className="modal-overlay" onClick={() => setClientEditTarget(null)}>
           <div className="modal-card" role="dialog" aria-modal="true" aria-labelledby="staff-client-edit-title" style={{ maxWidth: 560, width: '100%' }} onClick={event => event.stopPropagation()}>
@@ -534,6 +649,120 @@ setClientEditError('');
             <div style={{ display: 'flex', gap: '12px', marginTop: '24px', justifyContent: 'flex-end' }}>
               <button className="btn-logout" onClick={() => setLogTarget(null)}>Cancel</button>
               <button className="btn-primary" onClick={handleLogAction}>Yes, Log It</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Fingerprint Enrollment Modal for Client */}
+      {fpModalClient && (
+        <div className="modal-overlay" onClick={closeFingerprintModal}>
+          <div className="modal-card" role="dialog" aria-modal="true" style={{ maxWidth: 480, width: '100%', padding: 0, overflow: 'hidden' }} onClick={e => e.stopPropagation()}>
+            <div style={{ background: 'linear-gradient(135deg, var(--emerald-900) 0%, var(--emerald-700) 100%)', padding: '18px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ width: 38, height: 38, borderRadius: 10, display: 'grid', placeItems: 'center', color: '#fff', background: 'rgba(255,255,255,0.14)' }}>
+                  <Fingerprint size={20} />
+                </div>
+                <div>
+                  <h3 style={{ color: '#fff', fontSize: '1rem', fontWeight: 800, margin: 0 }}>Client Biometric Scanner</h3>
+                  <p style={{ color: 'rgba(255,255,255,0.75)', fontSize: '0.74rem', margin: '2px 0 0' }}>{fpModalClient.full_name} · ID: {fpModalClient.client_id_number || '—'}</p>
+                </div>
+              </div>
+              <button type="button" onClick={closeFingerprintModal} aria-label="Close" style={{ border: 0, background: 'rgba(255,255,255,0.12)', borderRadius: 8, width: 30, height: 30, display: 'grid', placeItems: 'center', cursor: 'pointer', color: '#fff' }}>
+                <X size={15} />
+              </button>
+            </div>
+
+            <div style={{ padding: '22px 24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {/* Hardware Status Indicator */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderRadius: 8, background: fpModalDeviceOnline ? '#ecfdf5' : '#fffbeb', border: `1px solid ${fpModalDeviceOnline ? '#a7f3d0' : '#fde68a'}` }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: '0.78rem', color: fpModalDeviceOnline ? '#065f46' : '#92400e', fontWeight: 700 }}>
+                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: fpModalDeviceOnline ? '#10b981' : '#f59e0b', display: 'inline-block' }} />
+                  {fpModalDeviceOnline ? 'ESP32 Biometric Hardware Online' : 'Hardware Idle / Offline'}
+                </div>
+                <span style={{ fontSize: '0.72rem', color: '#64748b' }}>AS608 Optical Sensor</span>
+              </div>
+
+              {/* Status Box */}
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, padding: '24px 16px', borderRadius: 12, background: 'rgba(4,106,56,0.035)', border: '1px solid rgba(16,185,129,0.2)' }}>
+                <div className={`fp-scanner ${fpModalStatus === 'waiting' ? 'fp-scanning' : ''}`} style={{ width: 100, height: 100, borderRadius: '50%', display: 'grid', placeItems: 'center', color: fpModalStatus === 'success' || fpModalClient.fingerprint_enrolled ? '#046A38' : fpModalStatus === 'error' ? '#dc2626' : 'var(--emerald-700)', background: 'rgba(16,185,129,0.08)', border: `2px solid ${fpModalStatus === 'success' ? '#10b981' : fpModalStatus === 'error' ? '#ef4444' : 'rgba(16,185,129,0.3)'}` }}>
+                  <Fingerprint size={56} />
+                </div>
+                <div style={{ textAlign: 'center' }}>
+                  {fpModalStatus === 'idle' && (
+                    <>
+                      <p className="fp-status-title" style={{ fontSize: '0.95rem', fontWeight: 800, margin: '0 0 4px', color: 'var(--emerald-950)' }}>
+                        {fpModalClient.fingerprint_enrolled ? 'Fingerprint Currently Enrolled' : 'Ready to Enroll'}
+                      </p>
+                      <p className="fp-status-sub" style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: 0 }}>
+                        {fpModalClient.fingerprint_enrolled ? 'Client already has a fingerprint on file. Click below if you need to re-enroll or replace it.' : 'Click Start Scan and instruct client to place finger on the ESP32 scanner.'}
+                      </p>
+                    </>
+                  )}
+                  {fpModalStatus === 'waiting' && (
+                    <>
+                      <p className="fp-status-title" style={{ fontSize: '0.95rem', fontWeight: 800, margin: '0 0 4px', color: 'var(--kelly)' }}>
+                        Scanning on Hardware...
+                      </p>
+                      <p className="fp-status-sub" style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: 0 }}>
+                        1. Place finger on optical sensor<br />2. Lift when prompted on OLED<br />3. Place same finger again to confirm
+                      </p>
+                    </>
+                  )}
+                  {fpModalStatus === 'success' && (
+                    <>
+                      <p className="fp-status-title" style={{ fontSize: '0.95rem', fontWeight: 800, margin: '0 0 4px', color: 'var(--emerald)' }}>
+                        Enrollment Successful! ✓
+                      </p>
+                      <p className="fp-status-sub" style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: 0 }}>
+                        Fingerprint registered and saved to {fpModalClient.full_name} (Slot #{fpModalCapturedId}).
+                      </p>
+                    </>
+                  )}
+                  {fpModalStatus === 'error' && (
+                    <>
+                      <p className="fp-status-title" style={{ fontSize: '0.95rem', fontWeight: 800, margin: '0 0 4px', color: '#dc2626' }}>
+                        Scan Timed Out / Failed
+                      </p>
+                      <p className="fp-status-sub" style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: 0 }}>
+                        Could not capture print. Ensure ESP32 is powered on and finger is clean.
+                      </p>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {fpModalError && <div className="login-error" role="alert">{fpModalError}</div>}
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 4 }}>
+                <button type="button" className="btn-logout" onClick={closeFingerprintModal}>
+                  {fpModalStatus === 'success' ? 'Done' : 'Close'}
+                </button>
+
+                {fpModalStatus === 'idle' && (
+                  <button type="button" className="btn-primary" onClick={startClientFpScan}>
+                    {fpModalClient.fingerprint_enrolled ? 'Re-enroll Fingerprint' : 'Start Fingerprint Scan'}
+                  </button>
+                )}
+
+                {fpModalStatus === 'waiting' && (
+                  <button type="button" className="btn-logout" onClick={cancelClientFpScan} style={{ borderColor: '#fca5a5' }}>
+                    Cancel Scan
+                  </button>
+                )}
+
+                {fpModalStatus === 'error' && (
+                  <button type="button" className="btn-primary" onClick={startClientFpScan}>
+                    Retry Scan
+                  </button>
+                )}
+
+                {fpModalStatus === 'success' && (
+                  <button type="button" className="btn-primary" onClick={closeFingerprintModal}>
+                    Complete ✓
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -713,6 +942,7 @@ setClientEditError('');
                       <th>Absences</th>
                       <th>Alkaline</th>
                       <th>Last Visit</th>
+                      <th>Fingerprint</th>
                       <th>Action</th>
                     </tr>
                   </thead>
@@ -727,17 +957,29 @@ setClientEditError('');
                         <td><span className="badge badge-emerald">{c.total_bottles ?? 0}</span></td>
                         <td className="td-date">{c.last_seen || '—'}</td>
                         <td>
+                          {c.fingerprint_enrolled ? (
+                            <span className="badge badge-green" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                              <Fingerprint size={12} />Enrolled
+                            </span>
+                          ) : (
+                            <span className="badge badge-red" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                              <Fingerprint size={12} />Not enrolled
+                            </span>
+                          )}
+                        </td>
+                        <td>
                           <div style={{ display: 'flex', gap: 5, flexWrap: 'nowrap' }}>
                             <button type="button" onClick={() => setLogTarget({ client: c, type: 'checkin' })} title="Log check-in" aria-label={`Log check-in for ${c.full_name}`} style={{ width: 32, height: 32, display: 'grid', placeItems: 'center', borderRadius: 7, border: '1px solid var(--kelly)', background: 'transparent', color: 'var(--kelly)', cursor: 'pointer' }}><CheckCircle size={15} /></button>
                             <button type="button" onClick={() => setLogTarget({ client: c, type: 'absence' })} title="Log absence" aria-label={`Log absence for ${c.full_name}`} style={{ width: 32, height: 32, display: 'grid', placeItems: 'center', borderRadius: 7, border: '1px solid #dc2626', background: 'transparent', color: '#dc2626', cursor: 'pointer' }}><AlertCircle size={15} /></button>
                             <button type="button" onClick={() => setLogTarget({ client: c, type: 'alkaline' })} title="Log alkaline session" aria-label={`Log alkaline session for ${c.full_name}`} style={{ width: 32, height: 32, display: 'grid', placeItems: 'center', borderRadius: 7, border: '1px solid var(--emerald)', background: 'transparent', color: 'var(--emerald)', cursor: 'pointer' }}><Droplets size={15} /></button>
+                            <button type="button" onClick={() => openFingerprintModal(c)} title={c.fingerprint_enrolled ? "Fingerprint: Enrolled (Click to manage)" : "Fingerprint: Not enrolled (Click to scan)"} aria-label={`Fingerprint for ${c.full_name}`} style={{ width: 32, height: 32, display: 'grid', placeItems: 'center', borderRadius: 7, border: c.fingerprint_enrolled ? '1px solid #10b981' : '1px solid #059669', background: c.fingerprint_enrolled ? 'rgba(16,185,129,0.14)' : 'transparent', color: '#046a38', cursor: 'pointer' }}><Fingerprint size={15} /></button>
                             <button type="button" onClick={() => openClientEdit(c)} title="Edit client" aria-label={`Edit ${c.full_name}`} style={{ width: 32, height: 32, display: 'grid', placeItems: 'center', borderRadius: 7, border: '1px solid #2563eb', background: 'transparent', color: '#2563eb', cursor: 'pointer' }}><Pencil size={15} /></button>
                             <button type="button" onClick={() => setArchiveClientTarget(c)} title="Archive client" aria-label={`Archive ${c.full_name}`} style={{ width: 32, height: 32, display: 'grid', placeItems: 'center', borderRadius: 7, border: '1px solid #d97706', background: 'transparent', color: '#d97706', cursor: 'pointer' }}><ArchiveIcon size={15} /></button>
                           </div>
                         </td>
                       </tr>
                     ))}
-                    {filtered.length === 0 && <tr><td colSpan={8} className="empty-state">No clients found.</td></tr>}
+                    {filtered.length === 0 && <tr><td colSpan={9} className="empty-state">No clients found.</td></tr>}
                   </tbody>
                 </table>
               </div>
