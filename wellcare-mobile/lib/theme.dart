@@ -7,10 +7,10 @@ import 'package:http/http.dart' as http;
 // WellCare Premium Dark Teal & Turquoise Wellness Aesthetic
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Dark green base
-const kDarkBg = Color(0xFF0D3B2F);
-const kDarkSurface = Color(0xFF0F4A38);
-const kDarkSurfaceAlt = Color(0xFF125A42);
+// Dark green base (#0B1F1A)
+const kDarkBg = Color(0xFF0B1F1A);
+const kDarkSurface = Color(0xFF132F28);
+const kDarkSurfaceAlt = Color(0xFF1A3D34);
 
 // Turquoise and teal accents
 const kTurquoise = Color(0xFF14B8A6);
@@ -21,17 +21,22 @@ const kCyanLight = Color(0xFF22D3EE);
 const kMint = Color(0xFF10B981);
 const kMintLight = Color(0xFF6EE7B7);
 
+// Brand accents (#F5B942 Amber & #F4EFE6 Cream)
+const kAmber = Color(0xFFF5B942);
+const kAmberLight = Color(0xFFFBD47D);
+const kCream = Color(0xFFF4EFE6);
+const kCreamMuted = Color(0xFFDCD5C8);
+
 // Accent colors
 const kLavender = Color(0xFF8B5CF6);
 const kRose = Color(0xFFF43F5E);
-const kAmber = Color(0xFFF59E0B);
 const kWhite = Color(0xFFFFFFFF);
 const kBlack = Color(0xFF000000);
 
-// Text colors for dark theme
-const kTextPrimary = Color(0xFFFFFFFF);           // White - Main text on dark backgrounds
-const kTextSecondary = Color(0xFF5EEAD4);        // Soft teal - Secondary text
-const kTextTertiary = Color(0xFFB0BEC5);         // Light gray - Tertiary/subtle text
+// Text colors for dark theme (Cream palette)
+const kTextPrimary = Color(0xFFF4EFE6);           // #F4EFE6 Cream - Main text on dark backgrounds
+const kTextSecondary = Color(0xFFE5DECE);         // Soft cream - Secondary text
+const kTextTertiary = Color(0xFFA59E90);          // Subtle cream-gray - Tertiary text
 
 // Light background text colors (for info cards, modals, etc.)
 const kLightBgText = Color(0xFF0F172A);          // Dark text on light backgrounds
@@ -58,10 +63,16 @@ const kGradientSkyEnd = Color(0xFF8B5CF6);
 // Premium dark theme gradients
 const kGradientDarkTeal = LinearGradient(
   colors: [
-    Color(0xFF135345),
-    Color(0xFF0E4337),
-    Color(0xFF0A2E25),
+    Color(0xFF163C32),
+    Color(0xFF102E26),
+    Color(0xFF0B1F1A),
   ],
+  begin: Alignment.topLeft,
+  end: Alignment.bottomRight,
+);
+
+const kGradientAmber = LinearGradient(
+  colors: [kAmber, Color(0xFFD4971E)],
   begin: Alignment.topLeft,
   end: Alignment.bottomRight,
 );
@@ -125,14 +136,17 @@ class AppColors {
   static const lavender = kLavender;
   static const rose = kRose;
   static const amber = kAmber;
+  static const amberLight = kAmberLight;
+  static const cream = kCream;
+  static const creamMuted = kCreamMuted;
 
   // Neutrals / surfaces
   static const surface = kDarkSurface;
   static const surfaceMuted = kSand;
   static const surfaceSunken = kSandDark;
   static const ink = kTextPrimary;
-  static const inkSoft = Color(0xFFFFFFFF);
-  static const inkFaint = Color(0xFFE0F2F1);
+  static const inkSoft = kCream;
+  static const inkFaint = kCreamMuted;
   static const hairline = Color(0xFF1B5E5B);
   static const hairlineDark = Color(0xFF0F4A38);
 

@@ -33,6 +33,11 @@ build/
 !*.env.example
 !*/*.env.example
 !*/*/*.env.example
+secrets.h
+*/secrets.h
+*/*/secrets.h
+!secrets.h.example
+!*/secrets.h.example
 
 # Logs and databases
 *.log

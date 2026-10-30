@@ -124,17 +124,58 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
     final shouldLogout = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Log out?'),
-        content: const Text('Are you sure you want to log out of your account?'),
+        backgroundColor: kDarkSurface,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          side: BorderSide(color: kAmber.withOpacity(0.35), width: 1.2),
+        ),
+        titlePadding: const EdgeInsets.fromLTRB(22, 22, 22, 8),
+        contentPadding: const EdgeInsets.fromLTRB(22, 10, 22, 8),
+        title: Row(
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: const Color(0xFFDC2626).withOpacity(0.18),
+                borderRadius: BorderRadius.circular(AppRadius.sm),
+                border: Border.all(color: const Color(0xFFF87171).withOpacity(0.35), width: 1.2),
+              ),
+              child: const Icon(Icons.logout_rounded, color: Color(0xFFF87171), size: 22),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                'Log out?',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: kCream),
+              ),
+            ),
+          ],
+        ),
+        content: const Text(
+          'Are you sure you want to log out of your WellCare account on this device?',
+          style: TextStyle(fontSize: 13.5, height: 1.5, color: kTextSecondary),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Cancel'),
+            style: TextButton.styleFrom(
+              foregroundColor: kTextTertiary,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            ),
+            child: const Text('Cancel', style: TextStyle(fontWeight: FontWeight.w700)),
           ),
-          FilledButton(
+          FilledButton.icon(
             onPressed: () => Navigator.pop(dialogContext, true),
-            style: FilledButton.styleFrom(backgroundColor: kEmerald),
-            child: const Text('Log out'),
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFFDC2626),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.sm)),
+            ),
+            icon: const Icon(Icons.logout_rounded, size: 16),
+            label: const Text('Log out', style: TextStyle(fontWeight: FontWeight.w800)),
           ),
         ],
       ),
@@ -146,7 +187,11 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
     if (!context.mounted) return;
     Navigator.pushAndRemoveUntil(
       context,
-      MaterialPageRoute(builder: (_) => const LandingScreen()),
+      MaterialPageRoute(
+        builder: (_) => const LandingScreen(
+          logoutMessage: 'You have been successfully logged out.',
+        ),
+      ),
       (_) => false,
     );
   }
@@ -1388,23 +1433,100 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
 
           const SizedBox(height: 16),
 
-          // ── Logout button inside Profile tab ──────────────────────────────
-          SizedBox(
+          // ── Logout container inside Profile tab ───────────────────────────
+          Container(
             width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: () => _logout(context),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: const Color(0xFFF87171),
-                backgroundColor: const Color(0xFFF87171).withValues(alpha: 0.08),
-                side: const BorderSide(color: Color(0xFFF87171), width: 1.2),
-                minimumSize: const Size(double.infinity, 44),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(AppRadius.lg)),
-                textStyle: const TextStyle(
-                    fontSize: 13.5, fontWeight: FontWeight.w700),
+            decoration: BoxDecoration(
+              color: kDarkSurface,
+              borderRadius: BorderRadius.circular(AppRadius.lg),
+              border: Border.all(
+                color: const Color(0xFFF87171).withValues(alpha: 0.28),
+                width: 1.2,
               ),
-              icon: const Icon(Icons.logout_rounded, size: 17),
-              label: const Text('Log out'),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.25),
+                  blurRadius: 14,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            padding: const EdgeInsets.all(18),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFDC2626).withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: const Color(0xFFF87171).withValues(alpha: 0.25),
+                          width: 1,
+                        ),
+                      ),
+                      child: const Icon(
+                        Icons.logout_rounded,
+                        color: Color(0xFFF87171),
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Account Session',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w800,
+                              color: kCream,
+                              letterSpacing: -0.2,
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            'Sign out of your account on this device',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: kCreamMuted,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: () => _logout(context),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFFDC2626),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(AppRadius.md),
+                      ),
+                    ),
+                    icon: const Icon(Icons.logout_rounded, size: 17),
+                    label: const Text(
+                      'Log Out',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 13.5,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -3525,11 +3647,6 @@ class _EditProfileModalContentState extends State<_EditProfileModalContent> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _fieldLabel('ACCOUNT CREDENTIALS'),
-                  _inputTile(controller: _usernameCtrl, label: 'Username', icon: Icons.alternate_email_rounded),
-                  _inputTile(controller: _passwordCtrl, label: 'New Password (optional)', icon: Icons.lock_outline_rounded, isPassword: true),
-
-                  const SizedBox(height: 10),
                   _fieldLabel('PERSONAL DETAILS'),
                   _inputTile(controller: _firstNameCtrl, label: 'First Name', icon: Icons.person_rounded),
                   _inputTile(controller: _middleNameCtrl, label: 'Middle Name (Optional)', icon: Icons.person_outline_rounded),
@@ -3590,6 +3707,11 @@ class _EditProfileModalContentState extends State<_EditProfileModalContent> {
                   _fieldLabel('EMERGENCY CONTACT'),
                   _inputTile(controller: _emergencyContactCtrl, label: 'Emergency Contact Name', icon: Icons.contact_phone_rounded),
                   _inputTile(controller: _emergencyNumberCtrl, label: 'Emergency Phone Number', icon: Icons.phone_callback_rounded),
+
+                  const SizedBox(height: 10),
+                  _fieldLabel('ACCOUNT CREDENTIALS'),
+                  _inputTile(controller: _usernameCtrl, label: 'Username', icon: Icons.alternate_email_rounded),
+                  _inputTile(controller: _passwordCtrl, label: 'New Password (optional)', icon: Icons.lock_outline_rounded, isPassword: true),
 
                   const SizedBox(height: 14),
                   SizedBox(

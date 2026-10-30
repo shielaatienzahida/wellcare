@@ -411,6 +411,8 @@ class _PasswordResetDialogState extends State<_PasswordResetDialog> {
   bool _busy = false;
   String? _message;
   bool _isSuccess = false;
+  bool _obscureNewPass = true;
+  bool _obscureConfirmPass = true;
 
   @override
   void dispose() {
@@ -512,31 +514,39 @@ class _PasswordResetDialogState extends State<_PasswordResetDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 4),
-      contentPadding: const EdgeInsets.fromLTRB(24, 12, 24, 8),
+      titlePadding: const EdgeInsets.fromLTRB(22, 22, 22, 6),
+      contentPadding: const EdgeInsets.fromLTRB(22, 12, 22, 10),
       backgroundColor: kDarkSurface,
       surfaceTintColor: Colors.transparent,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        side: BorderSide(color: kAmber.withOpacity(0.3), width: 1.2),
+      ),
       title: Row(
         children: [
           Container(
             width: 42,
             height: 42,
             decoration: BoxDecoration(
-              color: kEmeraldLight.withOpacity(0.2),
+              color: kAmber.withOpacity(0.18),
               borderRadius: BorderRadius.circular(AppRadius.sm),
+              border: Border.all(color: kAmber.withOpacity(0.35), width: 1.2),
             ),
-            child: const Icon(Icons.lock_reset_rounded, color: kEmeraldLight, size: 22),
+            child: const Icon(Icons.lock_reset_rounded, color: kAmber, size: 22),
           ),
           const SizedBox(width: 12),
           const Expanded(
-            child: Text('Reset your password',
-                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: kTextPrimary)),
+            child: Text(
+              'Reset your password',
+              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: kCream),
+            ),
           ),
         ],
       ),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (_resetKey.isEmpty) ...{
               Text(
@@ -549,33 +559,147 @@ class _PasswordResetDialogState extends State<_PasswordResetDialog> {
               TextField(
                 controller: _emailCtrl,
                 keyboardType: TextInputType.emailAddress,
-                style: const TextStyle(color: kTextPrimary),
-                decoration: const InputDecoration(
-                  labelText: 'Email',
-                  labelStyle: TextStyle(color: kTextTertiary),
-                  prefixIcon: Icon(Icons.email_outlined, size: 19, color: kEmeraldLight),
+                style: const TextStyle(color: kTextPrimary, fontSize: 14),
+                decoration: InputDecoration(
+                  labelText: 'Account Recovery Email',
+                  labelStyle: const TextStyle(color: kTextTertiary, fontSize: 13),
+                  hintText: 'Enter your registered email',
+                  hintStyle: TextStyle(color: kTextTertiary.withOpacity(0.6), fontSize: 12),
+                  filled: true,
+                  fillColor: kDarkSurfaceAlt,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                  prefixIcon: const Icon(Icons.email_outlined, size: 19, color: kAmber),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(color: Colors.white.withOpacity(0.08)),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(color: Colors.white.withOpacity(0.08)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: kAmber, width: 1.5),
+                  ),
                 ),
               ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _passwordCtrl,
-                obscureText: true,
-                style: const TextStyle(color: kTextPrimary),
-                decoration: const InputDecoration(
-                  labelText: 'New password (6+ characters)',
-                  labelStyle: TextStyle(color: kTextTertiary),
-                  prefixIcon: Icon(Icons.lock_outline_rounded, size: 19, color: kEmeraldLight),
+              const SizedBox(height: 14),
+              // ── Dedicated New Password & Confirm Password Container ──────────
+              Container(
+                decoration: BoxDecoration(
+                  color: kDarkBg,
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                  border: Border.all(
+                    color: kAmber.withOpacity(0.35),
+                    width: 1.2,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.25),
+                      blurRadius: 10,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
                 ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _confirmCtrl,
-                obscureText: true,
-                style: const TextStyle(color: kTextPrimary),
-                decoration: const InputDecoration(
-                  labelText: 'Confirm new password',
-                  labelStyle: TextStyle(color: kTextTertiary),
-                  prefixIcon: Icon(Icons.check_circle_outline_rounded, size: 19, color: kEmeraldLight),
+                padding: const EdgeInsets.all(14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(5),
+                          decoration: BoxDecoration(
+                            color: kAmber.withOpacity(0.18),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: const Icon(Icons.vpn_key_rounded, size: 14, color: kAmber),
+                        ),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'NEW CREDENTIALS',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 1.1,
+                            color: kAmber,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _passwordCtrl,
+                      obscureText: _obscureNewPass,
+                      style: const TextStyle(color: kTextPrimary, fontSize: 14),
+                      decoration: InputDecoration(
+                        labelText: 'New password',
+                        labelStyle: const TextStyle(color: kTextTertiary, fontSize: 13),
+                        hintText: '6+ characters',
+                        hintStyle: TextStyle(color: kTextTertiary.withOpacity(0.55), fontSize: 12),
+                        filled: true,
+                        fillColor: kDarkSurfaceAlt,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        prefixIcon: const Icon(Icons.lock_outline_rounded, size: 18, color: kAmber),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscureNewPass ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                            size: 18,
+                            color: kTextTertiary,
+                          ),
+                          onPressed: () => setState(() => _obscureNewPass = !_obscureNewPass),
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide(color: Colors.white.withOpacity(0.08)),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide(color: Colors.white.withOpacity(0.08)),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(color: kAmber, width: 1.5),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: _confirmCtrl,
+                      obscureText: _obscureConfirmPass,
+                      style: const TextStyle(color: kTextPrimary, fontSize: 14),
+                      decoration: InputDecoration(
+                        labelText: 'Confirm new password',
+                        labelStyle: const TextStyle(color: kTextTertiary, fontSize: 13),
+                        hintText: 'Re-enter new password',
+                        hintStyle: TextStyle(color: kTextTertiary.withOpacity(0.55), fontSize: 12),
+                        filled: true,
+                        fillColor: kDarkSurfaceAlt,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        prefixIcon: const Icon(Icons.check_circle_outline_rounded, size: 18, color: kAmber),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscureConfirmPass ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                            size: 18,
+                            color: kTextTertiary,
+                          ),
+                          onPressed: () => setState(() => _obscureConfirmPass = !_obscureConfirmPass),
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide(color: Colors.white.withOpacity(0.08)),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide(color: Colors.white.withOpacity(0.08)),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(color: kAmber, width: 1.5),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             } else ...{
@@ -589,11 +713,21 @@ class _PasswordResetDialogState extends State<_PasswordResetDialog> {
                 textAlign: TextAlign.center,
                 inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                 style: const TextStyle(
-                    fontSize: 22, fontWeight: FontWeight.w800, letterSpacing: 8, color: kTextPrimary),
-                decoration: const InputDecoration(
-                  labelText: 'Email OTP',
-                  labelStyle: TextStyle(color: kTextTertiary),
+                    fontSize: 22, fontWeight: FontWeight.w800, letterSpacing: 8, color: kCream),
+                decoration: InputDecoration(
+                  labelText: 'Email OTP Code',
+                  labelStyle: const TextStyle(color: kTextTertiary),
                   counterText: '',
+                  filled: true,
+                  fillColor: kDarkSurfaceAlt,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(color: kAmber.withOpacity(0.3)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: kAmber, width: 1.5),
+                  ),
                 ),
               ),
             },
@@ -603,11 +737,11 @@ class _PasswordResetDialogState extends State<_PasswordResetDialog> {
                 margin: const EdgeInsets.only(top: 14),
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 decoration: BoxDecoration(
-                  color: _isSuccess ? kEmeraldLight.withOpacity(0.15) : AppColors.dangerTint,
+                  color: _isSuccess ? kAmber.withOpacity(0.15) : AppColors.dangerTint,
                   borderRadius: BorderRadius.circular(AppRadius.xs + 2),
                   border: Border.all(
-                      color: (_isSuccess ? kEmeraldLight : AppColors.danger)
-                          .withOpacity(0.25)),
+                      color: (_isSuccess ? kAmber : AppColors.danger)
+                          .withOpacity(0.35)),
                 ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -615,7 +749,7 @@ class _PasswordResetDialogState extends State<_PasswordResetDialog> {
                     Icon(
                       _isSuccess ? Icons.check_circle_outline_rounded : Icons.error_outline_rounded,
                       size: 17,
-                      color: _isSuccess ? kEmeraldLight : AppColors.danger,
+                      color: _isSuccess ? kAmber : AppColors.danger,
                     ),
                     const SizedBox(width: 8),
                     Expanded(
@@ -625,7 +759,7 @@ class _PasswordResetDialogState extends State<_PasswordResetDialog> {
                           fontSize: 12.5,
                           height: 1.35,
                           fontWeight: FontWeight.w600,
-                          color: _isSuccess ? kEmeraldLight : AppColors.danger,
+                          color: _isSuccess ? kCream : AppColors.danger,
                         ),
                       ),
                     ),
@@ -644,8 +778,8 @@ class _PasswordResetDialogState extends State<_PasswordResetDialog> {
         FilledButton(
           onPressed: _busy ? null : _submit,
           style: FilledButton.styleFrom(
-            backgroundColor: kEmeraldLight,
-            foregroundColor: Colors.white,
+            backgroundColor: kAmber,
+            foregroundColor: const Color(0xFF0B1F1A),
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
             shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(AppRadius.sm)),
@@ -656,7 +790,7 @@ class _PasswordResetDialogState extends State<_PasswordResetDialog> {
                 : _resetKey.isEmpty
                     ? 'Save and send OTP'
                     : 'Verify and save',
-            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+            style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
           ),
         ),
       ],
