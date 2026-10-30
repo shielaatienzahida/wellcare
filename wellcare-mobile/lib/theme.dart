@@ -428,7 +428,7 @@ List<String> get candidateBackendUrls {
   ];
 }
 
-Future<http.Response> postApi(String endpoint, {Map<String, String>? headers, Object? body, Duration timeout = const Duration(seconds: 3)}) async {
+Future<http.Response> postApi(String endpoint, {Map<String, String>? headers, Object? body, Duration timeout = const Duration(seconds: 15)}) async {
   final urls = [
     if (_activeBackendUrl != null) _activeBackendUrl!,
     ...candidateBackendUrls.where((u) => u != _activeBackendUrl),
@@ -445,14 +445,13 @@ Future<http.Response> postApi(String endpoint, {Map<String, String>? headers, Ob
       _activeBackendUrl = base;
       return res;
     } catch (e) {
-      if (e is TimeoutException) rethrow;
       lastError = e;
     }
   }
   throw lastError ?? Exception('Cannot connect to server');
 }
 
-Future<http.Response> getApi(String endpoint, {Map<String, String>? headers}) async {
+Future<http.Response> getApi(String endpoint, {Map<String, String>? headers, Duration timeout = const Duration(seconds: 15)}) async {
   final urls = [
     if (_activeBackendUrl != null) _activeBackendUrl!,
     ...candidateBackendUrls.where((u) => u != _activeBackendUrl),
@@ -464,7 +463,7 @@ Future<http.Response> getApi(String endpoint, {Map<String, String>? headers}) as
       final res = await http.get(
         Uri.parse('$base$endpoint'),
         headers: headers,
-      ).timeout(const Duration(seconds: 3));
+      ).timeout(timeout);
       _activeBackendUrl = base;
       return res;
     } catch (e) {

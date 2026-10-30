@@ -24,6 +24,8 @@ app.use(express.json({ limit: '1mb' }));
 const defaultAllowedOrigins = [
   'https://shiela-4061c.web.app',
   'https://shiela-4061c.firebaseapp.com',
+  'https://heiwa-3af82.web.app',
+  'https://heiwa-3af82.firebaseapp.com',
   'http://localhost:5173',
   'http://localhost:5000',
   'http://localhost:5001'
@@ -34,7 +36,7 @@ const allowedOrigins = [...new Set([...defaultAllowedOrigins, ...envOrigins])];
 app.use(cors({
   origin: (origin, callback) => {
     // Allow non-browser requests (e.g. mobile apps, ESP32, curl) or allowed origins
-    if (!origin || allowedOrigins.includes(origin)) {
+    if (!origin || allowedOrigins.includes(origin) || origin.endsWith('.web.app') || origin.endsWith('.firebaseapp.com')) {
       return callback(null, true);
     }
     return callback(new Error('Blocked by CORS policy'));
