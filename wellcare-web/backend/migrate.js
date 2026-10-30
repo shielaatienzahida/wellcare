@@ -144,6 +144,9 @@ async function migrate(db) {
   if (!clientColumns.some(column => (column.column_name || column.name) === 'email')) {
     await db.execute('ALTER TABLE clients ADD COLUMN email VARCHAR(255)');
   }
+  if (!clientColumns.some(column => (column.column_name || column.name) === 'profile_photo')) {
+    await db.execute('ALTER TABLE clients ADD COLUMN profile_photo TEXT');
+  }
 
   // 4. Archived Clients
   await db.execute(`
@@ -170,6 +173,7 @@ async function migrate(db) {
       total_bottles INT DEFAULT 0,
       absences INT DEFAULT 0,
       last_seen VARCHAR(100),
+      profile_photo TEXT,
       archived_at ${DATETIME} DEFAULT CURRENT_TIMESTAMP
     )
   `);
@@ -185,6 +189,7 @@ async function migrate(db) {
     ['password', 'VARCHAR(255)'],
     ['emergency_contact', 'VARCHAR(100)'],
     ['emergency_number', 'VARCHAR(20)'],
+    ['profile_photo', 'TEXT'],
   ];
   for (const [columnName, columnType] of archivedPersonalColumns) {
     if (!archivedClientColumns.some(column => (column.column_name || column.name) === columnName)) {

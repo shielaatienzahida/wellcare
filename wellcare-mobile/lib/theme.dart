@@ -496,6 +496,29 @@ Future<http.Response> patchApi(String endpoint, {Map<String, String>? headers, O
   throw lastError ?? Exception('Cannot connect to server');
 }
 
+Future<http.Response> putApi(String endpoint, {Map<String, String>? headers, Object? body}) async {
+  final urls = [
+    if (_activeBackendUrl != null) _activeBackendUrl!,
+    ...candidateBackendUrls.where((u) => u != _activeBackendUrl),
+  ];
+
+  dynamic lastError;
+  for (final base in urls) {
+    try {
+      final res = await http.put(
+        Uri.parse('$base$endpoint'),
+        headers: headers,
+        body: body,
+      ).timeout(const Duration(seconds: 15));
+      _activeBackendUrl = base;
+      return res;
+    } catch (e) {
+      lastError = e;
+    }
+  }
+  throw lastError ?? Exception('Cannot connect to server');
+}
+
 ThemeData heiwaTheme() {
   final colorScheme = ColorScheme.fromSeed(
     seedColor: kEmeraldLight,

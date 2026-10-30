@@ -18,7 +18,8 @@ const app = express();
 app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' }
 }));
-app.use(express.json({ limit: '1mb' }));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // CORS whitelist
 const defaultAllowedOrigins = [
@@ -512,6 +513,7 @@ function formatClient(c) {
     total_bottles: c.total_bottles || 0,
     absences: c.absences || 0,
     last_seen: c.last_seen,
+    profile_photo: c.profile_photo || null,
   };
 }
 
@@ -676,7 +678,7 @@ app.get('/api/v1/clients/me', auth, async (req, res) => {
 // Client: update own profile (including username, password, name, contact)
 app.patch('/api/v1/clients/me', auth, async (req, res) => {
   if (req.user.role !== 'client') return res.status(403).json({ success: false, message: 'Forbidden' });
-  const { first_name, last_name, middle_name, username, password, birthdate, contact_number, email, address, region, province, city_municipality, emergency_contact, emergency_number } = req.body;
+  const { first_name, last_name, middle_name, username, password, birthdate, contact_number, email, address, region, province, city_municipality, emergency_contact, emergency_number, profile_photo } = req.body;
 
   try {
     const [rows] = await db.execute('SELECT * FROM clients WHERE id = ?', [req.user.id]);
@@ -737,9 +739,11 @@ app.patch('/api/v1/clients/me', auth, async (req, res) => {
       pwdHash = await bcrypt.hash(password.trim(), 10);
     }
 
+    const photoToSave = profile_photo !== undefined ? profile_photo : c.profile_photo;
+
     await db.execute(
-      'UPDATE clients SET first_name=?, last_name=?, middle_name=?, full_name=?, username=?, password=?, birthdate=?, contact_number=?, email=?, address=?, emergency_contact=?, emergency_number=? WHERE id=?',
-      [fn, ln, mn || null, full_name, un, pwdHash, bdate || null, phone || null, recoveryEmail || null, addr || null, eContact || null, ePhone || null, req.user.id]
+      'UPDATE clients SET first_name=?, last_name=?, middle_name=?, full_name=?, username=?, password=?, birthdate=?, contact_number=?, email=?, address=?, emergency_contact=?, emergency_number=?, profile_photo=? WHERE id=?',
+      [fn, ln, mn || null, full_name, un, pwdHash, bdate || null, phone || null, recoveryEmail || null, addr || null, eContact || null, ePhone || null, photoToSave || null, req.user.id]
     );
 
     const [updated] = await db.execute('SELECT * FROM clients WHERE id = ?', [req.user.id]);
@@ -747,6 +751,33 @@ app.patch('/api/v1/clients/me', auth, async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, message: 'Failed to update profile' });
+  }
+});
+
+// Client: update profile photo
+app.put('/api/v1/clients/me/photo', auth, async (req, res) => {
+  if (req.user.role !== 'client') return res.status(403).json({ success: false, message: 'Forbidden' });
+  const photo = req.body.photo || req.body.profile_photo;
+  if (!photo) return res.status(400).json({ success: false, message: 'Photo data required' });
+  try {
+    await db.execute('UPDATE clients SET profile_photo = ? WHERE id = ?', [photo, req.user.id]);
+    const [updated] = await db.execute('SELECT * FROM clients WHERE id = ?', [req.user.id]);
+    res.json({ success: true, message: 'Profile photo updated', client: formatClient(updated[0]) });
+  } catch (err) {
+    console.error('Failed to update client photo:', err);
+    res.status(500).json({ success: false, message: 'Failed to update photo' });
+  }
+});
+
+app.delete('/api/v1/clients/me/photo', auth, async (req, res) => {
+  if (req.user.role !== 'client') return res.status(403).json({ success: false, message: 'Forbidden' });
+  try {
+    await db.execute('UPDATE clients SET profile_photo = NULL WHERE id = ?', [req.user.id]);
+    const [updated] = await db.execute('SELECT * FROM clients WHERE id = ?', [req.user.id]);
+    res.json({ success: true, message: 'Profile photo removed', client: formatClient(updated[0]) });
+  } catch (err) {
+    console.error('Failed to delete client photo:', err);
+    res.status(500).json({ success: false, message: 'Failed to remove photo' });
   }
 });
 

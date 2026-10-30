@@ -71,7 +71,17 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
           updated['token'] = _client.token;
           final updatedClient = ClientModel.fromJson(updated);
           // Always apply latest server data so nothing is missed
-          setState(() => _client = updatedClient);
+          setState(() {
+            _client = updatedClient;
+            if (updatedClient.profilePhoto.isNotEmpty) {
+              try {
+                final clean = updatedClient.profilePhoto.contains(',')
+                    ? updatedClient.profilePhoto.split(',').last
+                    : updatedClient.profilePhoto;
+                _profilePhotoBytes = base64Decode(clean);
+              } catch (_) {}
+            }
+          });
           final prefs = await SharedPreferences.getInstance();
           await prefs.setString('heiwa_session_client', jsonEncode(updatedClient.toJson()));
         }
@@ -109,10 +119,23 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
         if (data['success'] == true) {
           final updated = Map<String, dynamic>.from(data['client']);
           updated['token'] = _client.token;
-          if (mounted) setState(() => _client = ClientModel.fromJson(updated));
+          final updatedClient = ClientModel.fromJson(updated);
+          if (mounted) {
+            setState(() {
+              _client = updatedClient;
+              if (updatedClient.profilePhoto.isNotEmpty) {
+                try {
+                  final clean = updatedClient.profilePhoto.contains(',')
+                      ? updatedClient.profilePhoto.split(',').last
+                      : updatedClient.profilePhoto;
+                  _profilePhotoBytes = base64Decode(clean);
+                } catch (_) {}
+              }
+            });
+          }
           // Persist updated session
           final prefs = await SharedPreferences.getInstance();
-          await prefs.setString('heiwa_session_client', jsonEncode(ClientModel.fromJson(updated).toJson()));
+          await prefs.setString('heiwa_session_client', jsonEncode(updatedClient.toJson()));
         }
       }
     } catch (_) {
@@ -319,6 +342,21 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
   String get _profilePhotoKey => 'wellcare_profile_photo_${_client.id}';
 
   Future<void> _loadProfilePhoto() async {
+    // 1. Sync from server if client model already has profile photo
+    if (_client.profilePhoto.isNotEmpty) {
+      try {
+        final clean = _client.profilePhoto.contains(',')
+            ? _client.profilePhoto.split(',').last
+            : _client.profilePhoto;
+        final bytes = base64Decode(clean);
+        if (mounted) setState(() => _profilePhotoBytes = bytes);
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(_profilePhotoKey, clean);
+        return;
+      } catch (_) {}
+    }
+
+    // 2. Check local SharedPreferences fallback
     try {
       final prefs = await SharedPreferences.getInstance();
       final base64Str = prefs.getString(_profilePhotoKey);
@@ -345,8 +383,9 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
         backgroundColor: Colors.transparent,
         builder: (ctx) => Container(
           decoration: const BoxDecoration(
-            color: kDarkSurface,
+            color: Color(0xFF0C251C),
             borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xxl)),
+            border: Border(top: BorderSide(color: Color(0xFF153C2C), width: 1.5)),
           ),
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
           child: SafeArea(
@@ -359,7 +398,7 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                   width: 38,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: const Color(0xFF1B5E5B),
+                    color: const Color(0xFF153C2C),
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -368,7 +407,7 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
-                    color: kTextPrimary,
+                    color: Colors.white,
                   ),
                 ),
                 const SizedBox(height: 20),
@@ -377,14 +416,14 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                     width: 42,
                     height: 42,
                     decoration: BoxDecoration(
-                      color: kTurquoise.withValues(alpha: 0.15),
+                      color: const Color(0xFFF5A623).withOpacity(0.15),
                       borderRadius: BorderRadius.circular(AppRadius.sm),
                     ),
-                    child: const Icon(Icons.photo_library_rounded, color: kTurquoise, size: 22),
+                    child: const Icon(Icons.photo_library_rounded, color: Color(0xFFF5A623), size: 22),
                   ),
                   title: const Text(
                     'Choose from Gallery',
-                    style: TextStyle(color: kTextPrimary, fontWeight: FontWeight.w700),
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
                   ),
                   onTap: () => Navigator.pop(ctx, ImageSource.gallery),
                 ),
@@ -394,14 +433,14 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                     width: 42,
                     height: 42,
                     decoration: BoxDecoration(
-                      color: kMint.withValues(alpha: 0.15),
+                      color: const Color(0xFFF5A623).withOpacity(0.15),
                       borderRadius: BorderRadius.circular(AppRadius.sm),
                     ),
-                    child: const Icon(Icons.camera_alt_rounded, color: kMint, size: 22),
+                    child: const Icon(Icons.camera_alt_rounded, color: Color(0xFFF5A623), size: 22),
                   ),
                   title: const Text(
                     'Take a Photo',
-                    style: TextStyle(color: kTextPrimary, fontWeight: FontWeight.w700),
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
                   ),
                   onTap: () => Navigator.pop(ctx, ImageSource.camera),
                 ),
@@ -416,25 +455,79 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
       final picker = ImagePicker();
       final XFile? image = await picker.pickImage(
         source: source,
-        imageQuality: 80,
-        maxWidth: 800,
-        maxHeight: 800,
+        imageQuality: 70,
+        maxWidth: 512,
+        maxHeight: 512,
       );
 
       if (image == null || !mounted) return;
 
       final bytes = await image.readAsBytes();
       final base64String = base64Encode(bytes);
+      final dataUri = 'data:image/jpeg;base64,$base64String';
 
+      // Update UI immediately for responsive feel
+      if (mounted) setState(() => _profilePhotoBytes = bytes);
+
+      // 1. Cache to local SharedPreferences
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_profilePhotoKey, base64String);
 
+      // 2. Upload to server so other devices receive this photo
+      bool synced = false;
+      try {
+        final res = await putApi(
+          '/clients/me/photo',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ${_client.token}',
+          },
+          body: jsonEncode({'photo': dataUri}),
+        );
+        if (res.statusCode == 200) {
+          final data = jsonDecode(res.body);
+          if (data['success'] == true) {
+            synced = true;
+            if (data['client'] != null && mounted) {
+              final updated = Map<String, dynamic>.from(data['client']);
+              updated['token'] = _client.token;
+              setState(() => _client = ClientModel.fromJson(updated));
+            }
+          }
+        }
+      } catch (_) {
+        try {
+          final patchRes = await patchApi(
+            '/clients/me',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer ${_client.token}',
+            },
+            body: jsonEncode({'profile_photo': dataUri}),
+          );
+          if (patchRes.statusCode == 200) synced = true;
+        } catch (_) {}
+      }
+
       if (mounted) {
-        setState(() => _profilePhotoBytes = bytes);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Profile photo updated successfully!'),
-            backgroundColor: kEmerald,
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle_rounded, color: Color(0xFFF5A623), size: 18),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    synced
+                        ? 'Profile photo saved and synced across all devices!'
+                        : 'Profile photo saved locally.',
+                    style: const TextStyle(fontWeight: FontWeight.w700, color: Colors.white),
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: const Color(0xFF0C251C),
+            behavior: SnackBarBehavior.floating,
           ),
         );
       }
@@ -627,7 +720,7 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
               _headerIcon(Icons.notifications_none_rounded, 'Notifications', () => _showNotificationsModal(context), badge: 1),
               const SizedBox(width: 8),
 
-              // Profile avatar — circular amber with initials
+              // Profile avatar — circular amber with initials or photo
               GestureDetector(
                 onTap: () => _switchTab(4),
                 child: Container(
@@ -637,15 +730,23 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                     color: Color(0xFFF5A623), // Amber
                     shape: BoxShape.circle,
                   ),
+                  clipBehavior: Clip.antiAlias,
                   alignment: Alignment.center,
-                  child: Text(
-                    _initials,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w900,
-                      color: Color(0xFF071F15),
-                    ),
-                  ),
+                  child: _profilePhotoBytes != null
+                      ? Image.memory(
+                          _profilePhotoBytes!,
+                          width: 38,
+                          height: 38,
+                          fit: BoxFit.cover,
+                        )
+                      : Text(
+                          _initials,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w900,
+                            color: Color(0xFF071F15),
+                          ),
+                        ),
                 ),
               ),
             ],
@@ -1600,26 +1701,42 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
   /// Enrolled / not-enrolled indicator, reused on Profile and Reports tabs.
   Widget _fingerprintStatusCard() {
     final enrolled = _client.fingerprintEnrolled;
-    final accent = enrolled ? kEmerald : AppColors.warning;
+    final accent = enrolled ? const Color(0xFF10B981) : const Color(0xFFF5A623);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
-      decoration: appCardDecoration(
-        borderColor: accent.withValues(alpha: enrolled ? 0.22 : 0.28),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0C251C),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: accent.withOpacity(enrolled ? 0.3 : 0.35),
+          width: 1.2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
       ),
       child: Row(children: [
         Container(
-          width: 38, height: 38,
+          width: 38,
+          height: 38,
           decoration: BoxDecoration(
-            color: accent.withValues(alpha: 0.10),
-            borderRadius: BorderRadius.circular(AppRadius.sm),
+            color: accent.withOpacity(0.12),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: accent.withOpacity(0.3), width: 1),
           ),
           child: Icon(Icons.fingerprint_rounded, color: accent, size: 20),
         ),
         const SizedBox(width: 13),
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Text('Fingerprint status',
-                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.inkFaint)),
+            const Text(
+              'Fingerprint status',
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF9BB3A5)),
+            ),
             const SizedBox(height: 2),
             Text(
               enrolled ? 'Enrolled · Identity verified' : 'Not enrolled',
@@ -1629,8 +1746,8 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
         ),
         Icon(
           enrolled ? Icons.verified_rounded : Icons.warning_amber_rounded,
-          color: enrolled ? kKelly : AppColors.warning,
-          size: 19,
+          color: accent,
+          size: 20,
         ),
       ]),
     );
@@ -3211,9 +3328,16 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
   Widget _infoCard(List<Widget> rows) {
     return Container(
       decoration: BoxDecoration(
-        color: kDarkSurfaceAlt,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: const Color(0xFF1B5E5B)),
+        color: const Color(0xFF0C251C),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFF153C2C), width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.25),
+            blurRadius: 14,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(children: rows),
@@ -3255,41 +3379,69 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
   Widget _infoRowIcon(IconData icon, String label, String value,
       {bool highlight = false, bool last = false}) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
       decoration: BoxDecoration(
         color: Colors.transparent,
-        border: last ? null : const Border(bottom: BorderSide(color: Color(0xFF1B5E5B))),
+        border: last ? null : const Border(bottom: BorderSide(color: Color(0xFF133628), width: 1)),
       ),
       child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
-        Icon(icon, size: 18, color: highlight ? kAmber : kTurquoise),
+        // Amber badge icon container for EVERY row
+        Container(
+          width: 34,
+          height: 34,
+          decoration: BoxDecoration(
+            color: const Color(0xFFF5A623).withOpacity(0.12),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: const Color(0xFFF5A623).withOpacity(0.28),
+              width: 1,
+            ),
+          ),
+          child: Icon(icon, size: 16, color: const Color(0xFFF5A623)),
+        ),
         const SizedBox(width: 12),
         SizedBox(
-          width: 90,
-          child: Text(label,
-              style: const TextStyle(
-                  fontSize: 12.5, fontWeight: FontWeight.w600, color: kTextTertiary)),
+          width: 95,
+          child: Text(
+            label,
+            style: const TextStyle(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF9BB3A5),
+            ),
+          ),
         ),
         Expanded(
           child: highlight
               ? Align(
                   alignment: Alignment.centerRight,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4.5),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: kAmber.withValues(alpha: 0.16),
-                      borderRadius: BorderRadius.circular(AppRadius.pill),
-                      border: Border.all(color: kAmber.withValues(alpha: 0.45)),
+                      color: const Color(0xFFF5A623).withOpacity(0.18),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFFF5A623).withOpacity(0.4), width: 1),
                     ),
-                    child: Text(value,
-                        style: const TextStyle(
-                            fontSize: 12, fontWeight: FontWeight.w800,
-                            color: kAmber, letterSpacing: 0.8)),
+                    child: Text(
+                      value,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w900,
+                        color: Color(0xFFF5A623),
+                        letterSpacing: 0.6,
+                      ),
+                    ),
                   ),
                 )
-              : Text(value,
+              : Text(
+                  value,
                   style: const TextStyle(
-                      fontSize: 13.5, fontWeight: FontWeight.w700, color: kTextPrimary),
-                  textAlign: TextAlign.right),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFFF5EFE6), // Cream text
+                  ),
+                  textAlign: TextAlign.right,
+                ),
         ),
       ]),
     );

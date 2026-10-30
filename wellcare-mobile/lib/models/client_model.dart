@@ -17,6 +17,7 @@ class ClientModel {
   final int absences;
   final String lastSeen;
   final String token;
+  final String profilePhoto;
 
   ClientModel({
     required this.id,
@@ -37,6 +38,7 @@ class ClientModel {
     this.absences = 0,
     this.lastSeen = '',
     this.token = '',
+    this.profilePhoto = '',
   });
 
   String get fullName => '$firstName${middleName.isNotEmpty ? ' $middleName' : ''} $lastName'.trim();
@@ -77,6 +79,7 @@ class ClientModel {
       absences: _parseInt(json['absences']),
       lastSeen: (json['lastSeen'] ?? json['last_seen'] ?? '').toString(),
       token: (json['token'] ?? '').toString(),
+      profilePhoto: (json['profilePhoto'] ?? json['profile_photo'] ?? '').toString(),
     );
   }
 
@@ -99,5 +102,51 @@ class ClientModel {
     'absences': absences,
     'lastSeen': lastSeen,
     'token': token,
+    'profilePhoto': profilePhoto,
+    'profile_photo': profilePhoto,
   };
+
+  ClientModel copyWith({
+    int? id,
+    String? clientIdNumber,
+    String? firstName,
+    String? middleName,
+    String? lastName,
+    String? username,
+    String? birthdate,
+    String? phone,
+    String? email,
+    String? address,
+    String? emergencyContact,
+    String? emergencyNumber,
+    bool? fingerprintEnrolled,
+    int? alkalineSessions,
+    int? checkins,
+    int? absences,
+    String? lastSeen,
+    String? token,
+    String? profilePhoto,
+  }) {
+    return ClientModel(
+      id: id ?? this.id,
+      clientIdNumber: clientIdNumber ?? this.clientIdNumber,
+      firstName: firstName ?? this.firstName,
+      middleName: middleName ?? this.middleName,
+      lastName: lastName ?? this.lastName,
+      username: username ?? this.username,
+      birthdate: birthdate ?? this.birthdate,
+      phone: phone ?? this.phone,
+      email: email ?? this.email,
+      address: address ?? this.address,
+      emergencyContact: emergencyContact ?? this.emergencyContact,
+      emergencyNumber: emergencyNumber ?? this.emergencyNumber,
+      fingerprintEnrolled: fingerprintEnrolled ?? this.fingerprintEnrolled,
+      alkalineSessions: alkalineSessions ?? this.alkalineSessions,
+      checkins: checkins ?? this.checkins,
+      absences: absences ?? this.absences,
+      lastSeen: lastSeen ?? this.lastSeen,
+      token: token ?? this.token,
+      profilePhoto: profilePhoto ?? this.profilePhoto,
+    );
+  }
 }

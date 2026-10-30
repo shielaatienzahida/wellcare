@@ -73,6 +73,7 @@ function formatClient(c) {
     total_bottles: c.total_bottles || 0,
     absences: c.absences || 0,
     last_seen: c.last_seen,
+    profile_photo: c.profile_photo || null,
   };
 }
 
@@ -105,12 +106,30 @@ app.get('/api/v1/clients/me', auth, async (req, res) => {
 
 app.patch('/api/v1/clients/me', auth, async (req, res) => {
   if (req.user.role !== 'client') return res.status(403).json({ success: false, message: 'Forbidden' });
-  const { contact_number, address, emergency_contact, emergency_number } = req.body;
+  const { contact_number, address, emergency_contact, emergency_number, profile_photo } = req.body;
+  if (profile_photo !== undefined) {
+    await db.execute('UPDATE clients SET profile_photo=? WHERE id=?', [profile_photo || null, req.user.id]);
+  }
   await db.execute(
     'UPDATE clients SET contact_number=?, address=?, emergency_contact=?, emergency_number=? WHERE id=?',
     [contact_number || null, address || null, emergency_contact || null, emergency_number || null, req.user.id]
   );
-  res.json({ success: true });
+  const [updated] = await db.execute('SELECT * FROM clients WHERE id = ?', [req.user.id]);
+  res.json({ success: true, client: formatClient(updated[0]) });
+});
+
+app.put('/api/v1/clients/me/photo', auth, async (req, res) => {
+  if (req.user.role !== 'client') return res.status(403).json({ success: false, message: 'Forbidden' });
+  const photo = req.body.photo || req.body.profile_photo;
+  if (!photo) return res.status(400).json({ success: false, message: 'Photo data required' });
+  try {
+    await db.execute('UPDATE clients SET profile_photo = ? WHERE id = ?', [photo, req.user.id]);
+    const [updated] = await db.execute('SELECT * FROM clients WHERE id = ?', [req.user.id]);
+    res.json({ success: true, message: 'Profile photo updated', client: formatClient(updated[0]) });
+  } catch (err) {
+    console.error('Failed to update photo:', err);
+    res.status(500).json({ success: false, message: 'Failed to update photo' });
+  }
 });
 
 // ── SESSION HISTORY ───────────────────────────────────

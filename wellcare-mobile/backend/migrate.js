@@ -33,9 +33,17 @@ async function migrate(db) {
       total_bottles INT DEFAULT 0,
       absences INT DEFAULT 0,
       last_seen VARCHAR(100),
+      profile_photo TEXT,
       created_at ${DATETIME} DEFAULT CURRENT_TIMESTAMP
     )
   `);
+
+  const [clientColumns] = isPostgres
+    ? await db.execute("SELECT column_name FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'clients'")
+    : await db.execute('PRAGMA table_info(clients)');
+  if (!clientColumns.some(column => (column.column_name || column.name) === 'profile_photo')) {
+    await db.execute('ALTER TABLE clients ADD COLUMN profile_photo TEXT');
+  }
 
   // Session History Table
   await db.execute(`
