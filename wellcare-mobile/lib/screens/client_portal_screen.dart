@@ -228,6 +228,94 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
     await Future.wait([_refreshData(), _refreshVisitHistory()]);
   }
 
+  bool _isLoggingWater = false;
+
+  Future<void> _logWaterIntake({int count = 1}) async {
+    if (_isLoggingWater) return;
+    setState(() => _isLoggingWater = true);
+    try {
+      final res = await postApi(
+        '/clients/me/log',
+        headers: {
+          'Authorization': 'Bearer ${_client.token}',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'type': 'Alkaline Session',
+          'count': count,
+        }),
+      );
+      final data = jsonDecode(res.body);
+      if (res.statusCode == 200 && data['success'] == true) {
+        if (data['client'] != null) {
+          final updated = Map<String, dynamic>.from(data['client']);
+          updated['token'] = _client.token;
+          if (mounted) setState(() => _client = ClientModel.fromJson(updated));
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('heiwa_session_client', jsonEncode(ClientModel.fromJson(updated).toJson()));
+        }
+        if (data['history'] != null) {
+          final history = (data['history'] as List<dynamic>? ?? [])
+              .map((r) => Map<String, dynamic>.from(r as Map))
+              .toList();
+          if (mounted) {
+            setState(() {
+              _visitHistory = history;
+              _historyUnavailable = false;
+            });
+          }
+        } else {
+          await _refreshVisitHistory();
+        }
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.water_drop_rounded, color: Color(0xFF38BDF8), size: 20),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Hydration logged! +${count * 500} mL alkaline water added.',
+                      style: const TextStyle(fontWeight: FontWeight.w700, color: kCream),
+                    ),
+                  ),
+                ],
+              ),
+              backgroundColor: kDarkSurface,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppRadius.md),
+                side: const BorderSide(color: Color(0xFF38BDF8), width: 1.2),
+              ),
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(data['message'] ?? 'Could not log water. Please try again.'),
+              backgroundColor: Colors.red.shade900,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to log water: $e'),
+            backgroundColor: Colors.red.shade900,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoggingWater = false);
+    }
+  }
+
   String get _profilePhotoKey => 'wellcare_profile_photo_${_client.id}';
 
   Future<void> _loadProfilePhoto() async {
@@ -1946,8 +2034,57 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                         ],
                       ),
                     ),
+                    // ── Quick Log Water Plus Button in header ──
+                    GestureDetector(
+                      onTap: _isLoggingWater ? null : () => _logWaterIntake(count: 1),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: kAmber.withValues(alpha: 0.18),
+                          borderRadius: BorderRadius.circular(AppRadius.pill),
+                          border: Border.all(
+                            color: kAmber.withValues(alpha: 0.5),
+                            width: 1.2,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: kAmber.withValues(alpha: 0.2),
+                              blurRadius: 6,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (_isLoggingWater)
+                              const SizedBox(
+                                width: 12,
+                                height: 12,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: kAmber,
+                                ),
+                              )
+                            else
+                              const Icon(Icons.add_rounded, size: 15, color: kAmber),
+                            const SizedBox(width: 4),
+                            const Text(
+                              'Log Drink',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                color: kAmber,
+                                letterSpacing: 0.2,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
                         color: const Color(0xFF0EA5E9).withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(AppRadius.pill),
@@ -2110,6 +2247,66 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                     style: TextStyle(fontSize: 12, color: kTextTertiary, height: 1.4),
                   ),
                 ],
+
+                const SizedBox(height: 14),
+                // ── Quick Add Water Intake Action Buttons ──
+                Row(
+                  children: [
+                    Expanded(
+                      child: FilledButton.icon(
+                        onPressed: _isLoggingWater ? null : () => _logWaterIntake(count: 1),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: kAmber,
+                          foregroundColor: Colors.black,
+                          padding: const EdgeInsets.symmetric(vertical: 11),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(AppRadius.md),
+                          ),
+                          elevation: 0,
+                        ),
+                        icon: _isLoggingWater
+                            ? const SizedBox(
+                                width: 14,
+                                height: 14,
+                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black),
+                              )
+                            : const Icon(Icons.add_rounded, size: 18),
+                        label: const Text(
+                          '+1 Bottle (500 mL)',
+                          style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    InkWell(
+                      onTap: _isLoggingWater ? null : () => _logWaterIntake(count: 2),
+                      borderRadius: BorderRadius.circular(AppRadius.md),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: kDarkSurface,
+                          borderRadius: BorderRadius.circular(AppRadius.md),
+                          border: Border.all(color: kAmber.withValues(alpha: 0.4), width: 1.2),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.add_rounded, size: 16, color: kAmber),
+                            SizedBox(width: 4),
+                            Text(
+                              '+2 Bottles',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w800,
+                                color: kAmber,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ],
             ),
           ),

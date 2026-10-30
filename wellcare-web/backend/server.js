@@ -784,6 +784,40 @@ app.post('/api/v1/clients/:id/log', auth, isAdminOrStaff, async (req, res) => {
   res.json({ success: true, date: dateStr });
 });
 
+app.post('/api/v1/clients/me/log', auth, async (req, res) => {
+  if (req.user.role !== 'client') return res.status(403).json({ success: false, message: 'Forbidden' });
+  const { type = 'Alkaline Session', count = 1 } = req.body;
+  if (!['Alkaline Session', 'Water Intake'].includes(type)) {
+    return res.status(400).json({ success: false, message: 'Invalid intake type' });
+  }
+  const bottles = Math.max(1, Math.min(10, parseInt(count, 10) || 1));
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+  for (let i = 0; i < bottles; i++) {
+    await db.execute(
+      'INSERT INTO session_history (client_id, type, logged_by, staff_id, date) VALUES (?, ?, ?, ?, ?)',
+      [req.user.id, 'Alkaline Session', 'client', null, dateStr]
+    );
+  }
+
+  await db.execute(
+    'UPDATE clients SET total_bottles = total_bottles + ?, last_seen = ? WHERE id = ?',
+    [bottles, dateStr, req.user.id]
+  );
+
+  const [updated] = await db.execute('SELECT * FROM clients WHERE id = ?', [req.user.id]);
+  const [history] = await db.execute('SELECT * FROM session_history WHERE client_id = ? ORDER BY created_at DESC', [req.user.id]);
+
+  res.json({
+    success: true,
+    message: `Logged ${bottles} bottle(s) of alkaline water!`,
+    date: dateStr,
+    client: formatClient(updated[0]),
+    history
+  });
+});
+
 // ── FINGERPRINT ───────────────────────────────────────
 let lastDeviceHeartbeat = 0;
 app.use('/api/v1/fingerprint', deviceApiLimiter);
