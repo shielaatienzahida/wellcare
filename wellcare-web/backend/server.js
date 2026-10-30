@@ -36,8 +36,15 @@ const allowedOrigins = [...new Set([...defaultAllowedOrigins, ...envOrigins])];
 
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow non-browser requests (e.g. mobile apps, ESP32, curl) or allowed origins
-    if (!origin || allowedOrigins.includes(origin) || origin.endsWith('.web.app') || origin.endsWith('.firebaseapp.com')) {
+    // Allow non-browser requests (e.g. mobile apps, ESP32, curl), localhost on any port, or allowed origins
+    if (
+      !origin ||
+      allowedOrigins.includes(origin) ||
+      /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin) ||
+      /^http:\/\/192\.168\.\d+\.\d+(:\d+)?$/.test(origin) ||
+      origin.endsWith('.web.app') ||
+      origin.endsWith('.firebaseapp.com')
+    ) {
       return callback(null, true);
     }
     return callback(new Error('Blocked by CORS policy'));
