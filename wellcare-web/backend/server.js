@@ -758,34 +758,13 @@ app.get('/api/v1/clients/me/history', auth, async (req, res) => {
   res.json({ success: true, history: rows });
 });
 
-app.get('/api/v1/clients/:id/history', auth, isAdminOrStaff, async (req, res) => {
-  const [rows] = await db.execute('SELECT * FROM session_history WHERE client_id = ? ORDER BY created_at DESC', [req.params.id]);
-  res.json({ success: true, history: rows });
-});
-
-app.post('/api/v1/clients/:id/log', auth, isAdminOrStaff, async (req, res) => {
-  const { type } = req.body;
-  if (!['Check-in', 'Absence', 'Alkaline Session'].includes(type)) return res.status(400).json({ success: false, message: 'Invalid type' });
-  const now = new Date();
-  const dateStr = now.toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-  const logged_by = req.user.role;
-  const staff_id = req.user.role === 'staff' ? req.user.id : null;
-
-  await db.execute('INSERT INTO session_history (client_id, type, logged_by, staff_id, date) VALUES (?, ?, ?, ?, ?)', [req.params.id, type, logged_by, staff_id, dateStr]);
-
-  if (type === 'Check-in') {
-    await db.execute('UPDATE clients SET total_checkins = total_checkins + 1, last_seen = ? WHERE id = ?', [dateStr, req.params.id]);
-  } else if (type === 'Absence') {
-    await db.execute('UPDATE clients SET absences = absences + 1 WHERE id = ?', [req.params.id]);
-  } else if (type === 'Alkaline Session') {
-    await db.execute('UPDATE clients SET total_bottles = total_bottles + 1, last_seen = ? WHERE id = ?', [dateStr, req.params.id]);
-  }
-
-  res.json({ success: true, date: dateStr });
-});
-
 app.post('/api/v1/clients/me/log', auth, async (req, res) => {
-  if (req.user.role !== 'client') return res.status(403).json({ success: false, message: 'Forbidden' });
+  if (req.user.role !== 'client') {
+    const [clientRow] = await db.execute('SELECT id FROM clients WHERE id = ?', [req.user.id]);
+    if (!clientRow.length) {
+      return res.status(403).json({ success: false, message: 'Forbidden: Client access required' });
+    }
+  }
   const { type = 'Alkaline Session', count = 1 } = req.body;
   if (!['Alkaline Session', 'Water Intake'].includes(type)) {
     return res.status(400).json({ success: false, message: 'Invalid intake type' });
@@ -816,6 +795,35 @@ app.post('/api/v1/clients/me/log', auth, async (req, res) => {
     client: formatClient(updated[0]),
     history
   });
+});
+
+app.get('/api/v1/clients/:id/history', auth, isAdminOrStaff, async (req, res) => {
+  const [rows] = await db.execute('SELECT * FROM session_history WHERE client_id = ? ORDER BY created_at DESC', [req.params.id]);
+  res.json({ success: true, history: rows });
+});
+
+app.post('/api/v1/clients/:id/log', auth, isAdminOrStaff, async (req, res) => {
+  if (req.params.id === 'me') {
+    return res.status(400).json({ success: false, message: 'Use /clients/me/log for client session' });
+  }
+  const { type } = req.body;
+  if (!['Check-in', 'Absence', 'Alkaline Session'].includes(type)) return res.status(400).json({ success: false, message: 'Invalid type' });
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  const logged_by = req.user.role;
+  const staff_id = req.user.role === 'staff' ? req.user.id : null;
+
+  await db.execute('INSERT INTO session_history (client_id, type, logged_by, staff_id, date) VALUES (?, ?, ?, ?, ?)', [req.params.id, type, logged_by, staff_id, dateStr]);
+
+  if (type === 'Check-in') {
+    await db.execute('UPDATE clients SET total_checkins = total_checkins + 1, last_seen = ? WHERE id = ?', [dateStr, req.params.id]);
+  } else if (type === 'Absence') {
+    await db.execute('UPDATE clients SET absences = absences + 1 WHERE id = ?', [req.params.id]);
+  } else if (type === 'Alkaline Session') {
+    await db.execute('UPDATE clients SET total_bottles = total_bottles + 1, last_seen = ? WHERE id = ?', [dateStr, req.params.id]);
+  }
+
+  res.json({ success: true, date: dateStr });
 });
 
 // ── FINGERPRINT ───────────────────────────────────────

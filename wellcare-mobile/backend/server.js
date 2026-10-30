@@ -122,7 +122,12 @@ app.get('/api/v1/clients/me/history', auth, async (req, res) => {
 });
 
 app.post('/api/v1/clients/me/log', auth, async (req, res) => {
-  if (req.user.role !== 'client') return res.status(403).json({ success: false, message: 'Forbidden' });
+  if (req.user.role !== 'client') {
+    const [clientRow] = await db.execute('SELECT id FROM clients WHERE id = ?', [req.user.id]);
+    if (!clientRow.length) {
+      return res.status(403).json({ success: false, message: 'Forbidden: Client access required' });
+    }
+  }
   const { type = 'Alkaline Session', count = 1 } = req.body;
   const bottles = Math.max(1, Math.min(10, parseInt(count, 10) || 1));
   const now = new Date();
