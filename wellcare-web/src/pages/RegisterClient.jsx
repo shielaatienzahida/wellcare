@@ -15,6 +15,25 @@ function FingerprintSVG({ status }) {
   const color = isSuccess ? '#046A38' : isError ? '#dc2626' : isScanning ? '#4CBB17' : '#046A38';
   const opacity = isSuccess ? 1 : isError ? 0.9 : 0.55;
 
+  if (isSuccess) {
+    return (
+      <svg viewBox="0 0 100 100" width="80" height="80" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="50" cy="50" r="42" fill="rgba(4,106,56,0.08)" stroke="#10b981" strokeWidth="3" />
+        <path d="M30 52 L44 65 L70 37" stroke="#046A38" strokeWidth="5.5" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    );
+  }
+
+  if (isError) {
+    return (
+      <svg viewBox="0 0 100 100" width="80" height="80" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="50" cy="50" r="42" fill="rgba(220,38,38,0.08)" stroke="#ef4444" strokeWidth="3" />
+        <line x1="36" y1="36" x2="64" y2="64" stroke="#dc2626" strokeWidth="5" strokeLinecap="round" />
+        <line x1="64" y1="36" x2="36" y2="64" stroke="#dc2626" strokeWidth="5" strokeLinecap="round" />
+      </svg>
+    );
+  }
+
   return (
     <svg viewBox="0 0 100 100" width="80" height="80" fill="none" xmlns="http://www.w3.org/2000/svg"
       className={isScanning ? 'fp-svg-scanning' : ''}>
@@ -29,10 +48,6 @@ function FingerprintSVG({ status }) {
       <path d="M35 38 C38 22, 62 22, 65 38" stroke={color} strokeWidth="3" strokeLinecap="round" opacity={opacity} className={isScanning ? 'fp-line fp-line-2' : ''} />
       <path d="M42 34 C44 26, 56 26, 58 34" stroke={color} strokeWidth="2.6" strokeLinecap="round" opacity={opacity} className={isScanning ? 'fp-line fp-line-3' : ''} />
       {isScanning && <line x1="10" y1="50" x2="90" y2="50" stroke="#4CBB17" strokeWidth="2" strokeLinecap="round" opacity="0.7" className="fp-scan-beam" />}
-      {isSuccess && <circle cx="50" cy="50" r="18" fill="rgba(4,106,56,0.1)" stroke="#046A38" strokeWidth="2" />}
-      {isSuccess && <path d="M42 50 L48 56 L58 44" stroke="#046A38" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />}
-      {isError && <circle cx="50" cy="50" r="18" fill="rgba(220,38,38,0.08)" stroke="#dc2626" strokeWidth="2" />}
-      {isError && <><line x1="43" y1="43" x2="57" y2="57" stroke="#dc2626" strokeWidth="3" strokeLinecap="round" /><line x1="57" y1="43" x2="43" y2="57" stroke="#dc2626" strokeWidth="3" strokeLinecap="round" /></>}
     </svg>
   );
 }
@@ -407,25 +422,15 @@ if (!form.gender) e.gender = 'Required';
                 </button>
               )}
               {fpStatus !== 'success' && (
-                <>
-                  <button
-                    type="button"
-                    className="btn-secondary"
-                    onClick={() => handleSubmit(true)}
-                    disabled={submitting}
-                  >
-                    Skip Fingerprint (Enroll Later)
-                  </button>
-                  <button
-                    type="button"
-                    className="btn-primary btn-lg"
-                    onClick={handleEnrollFingerprint}
-                    disabled={fpStatus === 'waiting'}
-                    style={{ opacity: fpStatus === 'waiting' ? 0.6 : 1 }}
-                  >
-                    {fpStatus === 'waiting' ? 'Waiting for Hardware...' : fpStatus === 'error' ? 'Retry Scan' : 'Start Fingerprint Scan'}
-                  </button>
-                </>
+                <button
+                  type="button"
+                  className="btn-primary btn-lg"
+                  onClick={handleEnrollFingerprint}
+                  disabled={fpStatus === 'waiting'}
+                  style={{ opacity: fpStatus === 'waiting' ? 0.6 : 1 }}
+                >
+                  {fpStatus === 'waiting' ? 'Waiting for Hardware...' : fpStatus === 'error' ? 'Retry Scan' : 'Start Fingerprint Scan'}
+                </button>
               )}
               {fpStatus === 'success' && (
                 <button

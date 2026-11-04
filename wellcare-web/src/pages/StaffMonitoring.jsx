@@ -358,12 +358,6 @@ const fieldErrors = {
                     <button type="button" className="btn-logout" onClick={() => { setStaffStep(0); setAddStaffError(''); setFingerprintStatus('idle'); }} disabled={savingStaff}>Back</button>
 
                     <div style={{ display: 'flex', gap: 8 }}>
-                      {fingerprintStatus !== 'success' && (
-                        <button type="button" className="btn-secondary" onClick={() => addStaff(true)} disabled={savingStaff || fingerprintStatus === 'waiting'}>
-                          Skip Fingerprint
-                        </button>
-                      )}
-
                       {fingerprintStatus === 'idle' && (
                         <button type="button" className="btn-primary" onClick={handleStartStaffScan} disabled={savingStaff}>
                           Start Fingerprint Scan

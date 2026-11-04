@@ -55,6 +55,23 @@ const calabarzonPlaces = {
 
 function StaffFingerprintSVG({ status }) {
   const color = status === 'success' ? '#046A38' : status === 'error' ? '#dc2626' : status === 'waiting' ? '#4CBB17' : '#046A38';
+  if (status === 'success') {
+    return (
+      <svg viewBox="0 0 100 100" width="80" height="80" fill="none">
+        <circle cx="50" cy="50" r="42" fill="rgba(4,106,56,0.08)" stroke="#10b981" strokeWidth="3" />
+        <path d="M30 52 L44 65 L70 37" stroke="#046A38" strokeWidth="5.5" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    );
+  }
+  if (status === 'error') {
+    return (
+      <svg viewBox="0 0 100 100" width="80" height="80" fill="none">
+        <circle cx="50" cy="50" r="42" fill="rgba(220,38,38,0.08)" stroke="#ef4444" strokeWidth="3" />
+        <line x1="36" y1="36" x2="64" y2="64" stroke="#dc2626" strokeWidth="5" strokeLinecap="round" />
+        <line x1="64" y1="36" x2="36" y2="64" stroke="#dc2626" strokeWidth="5" strokeLinecap="round" />
+      </svg>
+    );
+  }
   return <svg viewBox="0 0 100 100" width="80" height="80" fill="none" className={status === 'waiting' ? 'fp-svg-scanning' : ''}>
     <path d="M18 62 C14 30, 86 30, 82 62" stroke={color} strokeWidth="3.2" strokeLinecap="round" className="fp-line fp-line-1" />
     <path d="M24 68 C21 40, 79 40, 76 68" stroke={color} strokeWidth="3" strokeLinecap="round" className="fp-line fp-line-2" />
@@ -64,8 +81,6 @@ function StaffFingerprintSVG({ status }) {
     <path d="M47 80 C46 70, 54 70, 53 80" stroke={color} strokeWidth="2.2" strokeLinecap="round" className="fp-line fp-line-6" />
     <path d="M18 62 C16 72, 20 82, 26 86 M82 62 C84 72, 80 82, 74 86 M35 38 C38 22, 62 22, 65 38 M42 34 C44 26, 56 26, 58 34" stroke={color} strokeWidth="3" strokeLinecap="round" />
     {status === 'waiting' && <line x1="10" y1="50" x2="90" y2="50" stroke="#4CBB17" strokeWidth="2" className="fp-scan-beam" />}
-    {status === 'success' && <><circle cx="50" cy="50" r="18" fill="rgba(4,106,56,0.1)" stroke="#046A38" strokeWidth="2" /><path d="M42 50 L48 56 L58 44" stroke="#046A38" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" /></>}
-    {status === 'error' && <><circle cx="50" cy="50" r="18" fill="rgba(220,38,38,0.08)" stroke="#dc2626" strokeWidth="2" /><path d="M43 43l14 14m0-14L43 57" stroke="#dc2626" strokeWidth="3" strokeLinecap="round" /></>}
   </svg>;
 }
 
@@ -566,7 +581,7 @@ export default function UsersPage() {
 
         {/* Tab Switcher */}
         <div style={{ display: 'flex', background: 'rgba(255,255,255,0.7)', backdropFilter: 'blur(16px)', border: '1px solid rgba(16,185,129,0.15)', borderRadius: 'var(--radius-md)', padding: 4, width: 'fit-content' }}>
-          {[[ 'staff', '\ud83e\uddd1\u200d\u2695\ufe0f Staff' ]].map(([key, label]) => (
+          {[['staff', '\ud83e\uddd1\u200d\u2695\ufe0f Staff']].map(([key, label]) => (
             <button
               key={key}
               onClick={() => setTab(key)}
@@ -585,7 +600,7 @@ export default function UsersPage() {
         {/* ── CLIENTS TAB ── */}
         {false && tab === 'clients' && (
           <div className="table-glass">
-              <div className="table-header">
+            <div className="table-header">
               <div>
                 <span className="table-title">Client Directory</span>
                 <p style={{ fontSize: '0.76rem', color: 'var(--text-muted)', marginTop: 2 }}>Monitor client attendance and session history</p>
@@ -645,14 +660,14 @@ export default function UsersPage() {
                   Showing {((currentPage - 1) * rowsPerPage) + 1} to {Math.min(currentPage * rowsPerPage, filteredClients.length)} of {filteredClients.length}
                 </span>
                 <div style={{ display: 'flex', gap: '8px' }}>
-                  <button 
+                  <button
                     onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                     disabled={currentPage === 1}
                     style={{ padding: '6px 12px', fontSize: '12px', fontWeight: 600, borderRadius: '6px', border: '1px solid var(--emerald-500)', background: 'transparent', color: 'var(--emerald-700)', cursor: currentPage === 1 ? 'not-allowed' : 'pointer', opacity: currentPage === 1 ? 0.5 : 1 }}
                   >
                     Previous
                   </button>
-                  <button 
+                  <button
                     onClick={() => setCurrentPage(p => Math.min(Math.ceil(filteredClients.length / rowsPerPage), p + 1))}
                     disabled={currentPage === Math.ceil(filteredClients.length / rowsPerPage)}
                     style={{ padding: '6px 12px', fontSize: '12px', fontWeight: 600, borderRadius: '6px', border: '1px solid var(--emerald-500)', background: 'transparent', color: 'var(--emerald-700)', cursor: currentPage === Math.ceil(filteredClients.length / rowsPerPage) ? 'not-allowed' : 'pointer', opacity: currentPage === Math.ceil(filteredClients.length / rowsPerPage) ? 0.5 : 1 }}

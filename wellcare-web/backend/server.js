@@ -566,7 +566,7 @@ app.post('/api/v1/clients', auth, isAdminOrStaff, async (req, res) => {
     return res.status(409).json({ success: false, message: 'User already registered' });
   }
   
-  const rawPassword = `Wc-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
+  const rawPassword = birthdate.replace(/-/g, '');
   const hashed = await bcrypt.hash(rawPassword, 10);
   
   const client_id_number = Math.floor(100000 + Math.random() * 900000).toString();
