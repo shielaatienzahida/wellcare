@@ -93,6 +93,7 @@ async function migrate(db) {
     ['address', 'TEXT'],
     ['emergency_contact', 'VARCHAR(100)'],
     ['emergency_number', 'VARCHAR(20)'],
+    ['last_seen', 'VARCHAR(100)'],
   ];
   for (const [columnName, columnType] of personalColumns) {
     if (!staffColumns.some(column => (column.column_name || column.name) === columnName)) {
@@ -189,6 +190,7 @@ async function migrate(db) {
     ['password', 'VARCHAR(255)'],
     ['emergency_contact', 'VARCHAR(100)'],
     ['emergency_number', 'VARCHAR(20)'],
+    ['last_seen', 'VARCHAR(100)'],
     ['profile_photo', 'TEXT'],
   ];
   for (const [columnName, columnType] of archivedPersonalColumns) {
@@ -206,6 +208,7 @@ async function migrate(db) {
       logged_by VARCHAR(20) DEFAULT 'admin',
       staff_id INT,
       date VARCHAR(100),
+      checkin_date VARCHAR(10),
       created_at ${DATETIME} DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE
     )
@@ -217,6 +220,15 @@ async function migrate(db) {
   const existingHistoryColumns = new Set(historyColumns[0].map(column => column.column_name || column.name));
   if (!existingHistoryColumns.has('staff_id')) {
     await db.execute('ALTER TABLE session_history ADD COLUMN staff_id INT');
+  }
+  if (!existingHistoryColumns.has('checkin_date')) {
+    await db.execute('ALTER TABLE session_history ADD COLUMN checkin_date VARCHAR(10)');
+    // Backfill checkin_date from created_at for existing Check-in rows
+    if (isPostgres) {
+      await db.execute(`UPDATE session_history SET checkin_date = TO_CHAR(created_at AT TIME ZONE 'Asia/Manila', 'YYYY-MM-DD') WHERE checkin_date IS NULL AND type = 'Check-in'`);
+    } else {
+      await db.execute(`UPDATE session_history SET checkin_date = DATE(created_at) WHERE checkin_date IS NULL AND type = 'Check-in'`);
+    }
   }
 
   // 6. Fingerprints

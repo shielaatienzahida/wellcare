@@ -16,14 +16,48 @@ import NotFound from './pages/NotFound';
 import StaffMonitoring from './pages/StaffMonitoring';
 import AdminProfile from './pages/AdminProfile';
 
+function isTokenValid(token) {
+  if (!token || typeof token !== 'string') return false;
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return false;
+    const payload = JSON.parse(atob(parts[1]));
+    if (payload.exp && Date.now() >= payload.exp * 1000) {
+      return false; // Expired
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function checkSession(sessionKey) {
+  try {
+    const raw = localStorage.getItem(sessionKey);
+    if (!raw) return false;
+    const session = JSON.parse(raw);
+    if (!session?.token || !isTokenValid(session.token)) {
+      localStorage.removeItem(sessionKey);
+      return false;
+    }
+    return true;
+  } catch {
+    localStorage.removeItem(sessionKey);
+    return false;
+  }
+}
+
 function RequireSession({ sessionKey, children }) {
   const navigate = useNavigate();
-  const [authorized] = useState(() => Boolean(localStorage.getItem(sessionKey)));
+  const [authorized, setAuthorized] = useState(() => checkSession(sessionKey));
 
   useEffect(() => {
-    if (authorized) return;
-    navigate('/', { replace: true, state: { authNotice: true } });
-  }, [authorized, navigate]);
+    const valid = checkSession(sessionKey);
+    setAuthorized(valid);
+    if (!valid) {
+      navigate('/login', { replace: true, state: { authNotice: 'Session expired. Please log in again.' } });
+    }
+  }, [sessionKey, navigate]);
 
   return authorized ? children : null;
 }

@@ -50,8 +50,8 @@
   #include "secrets.h"
 #else
   // Default placeholders: copy secrets.h.example -> secrets.h and enter your network details
-  #define WIFI_SSID_1 "Your_WiFi_Name"
-  #define WIFI_PASS_1 "Your_WiFi_Password"
+  #define WIFI_SSID_1 "Redmi 14C"
+  #define WIFI_PASS_1 "shiela06"
   #define WIFI_SSID_2 "Backup_Hotspot"
   #define WIFI_PASS_2 "Backup_Password"
   #define SERVER_BASE_URL "https://wellcare-1zo0.onrender.com/api/v1"
@@ -72,8 +72,11 @@ unsigned long lastSensorRetry = 0;
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 bool oledReady = false;
 
-// Buzzer Pin
+// Buzzer Configuration
 const int BUZZER_PIN = 32;
+// Set to false for Active Buzzer (most common, has black sealed bottom or sticker)
+// Set to true for Passive Buzzer (green exposed PCB on bottom)
+#define BUZZER_IS_PASSIVE false
 
 // Timing
 unsigned long lastEnrollPoll = 0;
@@ -128,11 +131,25 @@ void showOLED(const String &header, const String &line1, const String &line2) {
   yield();
 }
 
+// Buzzer driver: Supports both Active and Passive buzzers
 void beep(int ms) {
   pinMode(BUZZER_PIN, OUTPUT);
-  digitalWrite(BUZZER_PIN, HIGH);
-  delay(ms);
-  digitalWrite(BUZZER_PIN, LOW);
+  if (!BUZZER_IS_PASSIVE) {
+    // Active Buzzer (Continuous DC HIGH)
+    digitalWrite(BUZZER_PIN, HIGH);
+    delay(ms);
+    digitalWrite(BUZZER_PIN, LOW);
+  } else {
+    // Passive Buzzer (2 kHz oscillating wave)
+    unsigned long start = millis();
+    while (millis() - start < (unsigned long)ms) {
+      digitalWrite(BUZZER_PIN, HIGH);
+      delayMicroseconds(250);
+      digitalWrite(BUZZER_PIN, LOW);
+      delayMicroseconds(250);
+    }
+    digitalWrite(BUZZER_PIN, LOW);
+  }
   yield();
 }
 
@@ -207,6 +224,14 @@ void setup() {
   Serial.printf ("  Reset Reason Code: %d\n", esp_reset_reason());
   Serial.println("========================================");
   Serial.flush();
+
+  // Test Buzzer on Boot (GPIO 32: Positive -> GPIO 32, Negative -> GND)
+  pinMode(BUZZER_PIN, OUTPUT);
+  digitalWrite(BUZZER_PIN, LOW);
+  Serial.println("[Buzzer] Testing buzzer on GPIO 32...");
+  beep(120);
+  delay(100);
+  beep(120);
 
   // 1. Initialize OLED (Wire on GPIO 21=SDA, GPIO 22=SCL with 100ms timeout)
   Serial.print("[1/3] Initializing I2C OLED display... ");
@@ -382,7 +407,8 @@ void connectToWiFi() {
     Serial.print("ESP32 IP: ");
     Serial.println(WiFi.localIP());
     showOLED("WIFI CONNECTED!", "SSID: " + WiFi.SSID(), "IP: " + WiFi.localIP().toString());
-    delay(2000);
+    beep(150); // Beep confirmation on Wi-Fi connection
+    delay(1500);
   } else {
     wifiFailCount++;
     Serial.println("\n✗ Could not connect to hotspot yet. Retrying in 8s...");
@@ -407,6 +433,8 @@ void checkFingerprintVerification() {
   showOLED("SCANNING...", "Reading finger...", "Hold still");
   p = finger.image2Tz();
   if (p != FINGERPRINT_OK) {
+    // Messy or partial scan: brief alert beep
+    beep(180);
     showOLED("SCAN ERROR", "Messy image", "Try again");
     delay(1000);
     showReadyScreen();
@@ -415,16 +443,18 @@ void checkFingerprintVerification() {
 
   p = finger.fingerSearch();
   if (p == FINGERPRINT_OK) {
-    beep(80);
     Serial.printf("✓ MATCH FOUND! Slot ID: #%d (Confidence: %d)\n", finger.fingerID, finger.confidence);
     showOLED("MATCH FOUND!", "ID: #" + String(finger.fingerID), "Logging check-in...");
     sendAttendanceCheckIn(finger.fingerID);
   } else if (p == FINGERPRINT_NOTFOUND) {
+    // Finger not found in sensor: 3 alert beeps
+    beep(90); delay(70); beep(90); delay(70); beep(90);
     showOLED("NOT RECOGNIZED", "No match in system", "Register client 1st");
     Serial.println("! Finger scanned but not found in sensor database. Please register client on Web first.");
     delay(2000);
     showReadyScreen();
   } else {
+    beep(250);
     showOLED("MATCH ERROR", "Please try again", "");
     delay(1000);
     showReadyScreen();
@@ -439,6 +469,20 @@ void checkFingerprintVerification() {
 }
 
 // =========================================================================
+// HTTP / HTTPS CLIENT SETUP HELPER
+// =========================================================================
+bool setupHttpClient(HTTPClient &http, WiFiClient &client, WiFiClientSecure &secureClient, const String &url, int timeoutMs = 8000) {
+  http.setTimeout(timeoutMs);
+  http.setReuse(false);
+  if (url.startsWith("https://")) {
+    secureClient.setInsecure(); // Bypass CA verification for Render / Cloud backend
+    return http.begin(secureClient, url);
+  } else {
+    return http.begin(client, url);
+  }
+}
+
+// =========================================================================
 // SEND CHECK-IN TO SERVER
 // =========================================================================
 void sendAttendanceCheckIn(int fingerprintId) {
@@ -449,9 +493,10 @@ void sendAttendanceCheckIn(int fingerprintId) {
 
   HTTPClient http;
   WiFiClient client;
+  WiFiClientSecure secureClient;
   String url = String(SERVER_BASE_URL) + "/fingerprint/verify";
 
-  http.begin(client, url);
+  setupHttpClient(http, client, secureClient, url, 12000);
   http.addHeader("Content-Type", "application/json");
 
   StaticJsonDocument<200> doc;
@@ -470,17 +515,30 @@ void sendAttendanceCheckIn(int fingerprintId) {
     if (!error && responseDoc["success"] == true) {
       const char* clientName = responseDoc["client"]["full_name"] | "Client";
       int checkins = responseDoc["client"]["total_checkins"] | 0;
+      bool alreadyCheckedIn = responseDoc["already_checked_in"] | false;
 
-      // Double beep for welcome
-      beep(60); delay(60); beep(60);
-      showOLED("CHECK-IN LOGGED!", String(clientName), "Visits: " + String(checkins));
-      Serial.printf(">>> WELCOME %s! Total Visits: %d <<<\n\n", clientName, checkins);
-      delay(3000);
+      if (alreadyCheckedIn) {
+        // Informative single tone if already scanned today (1 check-in per day limit)
+        beep(250);
+        showOLED("ALREADY LOGGED!", String(clientName), "1 check-in per day");
+        Serial.printf(">>> %s IS ALREADY CHECKED IN TODAY (Total Visits: %d) <<<\n\n", clientName, checkins);
+        delay(3000);
+      } else {
+        // Loud, clear double beep on successful new visit check-in!
+        beep(150); delay(100); beep(150);
+        showOLED("CHECK-IN LOGGED!", String(clientName), "Visits: " + String(checkins));
+        Serial.printf(">>> WELCOME %s! Total Visits: %d <<<\n\n", clientName, checkins);
+        delay(3000);
+      }
     } else {
+      // Finger exists on optical sensor but not in DB
+      beep(300);
       showOLED("CHECK-IN ERROR", "Client not found", "in database");
       delay(2000);
     }
   } else {
+    // Server or network error
+    beep(300);
     showOLED("SERVER OFFLINE", "HTTP Error", http.errorToString(httpCode));
     Serial.printf("HTTP Post failed: %s\n", http.errorToString(httpCode).c_str());
     delay(2000);
@@ -498,9 +556,10 @@ void checkPendingEnrollment() {
 
   HTTPClient http;
   WiFiClient client;
+  WiFiClientSecure secureClient;
   String url = String(SERVER_BASE_URL) + "/fingerprint/enroll/pending?device_key=" + String(DEVICE_KEY);
 
-  http.begin(client, url);
+  setupHttpClient(http, client, secureClient, url, 4000);
 
   int httpCode = http.GET();
   if (httpCode == HTTP_CODE_OK) {
@@ -648,9 +707,10 @@ void sendEnrollmentSuccess(String sessionId, int fingerprintId) {
 
   HTTPClient http;
   WiFiClient client;
+  WiFiClientSecure secureClient;
   String url = String(SERVER_BASE_URL) + "/fingerprint/enroll/capture";
 
-  http.begin(client, url);
+  setupHttpClient(http, client, secureClient, url, 10000);
   http.addHeader("Content-Type", "application/json");
 
   StaticJsonDocument<256> doc;

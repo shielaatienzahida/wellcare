@@ -1,19 +1,47 @@
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
 
 // --- AUTH TOKEN HANDLING ---
-// Returns token for whichever session is currently active.
-function getToken() {
-  // Check admin first, then staff, then client
-  const admin = JSON.parse(localStorage.getItem('heiwa_session_admin') || 'null');
-  if (admin?.token) return admin.token;
+function isTokenValid(token) {
+  if (!token || typeof token !== 'string') return false;
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return false;
+    const payload = JSON.parse(atob(parts[1]));
+    if (payload.exp && Date.now() >= payload.exp * 1000) return false;
+    return true;
+  } catch {
+    return false;
+  }
+}
 
-  const staff = JSON.parse(localStorage.getItem('heiwa_session_staff') || 'null');
-  if (staff?.token) return staff.token;
-
-  const client = JSON.parse(localStorage.getItem('heiwa_session_client') || 'null');
-  if (client?.token) return client.token;
-
+function getSessionToken(key) {
+  try {
+    const data = JSON.parse(localStorage.getItem(key) || 'null');
+    if (data?.token && isTokenValid(data.token)) {
+      return data.token;
+    }
+    if (data?.token && !isTokenValid(data.token)) {
+      localStorage.removeItem(key);
+    }
+  } catch {
+    localStorage.removeItem(key);
+  }
   return null;
+}
+
+// Returns token for whichever session is currently active, matching current page context
+function getToken() {
+  const path = typeof window !== 'undefined' ? window.location.pathname : '';
+
+  if (path.startsWith('/client')) {
+    return getSessionToken('heiwa_session_client') || getSessionToken('heiwa_session_staff') || getSessionToken('heiwa_session_admin');
+  }
+  if (path.startsWith('/staff')) {
+    return getSessionToken('heiwa_session_staff') || getSessionToken('heiwa_session_admin') || getSessionToken('heiwa_session_client');
+  }
+
+  // Default: admin -> staff -> client
+  return getSessionToken('heiwa_session_admin') || getSessionToken('heiwa_session_staff') || getSessionToken('heiwa_session_client');
 }
 
 const headers = () => ({

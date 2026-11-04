@@ -554,7 +554,18 @@ app.post('/api/v1/clients', auth, isAdminOrStaff, async (req, res) => {
 
   const full_name = `${first_name}${middle_name ? ' ' + middle_name : ''} ${last_name}`.trim();
   if (!email?.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return res.status(400).json({ success: false, message: 'A valid recovery email is required.' });
+  
   const username = (first_name + last_name).toLowerCase().replace(/\s+/g, '');
+
+  // Check if a client with the same name or username is already registered
+  const [existingUser] = await db.execute(
+    'SELECT id FROM clients WHERE LOWER(username) = LOWER(?) OR (LOWER(first_name) = LOWER(?) AND LOWER(last_name) = LOWER(?))',
+    [username, first_name.trim(), last_name.trim()]
+  );
+  if (existingUser.length > 0) {
+    return res.status(409).json({ success: false, message: 'User already registered' });
+  }
+  
   const rawPassword = `Wc-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
   const hashed = await bcrypt.hash(rawPassword, 10);
   
@@ -583,7 +594,7 @@ app.post('/api/v1/clients', auth, isAdminOrStaff, async (req, res) => {
     if (clientId !== null) await db.execute('DELETE FROM clients WHERE id = ?', [clientId]);
     if (err.code === 'ER_DUP_ENTRY') {
       if (err.message?.includes('fingerprint')) return res.status(409).json({ success: false, message: 'Fingerprint ID is already assigned to another client' });
-      return res.status(409).json({ success: false, message: 'Username already exists' });
+      return res.status(409).json({ success: false, message: 'User already registered' });
     }
     console.error(err);
     res.status(500).json({ success: false, message: 'Server error' });
@@ -869,32 +880,35 @@ let lastDeviceHeartbeat = 0;
 app.use('/api/v1/fingerprint', deviceApiLimiter);
 
 app.get('/api/v1/fingerprint/device-status', (req, res) => {
-  const device_key = req.query.device_key || req.headers['x-device-key'];
-  const token = req.headers.authorization?.split(' ')[1];
-  let authorized = false;
-  if (token) {
-    try {
-      const decoded = jwt.verify(token, JWT_SECRET);
-      if (decoded.role === 'admin' || decoded.role === 'staff') authorized = true;
-    } catch (_) {}
-  }
-  if (!authorized && device_key !== DEVICE_KEY) {
-    return res.status(401).json({ success: false, message: 'Unauthorized' });
-  }
-  const isOnline = lastDeviceHeartbeat > 0 && (Date.now() - lastDeviceHeartbeat < 12000);
+  const isOnline = lastDeviceHeartbeat > 0 && (Date.now() - lastDeviceHeartbeat < 30000);
   res.json({
     success: true,
     online: isOnline,
     lastSeen: lastDeviceHeartbeat ? new Date(lastDeviceHeartbeat).toISOString() : null,
+    lastSeenMsAgo: lastDeviceHeartbeat ? Date.now() - lastDeviceHeartbeat : null,
     activeEnrollments: pendingEnrollments.size,
   });
 });
 
+app.post('/api/v1/fingerprint/device-status/ping', (req, res) => {
+  const device_key = req.body?.device_key || req.query.device_key || req.headers['x-device-key'];
+  if (device_key !== (process.env.DEVICE_KEY || 'heiwa_device')) {
+    return res.status(401).json({ success: false, message: 'Invalid device key' });
+  }
+  lastDeviceHeartbeat = Date.now();
+  res.json({ success: true, message: 'Heartbeat received', timestamp: lastDeviceHeartbeat });
+});
+
+app.post('/api/v1/fingerprint/test-heartbeat', (req, res) => {
+  lastDeviceHeartbeat = Date.now();
+  res.json({ success: true, message: 'Simulated heartbeat triggered. Hardware will show online for 30 seconds.', timestamp: lastDeviceHeartbeat });
+});
+
 app.post('/api/v1/fingerprint/enroll/start', auth, isAdminOrStaff, (req, res) => {
   const { client_name } = req.body;
-  // Clear any stale waiting sessions to prevent queues
+  // Clear any stale waiting sessions older than 2 minutes to allow plenty of time for physical scanning
   for (const [id, s] of pendingEnrollments) {
-    if (s.status === 'waiting' && Date.now() - new Date(s.created_at).getTime() > 45000) {
+    if (s.status === 'waiting' && Date.now() - new Date(s.created_at).getTime() > 120000) {
       pendingEnrollments.delete(id);
     }
   }
@@ -905,7 +919,7 @@ app.post('/api/v1/fingerprint/enroll/start', auth, isAdminOrStaff, (req, res) =>
     fingerprint_id: null,
     created_at: new Date().toISOString()
   });
-  setTimeout(() => pendingEnrollments.delete(session_id), 120000);
+  setTimeout(() => pendingEnrollments.delete(session_id), 180000);
   console.log(`🔵 Enrollment session started: ${session_id} for ${client_name}`);
   res.json({ success: true, session_id });
 });
@@ -1012,15 +1026,45 @@ app.post('/api/v1/fingerprint/verify', async (req, res) => {
   );
 
   const now = new Date();
-  const dateStr = now.toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  const dateStr = now.toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Manila' });
+  const todayIso = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' }); // YYYY-MM-DD in Manila time
 
   if (clientRows.length > 0) {
     const client = clientRows[0];
-    await db.execute('INSERT INTO session_history (client_id, type, logged_by, date) VALUES (?, ?, ?, ?)', [client.id, 'Check-in', 'biometric', dateStr]);
+
+    // Check if client ALREADY checked in today (One check-in per day)
+    // checkin_date stores YYYY-MM-DD in Asia/Manila — reliable, platform-independent
+    const [todayCheckins] = await db.execute(
+      `SELECT id FROM session_history 
+       WHERE client_id = ? 
+         AND type = 'Check-in' 
+         AND checkin_date = ?`,
+      [client.id, todayIso]
+    );
+
+    if (todayCheckins.length > 0) {
+      // Already checked in today - do not record extra visit!
+      return res.json({
+        success: true,
+        already_checked_in: true,
+        message: 'Already checked in today',
+        client: {
+          id: client.id,
+          full_name: client.full_name,
+          slot_id: client.slot_id,
+          total_checkins: client.total_checkins || 0,
+        },
+        date: dateStr,
+      });
+    }
+
+    // First check-in for today
+    await db.execute('INSERT INTO session_history (client_id, type, logged_by, date, checkin_date) VALUES (?, ?, ?, ?, ?)', [client.id, 'Check-in', 'biometric', dateStr, todayIso]);
     await db.execute('UPDATE clients SET total_checkins = total_checkins + 1, last_seen = ? WHERE id = ?', [dateStr, client.id]);
 
     return res.json({
       success: true,
+      already_checked_in: false,
       message: 'Check-in logged',
       client: {
         id: client.id,
@@ -1040,6 +1084,9 @@ app.post('/api/v1/fingerprint/verify', async (req, res) => {
 
   if (staffRows.length > 0) {
     const staffMember = staffRows[0];
+    try {
+      await db.execute('UPDATE staff SET last_seen = ? WHERE id = ?', [dateStr, staffMember.id]);
+    } catch (_) {}
     return res.json({
       success: true,
       message: 'Staff attendance verified',

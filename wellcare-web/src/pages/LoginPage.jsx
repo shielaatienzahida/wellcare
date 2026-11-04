@@ -1,14 +1,30 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Eye, EyeOff, Lock, User, ArrowLeft } from 'lucide-react';
 import { api } from '../api';
 import logoImg from '../assets/logo.jpg';
 
+// Decode JWT and check expiry (no library needed)
+function isTokenValid(token) {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    return payload.exp && payload.exp * 1000 > Date.now();
+  } catch { return false; }
+}
+function hasValidSession(key) {
+  try {
+    const s = JSON.parse(localStorage.getItem(key));
+    return s?.token && isTokenValid(s.token);
+  } catch { return false; }
+}
+
 export default function LoginPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [form, setForm] = useState({ username: '', password: '' });
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState('');
+  // Pre-fill error with authNotice from session expiry redirect
+  const [error, setError] = useState(location.state?.authNotice || '');
   const [loading, setLoading] = useState(false);
   const [showPasswordHelp, setShowPasswordHelp] = useState(false);
   const [resetForm, setResetForm] = useState({ email: '', newPassword: '', confirmPassword: '', otp: '' });
@@ -18,11 +34,11 @@ export default function LoginPage() {
   const [resetLoading, setResetLoading] = useState(false);
   const [resetComplete, setResetComplete] = useState(false);
 
-  // Session guard — redirect if already logged in
+  // Session guard — only redirect if the stored token is still valid
   useEffect(() => {
-    if (localStorage.getItem('heiwa_session_admin')) { navigate('/dashboard'); return; }
-    if (localStorage.getItem('heiwa_session_staff')) { navigate('/staff-portal'); return; }
-    if (localStorage.getItem('heiwa_session_client')) { navigate('/client-portal'); return; }
+    if (hasValidSession('heiwa_session_admin')) { navigate('/dashboard'); return; }
+    if (hasValidSession('heiwa_session_staff')) { navigate('/staff-portal'); return; }
+    if (hasValidSession('heiwa_session_client')) { navigate('/client-portal'); return; }
   }, [navigate]);
 
   const handleSubmit = async (e) => {

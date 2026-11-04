@@ -49,19 +49,23 @@ class _LoginScreenState extends State<LoginScreen> {
 
       final data = jsonDecode(res.body);
 
-      if (res.statusCode == 200 && data['success'] == true && data['role'] == 'client') {
-        final clientData = Map<String, dynamic>.from(data['client']);
-        clientData['token'] = data['token'];
-        final client = ClientModel.fromJson(clientData);
+      if (res.statusCode == 200 && data['success'] == true) {
+        if (data['role'] == 'client') {
+          final clientData = Map<String, dynamic>.from(data['client']);
+          clientData['token'] = data['token'];
+          final client = ClientModel.fromJson(clientData);
 
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('heiwa_session_client', jsonEncode(client.toJson()));
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('heiwa_session_client', jsonEncode(client.toJson()));
 
-        if (!mounted) return;
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => ClientPortalScreen(client: client)),
-        );
+          if (!mounted) return;
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => ClientPortalScreen(client: client)),
+          );
+        } else {
+          setState(() => _error = 'This mobile app is for clients only. Staff and Admins please use the Web Portal.');
+        }
       } else {
         setState(() => _error = data['message'] ?? 'Invalid username or password.');
       }
