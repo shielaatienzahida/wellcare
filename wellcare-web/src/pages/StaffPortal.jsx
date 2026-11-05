@@ -5,6 +5,7 @@ import { ArrowLeft, CheckCircle, CheckCircle2, AlertCircle, Bell, Droplets, Mess
 import { api } from '../api';
 import AppLayout from '../components/AppLayout';
 import StaffClientRegistration from './StaffClientRegistration';
+import ClientDetailModal from '../components/ClientDetailModal';
 import CalabarzonAddressFields from '../components/CalabarzonAddressFields';
 import { formatPersonName } from '../nameValidation';
 import { hasFieldErrors, validateAddressSelection, validateContactNumber, validateDateOfBirth, validateEmail, validateName, validateRequired } from '../formValidation';
@@ -20,6 +21,7 @@ export default function StaffPortal() {
   const navigate = useNavigate();
   const [tab, setTab] = useState('home');
   const [showClientRegistration, setShowClientRegistration] = useState(false);
+  const [selectedClientDetail, setSelectedClientDetail] = useState(null);
   const [clients, setClients] = useState([]);
   const [archivedClients, setArchivedClients] = useState([]);
   const [archivedClientsLoading, setArchivedClientsLoading] = useState(false);
@@ -810,9 +812,28 @@ setClientEditError('');
               {recentClients.length ? (
                 <div style={{ display: 'grid' }}>
                   {recentClients.map(client => (
-                    <div key={client.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, padding: '14px 18px', borderTop: '1px solid rgba(15,118,110,.08)' }}>
+                    <div
+                      key={client.id}
+                      onClick={() => setSelectedClientDetail(client)}
+                      title="Click to view client details"
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: 14,
+                        padding: '14px 18px',
+                        borderTop: '1px solid rgba(15,118,110,.08)',
+                        cursor: 'pointer',
+                        transition: 'background 0.15s ease'
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.background = 'rgba(5, 150, 105, 0.05)'}
+                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                    >
                       <div style={{ minWidth: 0 }}>
-                        <div style={{ fontWeight: 700, color: '#123b32' }}>{client.full_name || 'Client'}</div>
+                        <div style={{ fontWeight: 700, color: '#123b32', display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span>{client.full_name || 'Client'}</span>
+                          <span style={{ fontSize: 11, color: '#047857', background: '#dcfce7', padding: '1px 7px', borderRadius: 6, fontWeight: 600 }}>View Info</span>
+                        </div>
                         <div style={{ color: '#64748b', fontSize: 12 }}>Client ID: {client.client_id_number || '—'}</div>
                       </div>
                       <span style={{ color: '#64748b', fontSize: 12, whiteSpace: 'nowrap' }}>
@@ -949,7 +970,14 @@ setClientEditError('');
                   <tbody>
                     {pagedClients.map((c, i) => (
                       <tr key={c.id || i}>
-                        <td className="td-name">{c.full_name}</td>
+                        <td
+                          className="td-name"
+                          onClick={() => setSelectedClientDetail(c)}
+                          title="Click to view full client info"
+                          style={{ cursor: 'pointer', textDecoration: 'underline', textDecorationColor: '#10b981', textUnderlineOffset: 3 }}
+                        >
+                          {c.full_name}
+                        </td>
                         <td><span className="td-slot">{c.client_id_number || 'N/A'}</span></td>
                         <td className="td-date">{c.created_at ? new Date(c.created_at).toLocaleDateString('en-PH') : '—'}</td>
                         <td><span className="badge badge-green">{c.total_checkins ?? 0}</span></td>
@@ -1384,6 +1412,18 @@ setClientEditError('');
           </>
         )}
       </main>
+
+      {/* Client Detail Popup Modal */}
+      {selectedClientDetail && (
+        <ClientDetailModal
+          client={selectedClientDetail}
+          onClose={() => setSelectedClientDetail(null)}
+          onViewHistory={(c) => {
+            setTab('clients');
+            setSearch(c.full_name || '');
+          }}
+        />
+      )}
     </AppLayout>
   );
 }

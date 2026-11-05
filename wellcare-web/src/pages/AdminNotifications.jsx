@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Bell, CheckCheck, Trash2, UserRound, Users, ShieldAlert, CheckCircle, XCircle } from 'lucide-react';
 import { api } from '../api';
 import AdminLayout from '../components/AdminLayout';
+import ClientDetailModal from '../components/ClientDetailModal';
 
 export default function AdminNotifications() {
   const navigate = useNavigate();
@@ -10,6 +11,7 @@ export default function AdminNotifications() {
   const stateKey = `heiwa_admin_notifications_${adminSession.username || 'admin'}`;
   const [clients, setClients] = useState([]);
   const [resetRequests, setResetRequests] = useState([]);
+  const [selectedClientModal, setSelectedClientModal] = useState(null);
   const [actionLoading, setActionLoading] = useState({});
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
@@ -110,7 +112,10 @@ export default function AdminNotifications() {
       ...notificationState,
       readIds: [...new Set([...notificationState.readIds, id])]
     });
-    navigate('/staff-monitoring');
+    const found = clients.find(c => String(c.id) === id);
+    if (found) {
+      setSelectedClientModal(found);
+    }
   };
 
   const deleteAll = () => {
@@ -369,6 +374,15 @@ export default function AdminNotifications() {
           })}
         </div>
       </section>
+
+      {/* Client Detail Popup Modal */}
+      {selectedClientModal && (
+        <ClientDetailModal
+          client={selectedClientModal}
+          onClose={() => setSelectedClientModal(null)}
+          onViewHistory={() => navigate('/staff-monitoring')}
+        />
+      )}
     </AdminLayout>
   );
 }
