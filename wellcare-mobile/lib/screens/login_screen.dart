@@ -411,12 +411,35 @@ class _PasswordResetDialogState extends State<_PasswordResetDialog> {
   final _confirmCtrl = TextEditingController();
   final _otpCtrl = TextEditingController();
 
+  // Admin Assisted controllers
+  final _adminIdCtrl = TextEditingController();
+  final _adminContactCtrl = TextEditingController();
+  final _adminNewPassCtrl = TextEditingController();
+  final _adminConfirmPassCtrl = TextEditingController();
+
+  int _selectedTab = 0; // 0 = Email OTP, 1 = Admin Assistance
   String _resetKey = '';
   bool _busy = false;
   String? _message;
   bool _isSuccess = false;
   bool _obscureNewPass = true;
   bool _obscureConfirmPass = true;
+  bool _obscureAdminNewPass = true;
+  bool _obscureAdminConfirmPass = true;
+
+  // Admin recovery flow steps: 0 = Request, 1 = Waiting for Admin, 2 = Create New Password
+  int _adminStep = 0;
+  int? _adminRequestId;
+  String? _adminResetToken;
+  String? _adminVerifiedName;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.username.isNotEmpty) {
+      _adminIdCtrl.text = widget.username;
+    }
+  }
 
   @override
   void dispose() {
@@ -424,6 +447,10 @@ class _PasswordResetDialogState extends State<_PasswordResetDialog> {
     _passwordCtrl.dispose();
     _confirmCtrl.dispose();
     _otpCtrl.dispose();
+    _adminIdCtrl.dispose();
+    _adminContactCtrl.dispose();
+    _adminNewPassCtrl.dispose();
+    _adminConfirmPassCtrl.dispose();
     super.dispose();
   }
 
@@ -432,6 +459,143 @@ class _PasswordResetDialogState extends State<_PasswordResetDialog> {
       _message = message;
       _isSuccess = success;
     });
+  }
+
+  // ── Step 1: Submit Admin Reset Request ──
+  Future<void> _submitAdminRequest() async {
+    final identifier = _adminIdCtrl.text.trim();
+    if (identifier.isEmpty) {
+      _setMessage('Please enter your username or Client ID.');
+      return;
+    }
+
+    setState(() {
+      _busy = true;
+      _message = null;
+    });
+
+    try {
+      final response = await postApi(
+        '/password-reset/admin-request',
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'identifier': identifier,
+          'contact_number': _adminContactCtrl.text.trim(),
+        }),
+        timeout: const Duration(seconds: 25),
+      );
+
+      final result = jsonDecode(response.body);
+      if (response.statusCode != 200) {
+        throw Exception(result['message'] ?? 'Failed to submit reset request.');
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _adminRequestId = result['requestId'];
+        _adminResetToken = result['resetToken'];
+        _adminVerifiedName = result['full_name'] ?? result['username'];
+        _adminStep = 1; // Transition to: Please wait for admin to verify
+      });
+      _setMessage('Request submitted! Please ask admin to verify your identity.', success: true);
+    } catch (error) {
+      if (!mounted) return;
+      _setMessage(_errorText(error));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  // ── Step 2: Check Status / Poll if Admin Verified ──
+  Future<void> _checkAdminStatus({bool showMessage = true}) async {
+    if (_adminRequestId == null) return;
+
+    setState(() {
+      _busy = true;
+      if (showMessage) _message = null;
+    });
+
+    try {
+      final response = await getApi(
+        '/password-reset/admin-request/status/$_adminRequestId?token=${_adminResetToken ?? ''}',
+        timeout: const Duration(seconds: 15),
+      );
+
+      final result = jsonDecode(response.body);
+      if (response.statusCode != 200) {
+        throw Exception(result['message'] ?? 'Error checking status.');
+      }
+
+      if (!mounted) return;
+      if (result['approved'] == true || result['status'] == 'approved') {
+        setState(() {
+          _adminStep = 2; // Transition to: Create New Password!
+        });
+        _setMessage('Identity verified by Admin! Please enter your new password.', success: true);
+      } else if (result['status'] == 'cancelled') {
+        setState(() {
+          _adminStep = 0;
+        });
+        _setMessage('Request was declined or cancelled. Please try again.');
+      } else {
+        if (showMessage) {
+          _setMessage('Still waiting for admin verification. Please check with center staff.');
+        }
+      }
+    } catch (error) {
+      if (!mounted) return;
+      if (showMessage) _setMessage(_errorText(error));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  // ── Step 3: Complete Password Reset with New Password ──
+  Future<void> _completeAdminPasswordReset() async {
+    final newPass = _adminNewPassCtrl.text;
+    final confirmPass = _adminConfirmPassCtrl.text;
+
+    if (newPass.length < 6) {
+      _setMessage('Password must be at least 6 characters.');
+      return;
+    }
+    if (newPass != confirmPass) {
+      _setMessage('Passwords do not match.');
+      return;
+    }
+
+    setState(() {
+      _busy = true;
+      _message = null;
+    });
+
+    try {
+      final response = await postApi(
+        '/password-reset/admin-request/complete',
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'requestId': _adminRequestId,
+          'resetToken': _adminResetToken,
+          'newPassword': newPass,
+          'confirmPassword': confirmPass,
+        }),
+        timeout: const Duration(seconds: 25),
+      );
+
+      final result = jsonDecode(response.body);
+      if (response.statusCode != 200) {
+        throw Exception(result['message'] ?? 'Failed to update password.');
+      }
+
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      widget.onPasswordUpdated();
+    } catch (error) {
+      if (!mounted) return;
+      _setMessage(_errorText(error));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   Future<void> _submit() async {
@@ -552,7 +716,353 @@ class _PasswordResetDialogState extends State<_PasswordResetDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (_resetKey.isEmpty) ...{
+            // ── Tab Switcher: Email OTP vs Admin Assistance ──
+            if (_resetKey.isEmpty) ...[
+              Container(
+                decoration: BoxDecoration(
+                  color: kDarkSurfaceAlt,
+                  borderRadius: BorderRadius.circular(AppRadius.sm),
+                  border: Border.all(color: Colors.white.withOpacity(0.08)),
+                ),
+                padding: const EdgeInsets.all(3),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () {
+                          if (_selectedTab != 0) {
+                            setState(() {
+                              _selectedTab = 0;
+                              _message = null;
+                            });
+                          }
+                        },
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          decoration: BoxDecoration(
+                            color: _selectedTab == 0 ? kAmber : Colors.transparent,
+                            borderRadius: BorderRadius.circular(AppRadius.xs + 2),
+                          ),
+                          alignment: Alignment.center,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.email_outlined,
+                                size: 15,
+                                color: _selectedTab == 0 ? const Color(0xFF0B1F1A) : kTextSecondary,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Email OTP',
+                                style: TextStyle(
+                                  fontSize: 12.5,
+                                  fontWeight: _selectedTab == 0 ? FontWeight.w800 : FontWeight.w600,
+                                  color: _selectedTab == 0 ? const Color(0xFF0B1F1A) : kTextSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () {
+                          if (_selectedTab != 1) {
+                            setState(() {
+                              _selectedTab = 1;
+                              _message = null;
+                            });
+                          }
+                        },
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          decoration: BoxDecoration(
+                            color: _selectedTab == 1 ? kAmber : Colors.transparent,
+                            borderRadius: BorderRadius.circular(AppRadius.xs + 2),
+                          ),
+                          alignment: Alignment.center,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.support_agent_rounded,
+                                size: 16,
+                                color: _selectedTab == 1 ? const Color(0xFF0B1F1A) : kTextSecondary,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Admin Assisted',
+                                style: TextStyle(
+                                  fontSize: 12.5,
+                                  fontWeight: _selectedTab == 1 ? FontWeight.w800 : FontWeight.w600,
+                                  color: _selectedTab == 1 ? const Color(0xFF0B1F1A) : kTextSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
+
+            if (_resetKey.isEmpty && _selectedTab == 1) ...[
+              // ── Admin-Assisted Recovery 3-Step Flow ──
+              if (_adminStep == 0) ...[
+                // STEP 1: Request Password Reset Form
+                const Text(
+                  'Submit your username or Client ID to request a password reset. Center staff or admin will verify your identity.',
+                  style: TextStyle(fontSize: 12.5, height: 1.45, color: kTextSecondary),
+                ),
+                const SizedBox(height: 14),
+                TextField(
+                  controller: _adminIdCtrl,
+                  style: const TextStyle(color: kTextPrimary, fontSize: 14),
+                  decoration: InputDecoration(
+                    labelText: 'Username or Client ID',
+                    labelStyle: const TextStyle(color: kTextTertiary, fontSize: 13),
+                    hintText: 'e.g. maria or 104829',
+                    hintStyle: TextStyle(color: kTextTertiary.withOpacity(0.55), fontSize: 12),
+                    filled: true,
+                    fillColor: kDarkSurfaceAlt,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+                    prefixIcon: const Icon(Icons.person_outline_rounded, size: 19, color: kAmber),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: Colors.white.withOpacity(0.08))),
+                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: Colors.white.withOpacity(0.08))),
+                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kAmber, width: 1.5)),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: _adminContactCtrl,
+                  keyboardType: TextInputType.phone,
+                  style: const TextStyle(color: kTextPrimary, fontSize: 14),
+                  decoration: InputDecoration(
+                    labelText: 'Registered Contact Number (Optional)',
+                    labelStyle: const TextStyle(color: kTextTertiary, fontSize: 13),
+                    hintText: '09XX XXX XXXX',
+                    hintStyle: TextStyle(color: kTextTertiary.withOpacity(0.55), fontSize: 12),
+                    filled: true,
+                    fillColor: kDarkSurfaceAlt,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+                    prefixIcon: const Icon(Icons.phone_outlined, size: 18, color: kAmber),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: Colors.white.withOpacity(0.08))),
+                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: Colors.white.withOpacity(0.08))),
+                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kAmber, width: 1.5)),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: _busy ? null : _submitAdminRequest,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: kAmber,
+                      foregroundColor: const Color(0xFF0B1F1A),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.sm)),
+                    ),
+                    icon: const Icon(Icons.send_rounded, size: 16),
+                    label: Text(
+                      _busy ? 'Submitting...' : 'Request Password Reset',
+                      style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+                    ),
+                  ),
+                ),
+              ] else if (_adminStep == 1) ...[
+                // STEP 2: Please wait for admin to verify your identity
+                Container(
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: kDarkBg,
+                    borderRadius: BorderRadius.circular(AppRadius.md),
+                    border: Border.all(color: kAmber.withOpacity(0.4), width: 1.2),
+                  ),
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    children: [
+                      Container(
+                        width: 50,
+                        height: 50,
+                        decoration: BoxDecoration(
+                          color: kAmber.withOpacity(0.18),
+                          shape: BoxShape.circle,
+                          border: Border.all(color: kAmber.withOpacity(0.4), width: 1.5),
+                        ),
+                        child: const Icon(Icons.hourglass_top_rounded, color: kAmber, size: 26),
+                      ),
+                      const SizedBox(height: 12),
+                      const Text(
+                        'Please wait for admin to verify your identity',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          color: kCream,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Account: ${_adminVerifiedName ?? _adminIdCtrl.text.trim()}',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w700,
+                          color: kAmber,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      const Text(
+                        'Inform the center receptionist or admin that you requested a password reset. Once verified, this screen will let you create a new password.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 12,
+                          height: 1.4,
+                          color: kTextSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: _busy ? null : () => setState(() => _adminStep = 0),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: kTextTertiary,
+                                side: BorderSide(color: Colors.white.withOpacity(0.15)),
+                                padding: const EdgeInsets.symmetric(vertical: 10),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              ),
+                              icon: const Icon(Icons.arrow_back, size: 14),
+                              label: const Text('Back', style: TextStyle(fontSize: 12)),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            flex: 2,
+                            child: FilledButton.icon(
+                              onPressed: _busy ? null : () => _checkAdminStatus(showMessage: true),
+                              style: FilledButton.styleFrom(
+                                backgroundColor: kAmber,
+                                foregroundColor: const Color(0xFF0B1F1A),
+                                padding: const EdgeInsets.symmetric(vertical: 10),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              ),
+                              icon: const Icon(Icons.refresh_rounded, size: 15),
+                              label: Text(
+                                _busy ? 'Checking...' : 'Check Status',
+                                style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ] else if (_adminStep == 2) ...[
+                // STEP 3: Create New Password
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: AppColors.success.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppColors.success.withOpacity(0.35)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.check_circle_rounded, color: AppColors.success, size: 18),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Identity Verified! Create New Password for ${_adminVerifiedName ?? ''}:',
+                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: kCream),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 14),
+                TextField(
+                  controller: _adminNewPassCtrl,
+                  obscureText: _obscureAdminNewPass,
+                  style: const TextStyle(color: kTextPrimary, fontSize: 14),
+                  decoration: InputDecoration(
+                    labelText: 'New password',
+                    labelStyle: const TextStyle(color: kTextTertiary, fontSize: 13),
+                    hintText: '6+ characters',
+                    hintStyle: TextStyle(color: kTextTertiary.withOpacity(0.55), fontSize: 12),
+                    filled: true,
+                    fillColor: kDarkSurfaceAlt,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    prefixIcon: const Icon(Icons.lock_outline_rounded, size: 18, color: kAmber),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _obscureAdminNewPass ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                        size: 18,
+                        color: kTextTertiary,
+                      ),
+                      onPressed: () => setState(() => _obscureAdminNewPass = !_obscureAdminNewPass),
+                    ),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: Colors.white.withOpacity(0.08))),
+                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: Colors.white.withOpacity(0.08))),
+                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kAmber, width: 1.5)),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: _adminConfirmPassCtrl,
+                  obscureText: _obscureAdminConfirmPass,
+                  style: const TextStyle(color: kTextPrimary, fontSize: 14),
+                  decoration: InputDecoration(
+                    labelText: 'Confirm new password',
+                    labelStyle: const TextStyle(color: kTextTertiary, fontSize: 13),
+                    hintText: 'Re-enter new password',
+                    hintStyle: TextStyle(color: kTextTertiary.withOpacity(0.55), fontSize: 12),
+                    filled: true,
+                    fillColor: kDarkSurfaceAlt,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    prefixIcon: const Icon(Icons.check_circle_outline_rounded, size: 18, color: kAmber),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _obscureAdminConfirmPass ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                        size: 18,
+                        color: kTextTertiary,
+                      ),
+                      onPressed: () => setState(() => _obscureAdminConfirmPass = !_obscureAdminConfirmPass),
+                    ),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: Colors.white.withOpacity(0.08))),
+                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: Colors.white.withOpacity(0.08))),
+                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kAmber, width: 1.5)),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: _busy ? null : _completeAdminPasswordReset,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: kAmber,
+                      foregroundColor: const Color(0xFF0B1F1A),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.sm)),
+                    ),
+                    icon: const Icon(Icons.lock_reset_rounded, size: 16),
+                    label: Text(
+                      _busy ? 'Saving...' : 'Save and Create New Password',
+                      style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+                    ),
+                  ),
+                ),
+              ],
+            ] else if (_resetKey.isEmpty && _selectedTab == 0) ...{
               Text(
                 'We will send an OTP to the email saved for '
                 '${widget.username.isEmpty ? 'your account' : widget.username}.',
@@ -777,24 +1287,62 @@ class _PasswordResetDialogState extends State<_PasswordResetDialog> {
         TextButton(
           onPressed: _busy ? null : () => Navigator.of(context).pop(),
           style: TextButton.styleFrom(foregroundColor: kTextTertiary),
-          child: const Text('Cancel'),
+          child: Text(_resetKey.isEmpty && _selectedTab == 1 ? 'Close' : 'Cancel'),
         ),
-        FilledButton(
-          onPressed: _busy ? null : _submit,
-          style: FilledButton.styleFrom(
-            backgroundColor: kAmber,
-            foregroundColor: const Color(0xFF0B1F1A),
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppRadius.sm)),
+        if (_resetKey.isNotEmpty || _selectedTab == 0)
+          FilledButton(
+            onPressed: _busy ? null : _submit,
+            style: FilledButton.styleFrom(
+              backgroundColor: kAmber,
+              foregroundColor: const Color(0xFF0B1F1A),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppRadius.sm)),
+            ),
+            child: Text(
+              _busy
+                  ? 'Please wait...'
+                  : _resetKey.isEmpty
+                      ? 'Save and send OTP'
+                      : 'Verify and save',
+              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+            ),
           ),
+      ],
+    );
+  }
+
+  static Widget _buildAdminStep({required String number, required String text}) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 18,
+          height: 18,
+          margin: const EdgeInsets.only(top: 1.5, right: 8),
+          decoration: BoxDecoration(
+            color: kAmber.withOpacity(0.2),
+            shape: BoxShape.circle,
+            border: Border.all(color: kAmber.withOpacity(0.4), width: 1),
+          ),
+          alignment: Alignment.center,
           child: Text(
-            _busy
-                ? 'Please wait...'
-                : _resetKey.isEmpty
-                    ? 'Save and send OTP'
-                    : 'Verify and save',
-            style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+            number,
+            style: const TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              color: kAmber,
+            ),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            text,
+            style: const TextStyle(
+              fontSize: 12,
+              height: 1.35,
+              color: kTextPrimary,
+            ),
           ),
         ),
       ],

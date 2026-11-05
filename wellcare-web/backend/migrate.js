@@ -295,6 +295,24 @@ async function migrate(db) {
     }
   }
 
+  // 9. Admin-Assisted Password Reset Requests
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS admin_reset_requests (
+      id ${ID},
+      client_id INT NOT NULL,
+      username VARCHAR(100) NOT NULL,
+      full_name VARCHAR(255),
+      contact_number VARCHAR(20),
+      reason TEXT,
+      status VARCHAR(20) DEFAULT 'pending',
+      approved_by VARCHAR(50),
+      approved_at ${DATETIME},
+      reset_token VARCHAR(100),
+      created_at ${DATETIME} DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE
+    )
+  `);
+
   // Seed Default Admin
   const [rows] = await db.execute('SELECT id FROM admins WHERE username = ?', ['admin']);
   if (rows.length === 0) {
@@ -315,7 +333,8 @@ async function migrate(db) {
       'session_history',
       'fingerprints',
       'messages',
-      'expenses'
+      'expenses',
+      'admin_reset_requests'
     ];
     for (const tbl of tables) {
       try {

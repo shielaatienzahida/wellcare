@@ -285,6 +285,180 @@ app.post('/api/v1/password-reset/verify', otpVerifyLimiter, async (req, res) => 
   }
 });
 
+// ── ADMIN-ASSISTED PASSWORD RECOVERY (FOR CLIENTS WITHOUT EMAIL) ──────────
+
+// Step 1: Client submits request from mobile app
+app.post('/api/v1/password-reset/admin-request', async (req, res) => {
+  const { identifier, contact_number, birthdate } = req.body;
+  const rawId = String(identifier || '').trim();
+  if (!rawId) {
+    return res.status(400).json({ success: false, message: 'Please enter your username or Client ID.' });
+  }
+
+  try {
+    // Find client by username or client_id_number
+    const [clients] = await db.execute(
+      'SELECT id, username, full_name, contact_number, birthdate FROM clients WHERE LOWER(username) = LOWER(?) OR client_id_number = ?',
+      [rawId, rawId]
+    );
+
+    if (clients.length === 0) {
+      return res.status(404).json({ success: false, message: 'No client account found matching that username or ID.' });
+    }
+
+    const client = clients[0];
+
+    // Optional verification check if provided
+    if (contact_number && client.contact_number) {
+      const cleanInput = String(contact_number).replace(/\D/g, '');
+      const cleanStored = String(client.contact_number).replace(/\D/g, '');
+      if (cleanInput && cleanStored && !cleanStored.endsWith(cleanInput.slice(-7))) {
+        return res.status(400).json({ success: false, message: 'Contact number does not match account records.' });
+      }
+    }
+
+    // Cancel / delete previous pending requests for this client
+    await db.execute("UPDATE admin_reset_requests SET status = 'cancelled' WHERE client_id = ? AND status = 'pending'", [client.id]);
+
+    // Insert new request
+    const resetToken = crypto.randomBytes(16).toString('hex');
+    const [result] = await db.execute(
+      'INSERT INTO admin_reset_requests (client_id, username, full_name, contact_number, reset_token, status) VALUES (?, ?, ?, ?, ?, ?)',
+      [client.id, client.username, client.full_name, client.contact_number, resetToken, 'pending']
+    );
+
+    const requestId = result.insertId || result[0]?.id;
+
+    res.json({
+      success: true,
+      requestId,
+      resetToken,
+      username: client.username,
+      full_name: client.full_name,
+      message: 'Password reset request submitted. Please wait for admin verification.'
+    });
+  } catch (err) {
+    console.error('Error creating admin reset request:', err);
+    res.status(500).json({ success: false, message: 'Failed to submit password reset request.' });
+  }
+});
+
+// Step 2: Client mobile app polls or checks if Admin has verified/approved the request
+app.get('/api/v1/password-reset/admin-request/status/:id', async (req, res) => {
+  const { id } = req.params;
+  const resetToken = req.query.token;
+
+  try {
+    const [rows] = await db.execute(
+      'SELECT id, client_id, username, full_name, status, approved_at, reset_token FROM admin_reset_requests WHERE id = ?',
+      [id]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Request not found.' });
+    }
+
+    const reqData = rows[0];
+    if (resetToken && reqData.reset_token !== resetToken) {
+      return res.status(403).json({ success: false, message: 'Invalid verification token.' });
+    }
+
+    res.json({
+      success: true,
+      status: reqData.status, // 'pending', 'approved', 'completed', 'cancelled'
+      approved: reqData.status === 'approved',
+      username: reqData.username,
+      full_name: reqData.full_name,
+    });
+  } catch (err) {
+    console.error('Error checking admin reset status:', err);
+    res.status(500).json({ success: false, message: 'Error checking request status.' });
+  }
+});
+
+// Step 3: Client creates new password once approved by Admin
+app.post('/api/v1/password-reset/admin-request/complete', async (req, res) => {
+  const { requestId, resetToken, newPassword, confirmPassword } = req.body;
+  if (!requestId || !resetToken || !newPassword) {
+    return res.status(400).json({ success: false, message: 'All fields are required.' });
+  }
+  if (newPassword.length < 6) {
+    return res.status(400).json({ success: false, message: 'Password must be at least 6 characters long.' });
+  }
+  if (newPassword !== confirmPassword) {
+    return res.status(400).json({ success: false, message: 'Passwords do not match.' });
+  }
+
+  try {
+    const [rows] = await db.execute(
+      "SELECT id, client_id, status, reset_token FROM admin_reset_requests WHERE id = ? AND status = 'approved'",
+      [requestId]
+    );
+
+    if (rows.length === 0) {
+      return res.status(400).json({ success: false, message: 'Request is not approved or has expired.' });
+    }
+
+    const reqData = rows[0];
+    if (reqData.reset_token !== resetToken) {
+      return res.status(403).json({ success: false, message: 'Invalid reset token.' });
+    }
+
+    // Hash new password and update client
+    const hashed = await bcrypt.hash(newPassword.trim(), 10);
+    await db.execute('UPDATE clients SET password = ? WHERE id = ?', [hashed, reqData.client_id]);
+
+    // Mark request as completed
+    await db.execute("UPDATE admin_reset_requests SET status = 'completed' WHERE id = ?", [requestId]);
+
+    res.json({ success: true, message: 'Password successfully updated! You can now log in.' });
+  } catch (err) {
+    console.error('Error completing password reset:', err);
+    res.status(500).json({ success: false, message: 'Failed to update password.' });
+  }
+});
+
+// ── Admin Endpoints for Managing Reset Requests ──
+app.get('/api/v1/admin/reset-requests', auth, isAdminOrStaff, async (req, res) => {
+  try {
+    const [rows] = await db.execute(
+      "SELECT r.*, c.email as client_email, c.client_id_number, c.birthdate FROM admin_reset_requests r JOIN clients c ON r.client_id = c.id WHERE r.status = 'pending' ORDER BY r.created_at DESC"
+    );
+    res.json({ success: true, requests: rows });
+  } catch (err) {
+    console.error('Error fetching reset requests:', err);
+    res.status(500).json({ success: false, message: 'Failed to fetch reset requests.' });
+  }
+});
+
+app.post('/api/v1/admin/reset-requests/:id/approve', auth, isAdminOrStaff, async (req, res) => {
+  const { id } = req.params;
+  const adminName = req.user.username || 'Admin';
+
+  try {
+    const now = new Date().toISOString();
+    await db.execute(
+      "UPDATE admin_reset_requests SET status = 'approved', approved_by = ?, approved_at = ? WHERE id = ?",
+      [adminName, now, id]
+    );
+    res.json({ success: true, message: 'Password reset request verified and approved!' });
+  } catch (err) {
+    console.error('Error approving reset request:', err);
+    res.status(500).json({ success: false, message: 'Failed to approve request.' });
+  }
+});
+
+app.post('/api/v1/admin/reset-requests/:id/reject', auth, isAdminOrStaff, async (req, res) => {
+  const { id } = req.params;
+  try {
+    await db.execute("UPDATE admin_reset_requests SET status = 'cancelled' WHERE id = ?", [id]);
+    res.json({ success: true, message: 'Request rejected/cancelled.' });
+  } catch (err) {
+    console.error('Error rejecting reset request:', err);
+    res.status(500).json({ success: false, message: 'Failed to cancel request.' });
+  }
+});
+
 app.post('/api/v1/login', authLimiter, async (req, res) => {
   const { username, password } = req.body;
   try {

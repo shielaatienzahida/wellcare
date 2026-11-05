@@ -171,5 +171,10 @@ export const api = {
     const query = new URLSearchParams(cleanParams).toString();
     return fetchAPI(`/attendance/summary${query ? `?${query}` : ''}`);
   },
+
+  // ADMIN PASSWORD RESET REQUESTS
+  getResetRequests: () => fetchAPI('/admin/reset-requests'),
+  approveResetRequest: (id) => fetchAPI(`/admin/reset-requests/${id}/approve`, { method: 'POST' }),
+  rejectResetRequest: (id) => fetchAPI(`/admin/reset-requests/${id}/reject`, { method: 'POST' }),
 };
 

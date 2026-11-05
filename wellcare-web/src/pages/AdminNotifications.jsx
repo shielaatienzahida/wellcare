@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, CheckCheck, Trash2, UserRound, Users } from 'lucide-react';
+import { Bell, CheckCheck, Trash2, UserRound, Users, ShieldAlert, CheckCircle, XCircle } from 'lucide-react';
 import { api } from '../api';
 import AdminLayout from '../components/AdminLayout';
 
@@ -9,6 +9,8 @@ export default function AdminNotifications() {
   const adminSession = JSON.parse(localStorage.getItem('heiwa_session_admin') || '{}');
   const stateKey = `heiwa_admin_notifications_${adminSession.username || 'admin'}`;
   const [clients, setClients] = useState([]);
+  const [resetRequests, setResetRequests] = useState([]);
+  const [actionLoading, setActionLoading] = useState({});
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const [notificationState, setNotificationState] = useState(() => {
@@ -24,10 +26,18 @@ export default function AdminNotifications() {
     localStorage.setItem(stateKey, JSON.stringify(nextState));
   };
 
-  const loadClients = useCallback(async () => {
+  const loadData = useCallback(async () => {
     try {
-      const result = await api.getClients();
-      setClients(result.clients || []);
+      const [clientRes, resetRes] = await Promise.allSettled([
+        api.getClients(),
+        api.getResetRequests(),
+      ]);
+      if (clientRes.status === 'fulfilled') {
+        setClients(clientRes.value.clients || []);
+      }
+      if (resetRes.status === 'fulfilled') {
+        setResetRequests(resetRes.value.requests || []);
+      }
       setLoadError('');
     } catch (error) {
       setLoadError(error.message || 'Could not load notifications.');
@@ -36,16 +46,41 @@ export default function AdminNotifications() {
     }
   }, []);
 
+  const handleApproveReset = async (id) => {
+    setActionLoading(prev => ({ ...prev, [id]: true }));
+    try {
+      await api.approveResetRequest(id);
+      setResetRequests(prev => prev.filter(r => r.id !== id));
+    } catch (err) {
+      alert('Failed to approve request: ' + err.message);
+    } finally {
+      setActionLoading(prev => ({ ...prev, [id]: false }));
+    }
+  };
+
+  const handleRejectReset = async (id) => {
+    if (!window.confirm('Are you sure you want to decline this password reset request?')) return;
+    setActionLoading(prev => ({ ...prev, [id]: true }));
+    try {
+      await api.rejectResetRequest(id);
+      setResetRequests(prev => prev.filter(r => r.id !== id));
+    } catch (err) {
+      alert('Failed to decline request: ' + err.message);
+    } finally {
+      setActionLoading(prev => ({ ...prev, [id]: false }));
+    }
+  };
+
   useEffect(() => {
     if (!localStorage.getItem('heiwa_session_admin')) {
       navigate('/login');
       return undefined;
     }
 
-    loadClients();
-    const refreshTimer = window.setInterval(loadClients, 10000);
+    loadData();
+    const refreshTimer = window.setInterval(loadData, 8000);
     return () => window.clearInterval(refreshTimer);
-  }, [loadClients, navigate]);
+  }, [loadData, navigate]);
 
   const recentClients = [...clients]
     .filter(client => client.created_at)
@@ -115,6 +150,100 @@ export default function AdminNotifications() {
         </header>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }} aria-live="polite">
+          {/* ── Password Reset Requests (Admin Assisted) ── */}
+          {resetRequests.length > 0 && (
+            <div style={{ marginBottom: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0' }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24, borderRadius: '50%', background: '#fef3c7', color: '#d97706' }}>
+                  <ShieldAlert size={14} />
+                </span>
+                <h3 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: '#92400e' }}>
+                  Pending Password Reset Requests ({resetRequests.length})
+                </h3>
+              </div>
+              {resetRequests.map(req => (
+                <div
+                  key={req.id}
+                  style={{
+                    background: '#fffdf5',
+                    border: '1.5px solid #fcd34d',
+                    borderRadius: 14,
+                    padding: '16px 20px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 16,
+                    flexWrap: 'wrap',
+                    boxShadow: '0 4px 14px rgba(217, 119, 6, 0.08)',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                    <div style={{ width: 44, height: 44, borderRadius: 12, background: '#fef3c7', color: '#b45309', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                      <ShieldAlert size={22} />
+                    </div>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                        <strong style={{ fontSize: 15, color: '#0f172a' }}>{req.full_name || req.username}</strong>
+                        <span style={{ fontSize: 12, padding: '2px 8px', borderRadius: 6, background: '#fef3c7', color: '#92400e', fontWeight: 700 }}>
+                          ID: #{req.client_id_number || req.client_id}
+                        </span>
+                        <span style={{ fontSize: 12, color: '#64748b' }}>@{req.username}</span>
+                      </div>
+                      <div style={{ fontSize: 12.5, color: '#475569', marginTop: 4 }}>
+                        Contact: <strong>{req.contact_number || 'None'}</strong> • Requested: {formatDate(req.created_at)}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                    <button
+                      type="button"
+                      disabled={actionLoading[req.id]}
+                      onClick={() => handleApproveReset(req.id)}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        padding: '8px 16px',
+                        borderRadius: 8,
+                        border: 0,
+                        background: '#059669',
+                        color: '#fff',
+                        fontWeight: 700,
+                        fontSize: 13,
+                        cursor: 'pointer',
+                        boxShadow: '0 2px 8px rgba(5, 150, 105, 0.25)',
+                      }}
+                    >
+                      <CheckCircle size={15} />
+                      {actionLoading[req.id] ? 'Verifying...' : 'Verify & Approve'}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={actionLoading[req.id]}
+                      onClick={() => handleRejectReset(req.id)}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 5,
+                        padding: '8px 12px',
+                        borderRadius: 8,
+                        border: '1px solid #fca5a5',
+                        background: '#fff',
+                        color: '#b91c1c',
+                        fontWeight: 600,
+                        fontSize: 13,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <XCircle size={15} /> Decline
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
           {loading ? (
             <div className="table-glass" style={{ padding: 40, textAlign: 'center' }}>
               <div style={{ width: 52, height: 52, margin: '0 auto 14px', display: 'grid', placeItems: 'center', borderRadius: 16, background: '#ecfdf5', color: '#059669' }}><Bell size={24} /></div>
