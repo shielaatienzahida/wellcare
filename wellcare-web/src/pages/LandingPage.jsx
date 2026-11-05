@@ -17,12 +17,33 @@ import {
 } from 'lucide-react';
 import wellnessImg from '../assets/wellness_illustration.jpg';
 import logoImg from '../assets/logo.jpg';
+import { api } from '../api';
 
 export default function LandingPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const [activeLegalModal, setActiveLegalModal] = useState(null);
   const [showAccessNotice, setShowAccessNotice] = useState(Boolean(location.state?.authNotice));
+  const [landingSettings, setLandingSettings] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('wellcare_landing_settings') || '{}');
+    } catch {
+      return {};
+    }
+  });
+
+  useEffect(() => {
+    api.getLandingSettings()
+      .then(res => {
+        if (res.success && res.settings) {
+          setLandingSettings(res.settings);
+          localStorage.setItem('wellcare_landing_settings', JSON.stringify(res.settings));
+        }
+      })
+      .catch(() => {
+        // Fallback to cache or defaults
+      });
+  }, []);
 
   useEffect(() => {
     if (location.state?.authNotice) setShowAccessNotice(true);
@@ -116,14 +137,18 @@ export default function LandingPage() {
         <div className="hero-illustration-container">
           <div className="illustration-card">
             <img
-              src={wellnessImg}
+              src={landingSettings.hero_image_url || wellnessImg}
               alt="Wellness / Therapy Illustration"
               className="wellness-illustration-img"
               draggable={false}
+              onError={(e) => {
+                // If custom image link fails, fallback gracefully to default illustration
+                if (e.target.src !== wellnessImg) e.target.src = wellnessImg;
+              }}
             />
             <div className="illustration-badge">
               <HeartPulse size={18} color="var(--emerald-600)" />
-              <span>Wellness &amp; Therapy Verified</span>
+              <span>{landingSettings.hero_badge_text || 'Wellness & Therapy Verified'}</span>
             </div>
           </div>
         </div>

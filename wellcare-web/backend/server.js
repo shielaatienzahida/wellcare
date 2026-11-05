@@ -1345,12 +1345,23 @@ app.patch('/api/v1/messages/read', auth, async (req, res) => {
   res.json({ success: true });
 });
 
+// ── PUBLIC SETTINGS & HERO IMAGE ───────────────────────
+app.get('/api/v1/public/landing-settings', async (req, res) => {
+  try {
+    const [businessRows] = await db.execute('SELECT business_name, email AS business_email, location, started_at, hero_image_url, hero_badge_text FROM business_profile WHERE id = 1');
+    res.json({ success: true, settings: businessRows[0] || {} });
+  } catch (err) {
+    console.error('Error fetching landing settings:', err);
+    res.status(500).json({ success: false, message: 'Could not fetch landing settings' });
+  }
+});
+
 // ── ADMIN PASSWORD ────────────────────────────────────
 
 app.get('/api/v1/admin/me', auth, isAdmin, async (req, res) => {
   const [rows] = await db.execute('SELECT id, username, email FROM admins WHERE id = ?', [req.user.id]);
   if (!rows.length) return res.status(404).json({ success: false, message: 'Admin account not found.' });
-  const [businessRows] = await db.execute('SELECT business_name, email AS business_email, location, started_at FROM business_profile WHERE id = 1');
+  const [businessRows] = await db.execute('SELECT business_name, email AS business_email, location, started_at, hero_image_url, hero_badge_text FROM business_profile WHERE id = 1');
   res.json({ success: true, admin: { ...rows[0], ...(businessRows[0] || {}) } });
 });
 
@@ -1360,6 +1371,8 @@ app.patch('/api/v1/admin/me', auth, isAdmin, async (req, res) => {
   const businessEmail = String(req.body.businessEmail || '').trim().toLowerCase();
   const location = String(req.body.location || '').trim();
   const startedAt = String(req.body.startedAt || '').trim();
+  const heroImageUrl = req.body.heroImageUrl !== undefined ? req.body.heroImageUrl : null;
+  const heroBadgeText = req.body.heroBadgeText !== undefined ? String(req.body.heroBadgeText).trim() : null;
   const currentPassword = String(req.body.currentPassword || '');
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ success: false, message: 'Enter a valid recovery email.' });
   if (businessEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(businessEmail)) return res.status(400).json({ success: false, message: 'Enter a valid business email.' });
@@ -1373,8 +1386,28 @@ app.patch('/api/v1/admin/me', auth, isAdmin, async (req, res) => {
       if (!await bcrypt.compare(currentPassword, rows[0].password)) return res.status(401).json({ success: false, message: 'Current password is incorrect.' });
     }
     await db.execute('UPDATE admins SET email = ? WHERE id = ?', [email, req.user.id]);
-    await db.execute('UPDATE business_profile SET business_name = ?, email = ?, location = ?, started_at = ? WHERE id = 1', [businessName, businessEmail, location, startedAt || null]);
-    res.json({ success: true, admin: { id: rows[0].id, username: rows[0].username, email, business_name: businessName, business_email: businessEmail, location, started_at: startedAt || null } });
+    await db.execute('UPDATE business_profile SET business_name = ?, email = ?, location = ?, started_at = ?, hero_image_url = ?, hero_badge_text = ? WHERE id = 1', [
+      businessName,
+      businessEmail,
+      location,
+      startedAt || null,
+      heroImageUrl,
+      heroBadgeText
+    ]);
+    res.json({
+      success: true,
+      admin: {
+        id: rows[0].id,
+        username: rows[0].username,
+        email,
+        business_name: businessName,
+        business_email: businessEmail,
+        location,
+        started_at: startedAt || null,
+        hero_image_url: heroImageUrl,
+        hero_badge_text: heroBadgeText
+      }
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, message: 'Could not update the recovery email.' });

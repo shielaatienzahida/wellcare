@@ -146,6 +146,9 @@ export const api = {
   getDeviceStatus: () =>
     fetchAPI('/fingerprint/device-status'),
 
+  // LANDING & PUBLIC
+  getLandingSettings: () => fetchAPI('/public/landing-settings'),
+
   // ADMIN
   getAdminProfile: () => fetchAPI('/admin/me'),
   updateAdminProfile: (data) => fetchAPI('/admin/me', { method: 'PATCH', body: JSON.stringify(data) }),

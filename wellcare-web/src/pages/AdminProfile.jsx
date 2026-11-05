@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import AdminLayout from '../components/AdminLayout';
@@ -17,7 +17,11 @@ import {
   Save, 
   KeyRound,
   Check,
-  X
+  X,
+  Image,
+  Upload,
+  Sparkles,
+  RotateCcw
 } from 'lucide-react';
 
 const getInitials = (name) => (name || 'AD').split(' ').map(part => part[0]).join('').toUpperCase().slice(0, 2);
@@ -31,10 +35,18 @@ export default function AdminProfile() {
   const [businessName, setBusinessName] = useState('');
   const [location, setLocation] = useState('');
   const [startedAt, setStartedAt] = useState('');
+  const [heroImageUrl, setHeroImageUrl] = useState('');
+  const [heroBadgeText, setHeroBadgeText] = useState('');
   const [currentPassword, setCurrentPassword] = useState('');
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [username, setUsername] = useState('');
   const [loading, setLoading] = useState(true);
+
+  // Landing banner image upload ref
+  const fileInputRef = useRef(null);
+  const [heroImageSaving, setHeroImageSaving] = useState(false);
+  const [heroImageError, setHeroImageError] = useState('');
+  const [heroImageSuccess, setHeroImageSuccess] = useState('');
 
   // Business info card states
   const [businessSaving, setBusinessSaving] = useState(false);
@@ -66,6 +78,8 @@ export default function AdminProfile() {
         setBusinessName(admin.business_name || '');
         setLocation(admin.location || '');
         setStartedAt(admin.started_at ? String(admin.started_at).slice(0, 10) : '');
+        setHeroImageUrl(admin.hero_image_url || '');
+        setHeroBadgeText(admin.hero_badge_text || '');
       })
       .catch(err => setBusinessError(err.message || 'Could not load admin profile.'))
       .finally(() => setLoading(false));
@@ -92,6 +106,8 @@ export default function AdminProfile() {
         businessName,
         location,
         startedAt,
+        heroImageUrl,
+        heroBadgeText,
         currentPassword
       });
       const updated = result.admin || {};
@@ -100,6 +116,8 @@ export default function AdminProfile() {
       setBusinessName(updated.business_name || businessName);
       setLocation(updated.location || location);
       setStartedAt(updated.started_at ? String(updated.started_at).slice(0, 10) : startedAt);
+      setHeroImageUrl(updated.hero_image_url || heroImageUrl);
+      setHeroBadgeText(updated.hero_badge_text || heroBadgeText);
       setCurrentPassword('');
       setBusinessSuccess('Business information and email updated successfully!');
       setTimeout(() => setBusinessSuccess(''), 4500);
@@ -107,6 +125,85 @@ export default function AdminProfile() {
       setBusinessError(err.message || 'Could not update business details.');
     } finally {
       setBusinessSaving(false);
+    }
+  };
+
+  // Upload or Change Landing Hero Image
+  const handleImageFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setHeroImageError('Please choose a valid image file (PNG, JPG, WEBP).');
+      return;
+    }
+    // Limit to 3MB to keep base64 storage fast and lightweight
+    if (file.size > 3 * 1024 * 1024) {
+      setHeroImageError('Image size exceeds 3MB. Please select a smaller photo.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setHeroImageUrl(reader.result);
+      setHeroImageError('');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSaveHeroImage = async () => {
+    setHeroImageSaving(true);
+    setHeroImageError('');
+    setHeroImageSuccess('');
+    try {
+      const result = await api.updateAdminProfile({
+        email: savedEmail,
+        businessEmail: savedEmail,
+        businessName,
+        location,
+        startedAt,
+        heroImageUrl: heroImageUrl || null,
+        heroBadgeText: heroBadgeText || null
+      });
+      const updated = result.admin || {};
+      setHeroImageUrl(updated.hero_image_url || '');
+      setHeroBadgeText(updated.hero_badge_text || '');
+      localStorage.setItem('wellcare_landing_settings', JSON.stringify({
+        hero_image_url: updated.hero_image_url,
+        hero_badge_text: updated.hero_badge_text
+      }));
+      setHeroImageSuccess('Landing page hero image updated! Visitors can now see your new image.');
+      setTimeout(() => setHeroImageSuccess(''), 5000);
+    } catch (err) {
+      setHeroImageError(err.message || 'Failed to update hero image.');
+    } finally {
+      setHeroImageSaving(false);
+    }
+  };
+
+  const handleResetToDefaultHero = async () => {
+    setHeroImageUrl('');
+    setHeroBadgeText('');
+    setHeroImageSaving(true);
+    setHeroImageError('');
+    setHeroImageSuccess('');
+    try {
+      await api.updateAdminProfile({
+        email: savedEmail,
+        businessEmail: savedEmail,
+        businessName,
+        location,
+        startedAt,
+        heroImageUrl: null,
+        heroBadgeText: null
+      });
+      localStorage.removeItem('wellcare_landing_settings');
+      setHeroImageSuccess('Reset to default Wellness & Therapy illustration.');
+      setTimeout(() => setHeroImageSuccess(''), 5000);
+    } catch (err) {
+      setHeroImageError(err.message || 'Failed to reset hero image.');
+    } finally {
+      setHeroImageSaving(false);
     }
   };
 
@@ -374,7 +471,147 @@ export default function AdminProfile() {
           </form>
         </div>
 
-        {/* ── 3. Change Password Card ── */}
+        {/* ── 3. Landing Page Hero Image Customizer ── */}
+        <div className="bg-white/70 backdrop-blur-xl border border-white/60 shadow-glass rounded-2xl p-6 sm:p-7 relative">
+          <div className="flex items-center justify-between pb-4 border-b border-emerald-900/10 mb-6">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-100/70 text-emerald-800 flex items-center justify-center shadow-sm">
+                <Image size={20} />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-wellcare-deep">Landing Page Hero Banner</h2>
+                <p className="text-xs text-wellcare-dark/60 font-medium">
+                  Customize the front homepage illustration (e.g., Holiday Specials, Christmas, Anniversary banners)
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {heroImageError && (
+            <div className="mb-5 p-3.5 bg-red-50 border border-red-200 rounded-xl text-red-700 text-xs font-bold flex items-center gap-2">
+              <AlertCircle size={16} />
+              <span>{heroImageError}</span>
+            </div>
+          )}
+
+          {heroImageSuccess && (
+            <div className="mb-5 p-3.5 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-xs font-bold flex items-center gap-2">
+              <CheckCircle2 size={16} className="text-emerald-600" />
+              <span>{heroImageSuccess}</span>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
+            {/* Live Preview Box */}
+            <div className="md:col-span-5 flex flex-col items-center">
+              <label className="block text-xs font-bold uppercase tracking-wider text-wellcare-dark/80 mb-2 self-start">
+                Live Preview
+              </label>
+              <div className="w-full max-w-[280px] aspect-[4/3] rounded-2xl overflow-hidden border-2 border-emerald-900/15 bg-emerald-50/50 shadow-md relative group flex items-center justify-center">
+                {heroImageUrl ? (
+                  <img
+                    src={heroImageUrl}
+                    alt="Custom Landing Hero"
+                    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                  />
+                ) : (
+                  <div className="p-4 text-center text-xs font-semibold text-emerald-800/70 flex flex-col items-center gap-2">
+                    <Sparkles size={24} className="text-emerald-600" />
+                    <span>Default Wellness & Therapy Illustration</span>
+                  </div>
+                )}
+                <div className="absolute bottom-2 left-2 right-2 bg-black/60 backdrop-blur-md rounded-lg py-1 px-2.5 text-center text-[11px] font-bold text-white truncate shadow">
+                  {heroBadgeText || 'Wellness & Therapy Verified'}
+                </div>
+              </div>
+            </div>
+
+            {/* Controls Box */}
+            <div className="md:col-span-7 flex flex-col gap-4">
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-wellcare-dark/80 mb-1.5">
+                  Holiday / Promotion Badge Text
+                </label>
+                <input
+                  type="text"
+                  value={heroBadgeText}
+                  onChange={(e) => setHeroBadgeText(e.target.value)}
+                  placeholder="e.g. 🎄 Christmas Holiday Special! or 5th Anniversary Promo"
+                  maxLength={60}
+                  className="w-full bg-white/90 border border-emerald-950/15 rounded-xl px-3.5 py-2.5 text-sm font-medium text-wellcare-deep placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-600/30 focus:border-emerald-600 transition-all shadow-sm"
+                />
+                <p className="text-[11px] text-wellcare-dark/50 mt-1">
+                  Text displayed on the floating tag beneath the banner illustration.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-wellcare-dark/80 mb-1.5">
+                  Banner Image Source
+                </label>
+                <div className="flex flex-col sm:flex-row gap-2.5">
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleImageFileChange}
+                    accept="image/*"
+                    className="hidden"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100/70 text-emerald-900 border border-emerald-300 font-bold text-xs shadow-sm transition-all active:scale-95"
+                  >
+                    <Upload size={15} />
+                    <span>Upload Image File</span>
+                  </button>
+
+                  {heroImageUrl && (
+                    <button
+                      type="button"
+                      onClick={handleResetToDefaultHero}
+                      disabled={heroImageSaving}
+                      className="inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-300 font-bold text-xs shadow-sm transition-all"
+                    >
+                      <RotateCcw size={14} />
+                      <span>Revert to Default</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-wellcare-dark/80 mb-1.5">
+                  Or Paste Direct Image URL
+                </label>
+                <input
+                  type="url"
+                  value={heroImageUrl.startsWith('data:') ? '' : heroImageUrl}
+                  onChange={(e) => setHeroImageUrl(e.target.value)}
+                  placeholder="https://example.com/holiday-banner.png"
+                  className="w-full bg-white/90 border border-emerald-950/15 rounded-xl px-3.5 py-2.5 text-sm font-medium text-wellcare-deep placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-600/30 focus:border-emerald-600 transition-all shadow-sm"
+                />
+                <p className="text-[11px] text-wellcare-dark/50 mt-1">
+                  You can also paste any web link (HTTPS) of an image or flyer.
+                </p>
+              </div>
+
+              <div className="flex justify-end pt-2">
+                <button
+                  type="button"
+                  onClick={handleSaveHeroImage}
+                  disabled={heroImageSaving}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-wellcare-primary to-emerald-700 text-white font-bold text-sm shadow-md hover:shadow-lg hover:brightness-105 active:scale-95 transition-all disabled:opacity-50"
+                >
+                  <Save size={16} />
+                  <span>{heroImageSaving ? 'Publishing...' : 'Publish to Landing Page'}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ── 4. Change Password Card ── */}
         <div className="bg-white/70 backdrop-blur-xl border border-white/60 shadow-glass rounded-2xl p-6 sm:p-7 relative">
           <div className="flex items-center justify-between pb-4 border-b border-emerald-900/10 mb-6">
             <div className="flex items-center gap-3">

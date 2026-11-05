@@ -38,12 +38,26 @@ async function migrate(db) {
       business_name VARCHAR(255),
       email VARCHAR(255),
       location TEXT,
-      started_at DATE
+      started_at DATE,
+      hero_image_url TEXT,
+      hero_badge_text VARCHAR(100)
     )
   `);
+
+  const businessColumns = isPostgres
+    ? await db.execute("SELECT column_name FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'business_profile'")
+    : await db.execute('PRAGMA table_info(business_profile)');
+  const existingBizCols = new Set(businessColumns[0].map(c => c.column_name || c.name));
+  if (!existingBizCols.has('hero_image_url')) {
+    await db.execute('ALTER TABLE business_profile ADD COLUMN hero_image_url TEXT');
+  }
+  if (!existingBizCols.has('hero_badge_text')) {
+    await db.execute('ALTER TABLE business_profile ADD COLUMN hero_badge_text VARCHAR(100)');
+  }
+
   const [businessProfile] = await db.execute('SELECT id FROM business_profile WHERE id = 1');
   if (!businessProfile.length) {
-    await db.execute('INSERT INTO business_profile (id, business_name, email, location, started_at) VALUES (1, ?, ?, ?, ?)', ['', '', '', null]);
+    await db.execute('INSERT INTO business_profile (id, business_name, email, location, started_at, hero_image_url, hero_badge_text) VALUES (1, ?, ?, ?, ?, ?, ?)', ['', '', '', null, null, null]);
   }
 
   // 2. Staff
