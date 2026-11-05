@@ -64,9 +64,12 @@ export default function Reports() {
   const [showClientSortPanel, setShowClientSortPanel] = useState(false);
   const [clientSortPanelPosition, setClientSortPanelPosition] = useState({ left: 8, top: 8 });
   const clientSortPanelRef = useRef(null);
-  const [staffSearch, setStaffSearch] = useState('');
-  const [staffFingerprintFilter, setStaffFingerprintFilter] = useState('all');
-  const [staffSort, setStaffSort] = useState('name-asc');
+
+  const [staffSort, setStaffSort] = useState({ sortBy: 'name', direction: 'asc' });
+  const [staffSortDraft, setStaffSortDraft] = useState({ sortBy: 'name', direction: 'asc' });
+  const [showStaffSortPanel, setShowStaffSortPanel] = useState(false);
+  const [staffSortPanelPosition, setStaffSortPanelPosition] = useState({ left: 8, top: 8 });
+  const staffSortPanelRef = useRef(null);
 
   // Session guard
   useEffect(() => {
@@ -95,15 +98,23 @@ export default function Reports() {
   }, [load]);
 
   // Reset to page 1 when filter or data changes
-  useEffect(() => { setReportPage(1); }, [reportFilter, clients.length, staffList.length, clientSort, staffSearch, staffFingerprintFilter, staffSort]);
+  useEffect(() => { setReportPage(1); }, [reportFilter, clients.length, staffList.length, clientSort, staffSort]);
 
   useEffect(() => {
-    if (!showClientSortPanel) return undefined;
+    if (!showClientSortPanel && !showStaffSortPanel) return undefined;
     const closePanel = event => {
-      if (event.type === 'keydown' && event.key === 'Escape') setShowClientSortPanel(false);
-      if (event.type === 'mousedown'
-        && !clientSortPanelRef.current?.contains(event.target)
-        && !event.target.closest?.('.client-record-filter-toggle')) setShowClientSortPanel(false);
+      if (event.type === 'keydown' && event.key === 'Escape') {
+        setShowClientSortPanel(false);
+        setShowStaffSortPanel(false);
+      }
+      if (event.type === 'mousedown') {
+        if (showClientSortPanel && !clientSortPanelRef.current?.contains(event.target) && !event.target.closest?.('.client-record-filter-toggle')) {
+          setShowClientSortPanel(false);
+        }
+        if (showStaffSortPanel && !staffSortPanelRef.current?.contains(event.target) && !event.target.closest?.('.staff-record-filter-toggle')) {
+          setShowStaffSortPanel(false);
+        }
+      }
     };
     document.addEventListener('mousedown', closePanel);
     document.addEventListener('keydown', closePanel);
@@ -111,7 +122,7 @@ export default function Reports() {
       document.removeEventListener('mousedown', closePanel);
       document.removeEventListener('keydown', closePanel);
     };
-  }, [showClientSortPanel]);
+  }, [showClientSortPanel, showStaffSortPanel]);
 
   const filteredClients = [...clients]
     .sort((first, second) => {
@@ -141,23 +152,38 @@ export default function Reports() {
     setShowClientSortPanel(true);
   };
 
-  const filteredStaff = staffList
-    .filter(staff => {
-      const query = staffSearch.trim().toLowerCase();
-      const matchesSearch = !query || [staff.name, staff.username, staff.email]
-        .some(value => String(value || '').toLowerCase().includes(query));
-      const matchesFingerprint = staffFingerprintFilter === 'all'
-        || (staffFingerprintFilter === 'enrolled' ? Boolean(staff.fingerprint_enrolled) : !staff.fingerprint_enrolled);
-      return matchesSearch && matchesFingerprint;
-    })
+  const toggleStaffSortPanel = event => {
+    if (showStaffSortPanel) {
+      setShowStaffSortPanel(false);
+      return;
+    }
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const panelWidth = 288;
+    const panelHeight = Math.min(420, window.innerHeight - 16);
+    const availableBelow = window.innerHeight - bounds.bottom - 8;
+    setStaffSortPanelPosition({
+      left: Math.max(8, Math.min(bounds.left, window.innerWidth - panelWidth - 8)),
+      top: availableBelow >= panelHeight ? bounds.bottom + 7 : Math.max(8, bounds.top - panelHeight - 7),
+    });
+    setStaffSortDraft(staffSort);
+    setShowStaffSortPanel(true);
+  };
+
+  const filteredStaff = [...staffList]
     .sort((first, second) => {
-      if (staffSort === 'newest' || staffSort === 'oldest') {
-        const direction = staffSort === 'newest' ? -1 : 1;
-        return ((Date.parse(first.created_at || '') || 0) - (Date.parse(second.created_at || '') || 0)) * direction;
+      const direction = staffSort.direction === 'asc' ? 1 : -1;
+      if (staffSort.sortBy === 'username') {
+        return String(first.username || '').localeCompare(String(second.username || ''), undefined, { numeric: true }) * direction;
       }
-      const [field, direction] = staffSort.split('-');
-      const key = field === 'username' ? 'username' : 'name';
-      return String(first[key] || '').localeCompare(String(second[key] || ''), undefined, { numeric: true, sensitivity: 'base' }) * (direction === 'desc' ? -1 : 1);
+      if (staffSort.sortBy === 'role') {
+        return String(first.role || 'Staff').localeCompare(String(second.role || 'Staff'), undefined, { numeric: true }) * direction;
+      }
+      if (staffSort.sortBy === 'status') {
+        const s1 = first.archived_at ? 'Archived' : 'Active';
+        const s2 = second.archived_at ? 'Archived' : 'Active';
+        return s1.localeCompare(s2) * direction;
+      }
+      return String(first.name || '').localeCompare(String(second.name || ''), undefined, { numeric: true, sensitivity: 'base' }) * direction;
     });
 
   useEffect(() => {
@@ -930,37 +956,37 @@ export default function Reports() {
                     </>
                   ) : (
                     <>
-                      <input
-                        type="search"
-                        value={staffSearch}
-                        onChange={event => setStaffSearch(event.target.value)}
-                        placeholder="Search staff..."
-                        aria-label="Search staff by name, username, or email"
-                        className="search-input"
-                        style={{ height: 34, width: 190, fontSize: '0.8rem' }}
-                      />
-                      <select
-                        value={staffFingerprintFilter}
-                        onChange={event => setStaffFingerprintFilter(event.target.value)}
-                        aria-label="Filter staff by fingerprint enrollment"
-                        className="client-record-select"
-                      >
-                        <option value="all">All fingerprints</option>
-                        <option value="enrolled">Enrolled</option>
-                        <option value="not-enrolled">Not enrolled</option>
-                      </select>
-                      <select
-                        value={staffSort}
-                        onChange={event => setStaffSort(event.target.value)}
-                        aria-label="Sort staff report"
-                        className="client-record-select"
-                      >
-                        <option value="name-asc">Name A–Z</option>
-                        <option value="name-desc">Name Z–A</option>
-                        <option value="username-asc">Username A–Z</option>
-                        <option value="newest">Newest staff</option>
-                        <option value="oldest">Oldest staff</option>
-                      </select>
+                      <button type="button" className="client-record-filter-toggle staff-record-filter-toggle" onClick={toggleStaffSortPanel} aria-label="Toggle staff sorting options" aria-expanded={showStaffSortPanel} aria-controls="admin-staff-sort-panel" title="Sort staff">
+                        <SlidersHorizontal size={17} />
+                      </button>
+                      {showStaffSortPanel && createPortal(
+                        <div id="admin-staff-sort-panel" ref={staffSortPanelRef} className="client-record-filter-panel" style={staffSortPanelPosition}>
+                          <h3 className="client-filter-panel-title">Sort Staff</h3>
+                          {[
+                            { key: 'name', title: 'Names', options: [['asc', 'A–Z'], ['desc', 'Z–A']] },
+                            { key: 'username', title: 'Username', options: [['asc', 'A–Z'], ['desc', 'Z–A']] },
+                            { key: 'role', title: 'Role', options: [['asc', 'A–Z'], ['desc', 'Z–A']] },
+                            { key: 'status', title: 'Status', options: [['asc', 'Active first'], ['desc', 'Archived first']] },
+                          ].map(group => (
+                            <div key={group.key} className="client-filter-row">
+                              <span className="client-filter-row-label">{group.title}</span>
+                              <div className="client-filter-choice-list">
+                                {group.options.map(([direction, label]) => (
+                                  <label key={direction} className="client-filter-option">
+                                    <input type="radio" name={`admin-staff-sort-${group.key}`} checked={staffSortDraft.sortBy === group.key && staffSortDraft.direction === direction} onChange={() => setStaffSortDraft({ sortBy: group.key, direction })} />
+                                    <span>{label}</span>
+                                  </label>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                          <div className="client-filter-panel-footer">
+                            <button type="button" className="client-filter-clear" onClick={() => { const initialSort = { sortBy: 'name', direction: 'asc' }; setStaffSort(initialSort); setStaffSortDraft(initialSort); setShowStaffSortPanel(false); }}>Clear</button>
+                            <button type="button" className="client-filter-apply" onClick={() => { setStaffSort(staffSortDraft); setShowStaffSortPanel(false); }}>Apply</button>
+                          </div>
+                        </div>,
+                        document.body
+                      )}
                     </>
                   )}
                   {/* Page size selector */}
