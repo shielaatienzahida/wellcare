@@ -195,7 +195,7 @@ export default function AdminNotifications() {
                         <span style={{ fontSize: 12, color: '#64748b' }}>@{req.username}</span>
                       </div>
                       <div style={{ fontSize: 12.5, color: '#475569', marginTop: 4 }}>
-                        Contact: <strong>{req.contact_number || 'None'}</strong> • Requested: {formatDate(req.created_at)}
+                        Contact: <strong>{req.contact_number || 'None'}</strong> • Requested: {formatTime(req.created_at)}
                       </div>
                     </div>
                   </div>
