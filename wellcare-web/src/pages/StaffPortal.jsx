@@ -40,7 +40,7 @@ export default function StaffPortal() {
   const [clientsPerPage, setClientsPerPage] = useState(10);
   const [logTarget, setLogTarget] = useState(null);
   const [clientEditTarget, setClientEditTarget] = useState(null);
-const [clientEditForm, setClientEditForm] = useState({});
+  const [clientEditForm, setClientEditForm] = useState({});
   const [clientEditErrors, setClientEditErrors] = useState({});
   const [clientEditError, setClientEditError] = useState('');
   const [savingClientEdit, setSavingClientEdit] = useState(false);
@@ -251,7 +251,7 @@ const [clientEditForm, setClientEditForm] = useState({});
       emergency_contact: client.emergency_contact || '', emergency_number: client.emergency_number || '',
       fingerprint_enrolled: Boolean(client.fingerprint_enrolled),
     });
-setClientEditError('');
+    setClientEditError('');
     setClientEditErrors({});
   };
 
@@ -317,7 +317,7 @@ setClientEditError('');
 
   const closeFingerprintModal = () => {
     if (fpModalSessionId && fpModalStatus === 'waiting') {
-      try { api.cancelEnrollment(fpModalSessionId); } catch {}
+      try { api.cancelEnrollment(fpModalSessionId); } catch { }
     }
     setFpModalClient(null);
     setFpModalStatus('idle');
@@ -399,7 +399,7 @@ setClientEditError('');
 
   const cancelClientFpScan = async () => {
     if (fpModalSessionId) {
-      try { await api.cancelEnrollment(fpModalSessionId); } catch {}
+      try { await api.cancelEnrollment(fpModalSessionId); } catch { }
     }
     setFpModalSessionId(null);
     setFpModalStatus('idle');
@@ -407,7 +407,7 @@ setClientEditError('');
 
   const handleSend = async () => {
     if (!msgInput.trim() || !activeClientId) return;
-    
+
     try {
       await api.sendMessage({
         client_id: activeClientId,
@@ -588,7 +588,7 @@ setClientEditError('');
               <button type="button" onClick={() => setClientEditTarget(null)} aria-label="Close edit dialog" style={{ border: 0, background: 'transparent', cursor: 'pointer', color: 'var(--emerald-800)' }}><X size={19} /></button>
             </div>
             <div style={{ display: 'grid', gap: 12, marginTop: 18, maxHeight: '65vh', overflowY: 'auto', paddingRight: 3 }}>
-<div className="reg-grid-2">
+              <div className="reg-grid-2">
                 <label className="reg-field"><span className="reg-label">First Name *</span><input className={`reg-input ${clientEditErrors.first_name ? 'reg-input-error' : ''}`} maxLength={15} value={clientEditForm.first_name || ''} onChange={event => handleClientEditField('first_name', event.target.value)} />{clientEditErrors.first_name && <span className="reg-error-msg">{clientEditErrors.first_name}</span>}</label>
                 <label className="reg-field"><span className="reg-label">Last Name *</span><input className={`reg-input ${clientEditErrors.last_name ? 'reg-input-error' : ''}`} maxLength={15} value={clientEditForm.last_name || ''} onChange={event => handleClientEditField('last_name', event.target.value)} />{clientEditErrors.last_name && <span className="reg-error-msg">{clientEditErrors.last_name}</span>}</label>
               </div>
@@ -909,26 +909,26 @@ setClientEditError('');
                     <div className="client-filter-row">
                       <span className="client-filter-row-label">Fingerprint</span>
                       <div className="client-filter-choice-list">
-                      {[
-                        ['all', 'All fingerprints'],
-                        ['enrolled', 'Registered'],
-                        ['not-enrolled', 'Not registered'],
-                      ].map(([value, label]) => (
-                        <label key={value} className="client-filter-option"><input type="radio" name="client-fingerprint-filter" checked={clientFilterDraft.fingerprint === value} onChange={() => setClientFilterDraft(current => ({ ...current, fingerprint: value }))} /><span>{label}</span></label>
-                      ))}
+                        {[
+                          ['all', 'All fingerprints'],
+                          ['enrolled', 'Registered'],
+                          ['not-enrolled', 'Not registered'],
+                        ].map(([value, label]) => (
+                          <label key={value} className="client-filter-option"><input type="radio" name="client-fingerprint-filter" checked={clientFilterDraft.fingerprint === value} onChange={() => setClientFilterDraft(current => ({ ...current, fingerprint: value }))} /><span>{label}</span></label>
+                        ))}
                       </div>
                     </div>
                     <div className="client-filter-row">
                       <span className="client-filter-row-label">Visits</span>
                       <div className="client-filter-choice-list">
-                      {[
-                        ['all', 'All activity'],
-                        ['none', 'No visits'],
-                        ['one-to-five', '1–5 visits'],
-                        ['six-plus', '6+ visits'],
-                      ].map(([value, label]) => (
-                        <label key={value} className="client-filter-option"><input type="radio" name="client-visit-filter" checked={clientFilterDraft.visits === value} onChange={() => setClientFilterDraft(current => ({ ...current, visits: value }))} /><span>{label}</span></label>
-                      ))}
+                        {[
+                          ['all', 'All activity'],
+                          ['none', 'No visits'],
+                          ['one-to-five', '1–5 visits'],
+                          ['six-plus', '6+ visits'],
+                        ].map(([value, label]) => (
+                          <label key={value} className="client-filter-option"><input type="radio" name="client-visit-filter" checked={clientFilterDraft.visits === value} onChange={() => setClientFilterDraft(current => ({ ...current, visits: value }))} /><span>{label}</span></label>
+                        ))}
                       </div>
                     </div>
                     <div className="client-filter-sort-section">

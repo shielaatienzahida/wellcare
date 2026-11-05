@@ -434,3 +434,4 @@ export default function ClientDetailModal({ client, onClose, onViewHistory }) {
     </div>
   );
 }
+
