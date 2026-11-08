@@ -47,6 +47,7 @@ class _WellnessScreenState extends State<WellnessScreen> {
       return raw.startsWith(targetStr);
     }
   }
+  static const Color _bgDark = Color(0xFF061A12);
   static const Color _cardDark = Color(0xFF0C251C);
   static const Color _cardBorder = Color(0xFF153C2C);
   static const Color _amber = Color(0xFFF5A623);

@@ -31,6 +31,7 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
   int _notifBadgeCount = 1;
   bool _notificationsCleared = false;
   final Set<String> _readNotifIds = {};
+  Timer? _pollTimer;
 
   List<Map<String, dynamic>> _buildNotificationsList() {
     if (_notificationsCleared) return [];
