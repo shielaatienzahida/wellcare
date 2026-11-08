@@ -7,7 +7,7 @@ import calabarzonPlaces from '../calabarzonPlaces.json';
 import { hasFieldErrors, validateAddressSelection, validateContactNumber, validateEmail, validateFullName, validateName, validateRequired, validateRequiredDateOfBirth } from '../formValidation';
 import { formatPersonName } from '../nameValidation';
 
-const emptyStaffForm = { first_name: '', middle_name: '', last_name: '', birthdate: '', email: '', contact_number: '', region: 'CALABARZON', province: '', city_municipality: '' };
+const emptyStaffForm = { first_name: '', middle_name: '', last_name: '', birthdate: '', email: '', contact_number: '', region: 'CALABARZON', province: '', city_municipality: '', barangay: '' };
 
 function getAge(birthdate) {
   if (!birthdate) return '';
@@ -225,7 +225,7 @@ emergency_contact: member.emergency_contact || '', emergency_number: member.emer
     setSavingStaff(true);
     try {
       const fullName = [newStaff.first_name, newStaff.middle_name, newStaff.last_name].map(part => part.trim()).filter(Boolean).join(' ');
-      const address = [newStaff.city_municipality, newStaff.province, newStaff.region].join(', ');
+      const address = [newStaff.barangay?.trim(), newStaff.city_municipality, newStaff.province, newStaff.region].filter(Boolean).join(', ');
       const hasFp = !skipFingerprint && fingerprintStatus === 'success' && staffCapturedFpId !== null;
       await api.addStaff({
         ...newStaff,
@@ -278,9 +278,10 @@ emergency_contact: member.emergency_contact || '', emergency_number: member.emer
                   </div>
                   <label className="reg-field"><span className="reg-label">Region</span><select className="reg-input" value={newStaff.region} disabled><option value="CALABARZON">Region IV-A (CALABARZON)</option></select></label>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14 }}>
-                    <label className="reg-field"><span className="reg-label">Province <span className="req">*</span></span><select className={`reg-input ${staffValidationErrors.address ? 'reg-input-error' : ''}`} value={newStaff.province} onChange={event => { setNewStaff(form => ({ ...form, province: event.target.value, city_municipality: '' })); setAddStaffError(''); setStaffValidationErrors(errors => ({ ...errors, address: '' })); }}><option value="">Select province</option>{Object.keys(calabarzonPlaces).map(province => <option key={province} value={province}>{province}</option>)}</select></label>
+                    <label className="reg-field"><span className="reg-label">Province <span className="req">*</span></span><select className={`reg-input ${staffValidationErrors.address ? 'reg-input-error' : ''}`} value={newStaff.province} onChange={event => { setNewStaff(form => ({ ...form, province: event.target.value, city_municipality: '', barangay: '' })); setAddStaffError(''); setStaffValidationErrors(errors => ({ ...errors, address: '', barangay: '' })); }}><option value="">Select province</option>{Object.keys(calabarzonPlaces).map(province => <option key={province} value={province}>{province}</option>)}</select></label>
                     <label className="reg-field"><span className="reg-label">City / Municipality <span className="req">*</span></span><select className={`reg-input ${staffValidationErrors.address ? 'reg-input-error' : ''}`} value={newStaff.city_municipality} disabled={!newStaff.province} onChange={event => { setNewStaff(form => ({ ...form, city_municipality: event.target.value })); setAddStaffError(''); setStaffValidationErrors(errors => ({ ...errors, address: '' })); }}><option value="">Select city / municipality</option>{(calabarzonPlaces[newStaff.province] || []).map(place => <option key={place} value={place}>{place}</option>)}</select>{staffValidationErrors.address && <span className="reg-error-msg">{staffValidationErrors.address}</span>}</label>
                   </div>
+                  <label className="reg-field"><span className="reg-label">Barangay <span className="req">*</span></span><input className={`reg-input ${staffValidationErrors.barangay ? 'reg-input-error' : ''}`} placeholder="Enter barangay" value={newStaff.barangay || ''} onChange={event => { setNewStaff(form => ({ ...form, barangay: event.target.value })); setAddStaffError(''); setStaffValidationErrors(errors => ({ ...errors, barangay: '' })); }} />{staffValidationErrors.barangay && <span className="reg-error-msg">{staffValidationErrors.barangay}</span>}</label>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14 }}>
                     <label className="reg-field"><span className="reg-label">Email <span className="req">*</span></span><input className={`reg-input ${staffValidationErrors.email ? 'reg-input-error' : ''}`} type="email" autoComplete="email" value={newStaff.email} onChange={event => { setNewStaff(form => ({ ...form, email: event.target.value })); setAddStaffError(''); setStaffValidationErrors(errors => ({ ...errors, email: '' })); }} />{staffValidationErrors.email && <span className="reg-error-msg">{staffValidationErrors.email}</span>}</label>
                     <label className="reg-field"><span className="reg-label">Contact Number <span className="req">*</span></span><input className={`reg-input ${staffValidationErrors.contact_number ? 'reg-input-error' : ''}`} type="tel" autoComplete="tel" inputMode="numeric" maxLength={11} value={newStaff.contact_number} onChange={event => { setNewStaff(form => ({ ...form, contact_number: event.target.value })); setStaffValidationErrors(errors => ({ ...errors, contact_number: '' })); }} />{staffValidationErrors.contact_number && <span className="reg-error-msg">{staffValidationErrors.contact_number}</span>}</label>
@@ -297,6 +298,7 @@ const fieldErrors = {
                         email: validateRequired(newStaff.email, 'Email') || validateEmail(newStaff.email),
                         contact_number: validateRequired(newStaff.contact_number, 'Contact number') || validateContactNumber(newStaff.contact_number),
                         address: validateAddressSelection(newStaff),
+                        barangay: validateRequired(newStaff.barangay, 'Barangay'),
                       };
                       setStaffValidationErrors(fieldErrors);
                       if (hasFieldErrors(fieldErrors)) return;

@@ -11,8 +11,17 @@ function localDateString(date = new Date()) {
 
 const emptyForm = {
   first_name: '', last_name: '', middle_name: '', birthdate: '', gender: '',
-  region: 'CALABARZON', province: '', city_municipality: '', contact_number: '', email: '', emergency_contact: '', emergency_number: '',
+  region: 'CALABARZON', province: '', city_municipality: '', barangay: '', contact_number: '', email: '', emergency_contact: '', emergency_number: '',
 };
+
+function calculateAge(birthdate) {
+  if (!birthdate) return '';
+  const [year, month, day] = birthdate.split('-').map(Number);
+  const today = new Date();
+  let age = today.getFullYear() - year;
+  if (today.getMonth() + 1 < month || (today.getMonth() + 1 === month && today.getDate() < day)) age--;
+  return age >= 0 ? `${age} yrs old` : '';
+}
 
 function FingerprintSVG({ status }) {
   const isScanning = status === 'waiting';
@@ -130,10 +139,11 @@ export default function StaffClientRegistration({ onRegistered, onBack }) {
     const nextErrors = {
       ...validatePersonNameFields(form),
       gender: validateRequired(form.gender, 'Gender'),
-      birthdate: validateRequiredDateOfBirth(form.birthdate),
+      birthdate: validateRequiredDateOfBirth(form.birthdate, 3),
       contact_number: validateRequired(form.contact_number, 'Contact number') || validateContactNumber(form.contact_number),
       email: validateRequired(form.email, 'Email') || validateEmail(form.email),
       address: validateAddressSelection(form),
+      barangay: validateRequired(form.barangay, 'Barangay'),
       emergency_contact: form.emergency_contact.trim() ? validateName(form.emergency_contact, 'Emergency contact name') : '',
       emergency_number: form.emergency_number.trim() && !/^09\d{9}$/.test(form.emergency_number.trim())
         ? 'Emergency contact number must be exactly 11 digits and start with 09.'
@@ -184,7 +194,7 @@ export default function StaffClientRegistration({ onRegistered, onBack }) {
       const hasFp = !skipFingerprint && fpStatus === 'success' && capturedFingerprintId !== null;
       const result = await api.registerClient({
         ...form,
-        address: [form.city_municipality, form.province, form.region].join(', '),
+        address: [form.barangay?.trim(), form.city_municipality, form.province, form.region].filter(Boolean).join(', '),
         fingerprint_enrolled: hasFp,
         fingerprint_id: hasFp ? capturedFingerprintId : null,
       });
@@ -245,11 +255,18 @@ export default function StaffClientRegistration({ onRegistered, onBack }) {
                 <div className="reg-field"><label className="reg-label">Last Name <span className="req">*</span></label><input name="last_name" value={form.last_name} onChange={handleChange} className={`reg-input ${errors.last_name ? 'reg-input-error' : ''}`} autoComplete="family-name" maxLength={15} />{errors.last_name && <span className="reg-error-msg">{errors.last_name}</span>}</div>
               </div>
               <div className="reg-field"><label className="reg-label">Middle Name <span className="opt">(optional)</span></label><input name="middle_name" value={form.middle_name} onChange={handleChange} className={`reg-input ${errors.middle_name ? 'reg-input-error' : ''}`} autoComplete="additional-name" maxLength={15} />{errors.middle_name && <span className="reg-error-msg">{errors.middle_name}</span>}</div>
-              <div className="reg-grid-2">
+              <div className="reg-grid-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 14 }}>
                 <div className="reg-field"><label className="reg-label">Birthdate <span className="req">*</span></label><input type="date" name="birthdate" value={form.birthdate} onChange={handleChange} className={`reg-input ${errors.birthdate ? 'reg-input-error' : ''}`} max={localDateString()} />{errors.birthdate && <span className="reg-error-msg">{errors.birthdate}</span>}</div>
+                <div className="reg-field"><label className="reg-label">Age</label><input type="text" value={calculateAge(form.birthdate)} readOnly className="reg-input" placeholder="—" style={{ background: '#f8fafc', cursor: 'default' }} /></div>
                 <div className="reg-field"><label className="reg-label">Gender <span className="req">*</span></label><select name="gender" value={form.gender} onChange={handleChange} className={`reg-input ${errors.gender ? 'reg-input-error' : ''}`}><option value="">Select gender</option><option value="Male">Male</option><option value="Female">Female</option><option value="Other">Other</option></select>{errors.gender && <span className="reg-error-msg">{errors.gender}</span>}</div>
               </div>
-              <CalabarzonAddressFields {...form} onChange={values => { setForm(current => ({ ...current, ...values })); setErrors(current => ({ ...current, address: '' })); }} error={errors.address} />
+              <CalabarzonAddressFields
+                {...form}
+                barangay={form.barangay}
+                onChange={values => { setForm(current => ({ ...current, ...values })); setErrors(current => ({ ...current, address: '', barangay: '' })); }}
+                error={errors.address}
+                barangayError={errors.barangay}
+              />
               <div className="reg-grid-2">
                 <div className="reg-field"><label className="reg-label">Contact Number <span className="req">*</span></label><input name="contact_number" value={form.contact_number} onChange={handleChange} className={`reg-input ${errors.contact_number ? 'reg-input-error' : ''}`} autoComplete="tel" inputMode="numeric" maxLength={11} />{errors.contact_number && <span className="reg-error-msg">{errors.contact_number}</span>}</div>
                 <div className="reg-field"><label className="reg-label">Emergency Contact <span className="opt">(optional)</span></label><input name="emergency_contact" value={form.emergency_contact} onChange={handleChange} className={`reg-input ${errors.emergency_contact ? 'reg-input-error' : ''}`} maxLength={15} />{errors.emergency_contact && <span className="reg-error-msg">{errors.emergency_contact}</span>}</div>
@@ -265,10 +282,14 @@ export default function StaffClientRegistration({ onRegistered, onBack }) {
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               {/* Summary of client */}
-              <div className="staff-fp-summary" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
+              <div className="staff-fp-summary" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
                 <div className="staff-fp-summary-item" style={{ gridColumn: 'span 2' }}>
                   <span className="staff-fp-summary-label">Client Name</span>
                   <span className="staff-fp-summary-value">{[form.first_name, form.middle_name, form.last_name].filter(Boolean).join(' ')}</span>
+                </div>
+                <div className="staff-fp-summary-item">
+                  <span className="staff-fp-summary-label">Birthdate & Age</span>
+                  <span className="staff-fp-summary-value">{form.birthdate} {calculateAge(form.birthdate) ? `(${calculateAge(form.birthdate)})` : ''}</span>
                 </div>
                 <div className="staff-fp-summary-item">
                   <span className="staff-fp-summary-label">Gender</span>

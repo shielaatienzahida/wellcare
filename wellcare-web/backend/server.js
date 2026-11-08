@@ -121,7 +121,7 @@ function fullNameValidationError(value, label = 'Full name') {
   return repeated ? `${label} cannot contain the same letter more than twice in a row.` : '';
 }
 
-function dateOfBirthValidation(value) {
+function dateOfBirthValidation(value, minAge = 18) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value || ''))) return 'Date of birth must use YYYY-MM-DD format.';
   const [year, month, day] = value.split('-').map(Number);
   const dob = new Date(year, month - 1, day);
@@ -129,7 +129,12 @@ function dateOfBirthValidation(value) {
   const today = new Date();
   let age = today.getFullYear() - year;
   if (today.getMonth() + 1 < month || (today.getMonth() + 1 === month && today.getDate() < day)) age--;
-  return age >= 18 ? '' : 'Staff and clients must be at least 18 years old.';
+  if (age < minAge) {
+    return minAge === 3
+      ? 'Clients must be at least 3 years old.'
+      : `Must be at least ${minAge} years old.`;
+  }
+  return '';
 }
 
 function emailValidationError(value) {
@@ -718,7 +723,7 @@ app.post('/api/v1/clients', auth, isAdminOrStaff, async (req, res) => {
     emergency_contact?.trim() ? nameValidationError(emergency_contact, 'Emergency contact name') : '',
   ].filter(Boolean);
   const clientProfileErrors = [
-    birthdate ? dateOfBirthValidation(birthdate) : 'Date of birth is required.',
+    birthdate ? dateOfBirthValidation(birthdate, 3) : 'Date of birth is required.',
     contact_number?.trim() ? contactValidationError(contact_number) : 'Contact number is required.',
     emergency_number?.trim() ? contactValidationError(emergency_number) : '',
   ].filter(Boolean);
@@ -781,7 +786,7 @@ app.put('/api/v1/clients/:id', auth, isAdminOrStaff, async (req, res) => {
     return res.status(400).json({ success: false, message: 'First name, last name, and birthdate are required' });
   }
   const nameErrors = [nameValidationError(first_name, 'First name'), middle_name?.trim() ? nameValidationError(middle_name, 'Middle name') : '', nameValidationError(last_name, 'Last name')].filter(Boolean);
-  const profileErrors = [dateOfBirthValidation(birthdate), contactValidationError(contact_number), addressValidationError(req.body), email ? emailValidationError(email) : ''].filter(Boolean);
+  const profileErrors = [dateOfBirthValidation(birthdate, 3), contactValidationError(contact_number), addressValidationError(req.body), email ? emailValidationError(email) : ''].filter(Boolean);
   if (nameErrors.length || profileErrors.length) return res.status(400).json({ success: false, message: [...nameErrors, ...profileErrors].join(' ') });
   const full_name = `${first_name.trim()}${middle_name?.trim() ? ' ' + middle_name.trim() : ''} ${last_name.trim()}`.trim();
   const [result] = await db.execute(
@@ -881,7 +886,7 @@ app.patch('/api/v1/clients/me', auth, async (req, res) => {
       first_name ? nameValidationError(first_name, 'First name') : '',
       middle_name ? nameValidationError(middle_name, 'Middle name') : '',
       last_name ? nameValidationError(last_name, 'Last name') : '',
-      birthdate ? dateOfBirthValidation(birthdate) : '',
+      birthdate ? dateOfBirthValidation(birthdate, 3) : '',
       contact_number ? contactValidationError(contact_number) : '',
       email ? emailValidationError(email) : '',
       hasStructuredAddress ? addressValidationError({ region, province, city_municipality }) : '',
@@ -892,7 +897,7 @@ app.patch('/api/v1/clients/me', auth, async (req, res) => {
     if (first_name !== undefined && first_name && nameValidationError(first_name, 'First name')) return res.status(400).json({ success: false, message: nameValidationError(first_name, 'First name') });
     if (middle_name !== undefined && middle_name && nameValidationError(middle_name, 'Middle name')) return res.status(400).json({ success: false, message: nameValidationError(middle_name, 'Middle name') });
     if (last_name !== undefined && last_name && nameValidationError(last_name, 'Last name')) return res.status(400).json({ success: false, message: nameValidationError(last_name, 'Last name') });
-    if (birthdate !== undefined && birthdate && dateOfBirthValidation(birthdate)) return res.status(400).json({ success: false, message: dateOfBirthValidation(birthdate) });
+    if (birthdate !== undefined && birthdate && dateOfBirthValidation(birthdate, 3)) return res.status(400).json({ success: false, message: dateOfBirthValidation(birthdate, 3) });
     if (contact_number !== undefined && contact_number && contactValidationError(contact_number)) return res.status(400).json({ success: false, message: contactValidationError(contact_number) });
     if (password && password.trim().length < 8) return res.status(400).json({ success: false, message: 'Password must be at least 8 characters long.' });
 
@@ -994,7 +999,7 @@ app.post('/api/v1/clients/me/log', auth, async (req, res) => {
   }
   const bottles = Math.max(1, Math.min(10, parseInt(count, 10) || 1));
   const now = new Date();
-  const dateStr = now.toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  const dateStr = now.toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Manila' });
 
   for (let i = 0; i < bottles; i++) {
     await db.execute(
@@ -1032,7 +1037,7 @@ app.post('/api/v1/clients/:id/log', auth, isAdminOrStaff, async (req, res) => {
   const { type } = req.body;
   if (!['Check-in', 'Absence', 'Alkaline Session'].includes(type)) return res.status(400).json({ success: false, message: 'Invalid type' });
   const now = new Date();
-  const dateStr = now.toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  const dateStr = now.toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Manila' });
   const logged_by = req.user.role;
   const staff_id = req.user.role === 'staff' ? req.user.id : null;
 
@@ -1316,7 +1321,7 @@ app.post('/api/v1/messages', auth, async (req, res) => {
   if (!text || !recipient) return res.status(400).json({ success: false, message: 'text and recipient required' });
 
   const now = new Date();
-  const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const timeStr = now.toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Manila' });
   const cid = req.user.role === 'client' ? req.user.id : client_id;
   let cname = req.user.role === 'client' ? null : client_name;
 

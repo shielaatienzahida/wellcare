@@ -196,6 +196,17 @@ export default function ClientDirectory() {
     setEditClient(c);
     const addressParts = String(c.address || '').split(',').map(part => part.trim());
     const region = addressParts.at(-1) === 'CALABARZON' ? 'CALABARZON' : '';
+    let province = '';
+    let city = '';
+    let barangay = '';
+    if (region && addressParts.length >= 4) {
+      barangay = addressParts.at(-4) || '';
+      city = addressParts.at(-3) || '';
+      province = addressParts.at(-2) || '';
+    } else if (region && addressParts.length === 3) {
+      city = addressParts.at(-3) || '';
+      province = addressParts.at(-2) || '';
+    }
     setEditForm({
       first_name: c.first_name || '',
       last_name: c.last_name || '',
@@ -208,8 +219,9 @@ export default function ClientDirectory() {
       emergency_number: c.emergency_number || '',
       email: c.email || '',
       region,
-      province: region ? addressParts.at(-2) || '' : '',
-      city_municipality: region ? addressParts.at(-3) || '' : '',
+      province,
+      city_municipality: city,
+      barangay,
       fingerprint_enrolled: c.fingerprint_enrolled || false,
     });
     setEditErrors({});
@@ -232,7 +244,7 @@ export default function ClientDirectory() {
       first_name: validateName(editForm.first_name, 'First name'),
       last_name: validateName(editForm.last_name, 'Last name'),
       middle_name: editForm.middle_name ? validateName(editForm.middle_name, 'Middle name') : '',
-      birthdate: validateDateOfBirth(editForm.birthdate),
+      birthdate: validateDateOfBirth(editForm.birthdate, 3),
       email: editForm.email ? validateEmail(editForm.email) : '',
       contact_number: validateRequired(editForm.contact_number, 'Contact number') || validateContactNumber(editForm.contact_number),
       emergency_contact: editForm.emergency_contact ? validateName(editForm.emergency_contact, 'Emergency contact name') : '',
@@ -240,6 +252,7 @@ export default function ClientDirectory() {
         ? 'Emergency contact number must be exactly 11 digits and start with 09.'
         : '',
       address: validateAddressSelection(editForm),
+      barangay: validateRequired(editForm.barangay, 'Barangay'),
     };
     Object.keys(next).forEach(key => { if (!next[key]) delete next[key]; });
     return next;
@@ -250,7 +263,7 @@ export default function ClientDirectory() {
     setEditErrors(fieldErrors);
     if (hasFieldErrors(fieldErrors)) return;
     try {
-      const address = [editForm.city_municipality, editForm.province, editForm.region].join(', ');
+      const address = [editForm.barangay?.trim(), editForm.city_municipality, editForm.province, editForm.region].filter(Boolean).join(', ');
       await api.updateClient(editClient.id, { ...editForm, address });
       await loadClients();
       setEditClient(null);
@@ -353,7 +366,13 @@ export default function ClientDirectory() {
                   </select>
                 </div>
               </div>
-              <CalabarzonAddressFields {...editForm} onChange={values => { setEditForm(current => ({ ...current, ...values })); clearEditError('address'); }} error={editErrors.address} />
+              <CalabarzonAddressFields
+                {...editForm}
+                barangay={editForm.barangay}
+                onChange={values => { setEditForm(current => ({ ...current, ...values })); clearEditError('address'); clearEditError('barangay'); }}
+                error={editErrors.address}
+                barangayError={editErrors.barangay}
+              />
               <div className="reg-grid-2">
                 <div className="reg-field">
                   <label className="reg-label">Contact Number</label>

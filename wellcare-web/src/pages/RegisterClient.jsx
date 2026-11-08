@@ -54,8 +54,17 @@ function FingerprintSVG({ status }) {
 
 const emptyForm = {
   first_name: '', last_name: '', middle_name: '', birthdate: '',
-  gender: '', region: 'CALABARZON', province: '', city_municipality: '', email: '', contact_number: '', emergency_contact: '', emergency_number: '',
+  gender: '', region: 'CALABARZON', province: '', city_municipality: '', barangay: '', email: '', contact_number: '', emergency_contact: '', emergency_number: '',
 };
+
+function calculateAge(birthdate) {
+  if (!birthdate) return '';
+  const [year, month, day] = birthdate.split('-').map(Number);
+  const today = new Date();
+  let age = today.getFullYear() - year;
+  if (today.getMonth() + 1 < month || (today.getMonth() + 1 === month && today.getDate() < day)) age--;
+  return age >= 0 ? `${age} yrs old` : '';
+}
 
 function todayString() {
   const now = new Date();
@@ -170,10 +179,11 @@ export default function RegisterClient() {
     if (form.middle_name.trim()) e.middle_name = validateName(form.middle_name, 'Middle name');
     if (form.emergency_contact.trim()) e.emergency_contact = validateName(form.emergency_contact, 'Emergency contact name');
     if (!form.birthdate) e.birthdate = 'Required';
-    else e.birthdate = validateDateOfBirth(form.birthdate);
-if (!form.gender) e.gender = 'Required';
+    else e.birthdate = validateDateOfBirth(form.birthdate, 3);
+    if (!form.gender) e.gender = 'Required';
     const addressError = validateAddressSelection(form);
     if (addressError) e.address = addressError;
+    if (!form.barangay?.trim()) e.barangay = 'Barangay is required.';
     e.contact_number = validateRequired(form.contact_number, 'Contact number') || validateContactNumber(form.contact_number);
     e.email = validateRequired(form.email, 'Email address') || validateEmail(form.email);
     e.emergency_number = form.emergency_number.trim() && !/^09\d{9}$/.test(form.emergency_number.trim())
@@ -193,7 +203,7 @@ if (!form.gender) e.gender = 'Required';
     setSubmitting(true);
 
     try {
-      const address = [form.city_municipality, form.province, form.region].join(', ');
+      const address = [form.barangay?.trim(), form.city_municipality, form.province, form.region].filter(Boolean).join(', ');
       const res = await api.registerClient({
         ...form,
         address,
@@ -269,11 +279,15 @@ if (!form.gender) e.gender = 'Required';
               {errors.middle_name && <span className="reg-error-msg">{errors.middle_name}</span>}
             </div>
 
-            <div className="reg-grid-2">
+            <div className="reg-grid-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px' }}>
               <div className="reg-field">
                 <label className="reg-label">Birthdate <span className="req">*</span></label>
                 <input type="date" name="birthdate" value={form.birthdate} onChange={handleChange} className={`reg-input ${errors.birthdate ? 'reg-input-error' : ''}`} max={todayString()} />
                 {errors.birthdate && <span className="reg-error-msg">{errors.birthdate}</span>}
+              </div>
+              <div className="reg-field">
+                <label className="reg-label">Age</label>
+                <input type="text" value={calculateAge(form.birthdate)} readOnly className="reg-input" placeholder="Calculated from birthdate" style={{ background: '#f8fafc', cursor: 'default' }} />
               </div>
               <div className="reg-field">
                 <label className="reg-label">Gender <span className="req">*</span></label>
@@ -287,7 +301,13 @@ if (!form.gender) e.gender = 'Required';
               </div>
             </div>
 
-            <CalabarzonAddressFields {...form} onChange={values => { setForm(current => ({ ...current, ...values })); setErrors(current => ({ ...current, address: '' })); }} error={errors.address} />
+            <CalabarzonAddressFields
+              {...form}
+              barangay={form.barangay}
+              onChange={values => { setForm(current => ({ ...current, ...values })); setErrors(current => ({ ...current, address: '', barangay: '' })); }}
+              error={errors.address}
+              barangayError={errors.barangay}
+            />
 
             <div className="reg-field">
               <label className="reg-label">Email Address <span className="req">*</span></label>
@@ -364,8 +384,8 @@ if (!form.gender) e.gender = 'Required';
                 <span className="fp-summary-value">{form.first_name} {form.middle_name} {form.last_name}</span>
               </div>
               <div className="fp-summary-row">
-                <span className="fp-summary-label">Birthdate</span>
-                <span className="fp-summary-value">{form.birthdate}</span>
+                <span className="fp-summary-label">Birthdate & Age</span>
+                <span className="fp-summary-value">{form.birthdate} {calculateAge(form.birthdate) ? `(${calculateAge(form.birthdate)})` : ''}</span>
               </div>
               <div className="fp-summary-row">
                 <span className="fp-summary-label">Contact</span>

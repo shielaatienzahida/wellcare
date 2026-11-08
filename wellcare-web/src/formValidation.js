@@ -9,7 +9,7 @@ export function validateName(value, label = 'Name') {
   return '';
 }
 
-export function validateDateOfBirth(value) {
+export function validateDateOfBirth(value, minAge = 18) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value || ''))) return 'Date of birth must use YYYY-MM-DD format.';
   const [year, month, day] = value.split('-').map(Number);
   const dob = new Date(year, month - 1, day);
@@ -17,7 +17,11 @@ export function validateDateOfBirth(value) {
   const today = new Date();
   let age = today.getFullYear() - year;
   if (today.getMonth() + 1 < month || (today.getMonth() + 1 === month && today.getDate() < day)) age--;
-  if (age < 18) return 'Staff and clients must be at least 18 years old.';
+  if (age < minAge) {
+    return minAge === 3
+      ? 'Clients must be at least 3 years old.'
+      : `Must be at least ${minAge} years old.`;
+  }
   return '';
 }
 
@@ -69,8 +73,8 @@ export function validateOptionalName(value, label) {
   return String(value || '').trim() ? validateName(value, label) : '';
 }
 
-export function validateRequiredDateOfBirth(value) {
-  return value ? validateDateOfBirth(value) : 'Date of birth is required.';
+export function validateRequiredDateOfBirth(value, minAge = 18) {
+  return value ? validateDateOfBirth(value, minAge) : 'Date of birth is required.';
 }
 
 export function validatePersonNameFields({ first_name, middle_name, last_name } = {}) {

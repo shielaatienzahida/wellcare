@@ -1,7 +1,7 @@
 import React from 'react';
 import calabarzonPlaces from '../calabarzonPlaces.json';
 
-export default function CalabarzonAddressFields({ region, province, city_municipality, onChange, error }) {
+export default function CalabarzonAddressFields({ region, province, city_municipality, barangay, onChange, error, barangayError, disabled }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <div className="reg-field">
@@ -11,18 +11,43 @@ export default function CalabarzonAddressFields({ region, province, city_municip
       <div className="reg-grid-2">
         <div className="reg-field">
           <label className="reg-label">Province <span className="req">*</span></label>
-          <select name="province" className={`reg-input ${error ? 'reg-input-error' : ''}`} value={province || ''} onChange={event => onChange({ region: 'CALABARZON', province: event.target.value, city_municipality: '' })}>
+          <select
+            name="province"
+            className={`reg-input ${error ? 'reg-input-error' : ''}`}
+            value={province || ''}
+            disabled={disabled}
+            onChange={event => onChange({ region: 'CALABARZON', province: event.target.value, city_municipality: '', barangay: '' })}
+          >
             <option value="">Select province</option>
             {Object.keys(calabarzonPlaces).map(name => <option key={name} value={name}>{name}</option>)}
           </select>
         </div>
         <div className="reg-field">
           <label className="reg-label">City / Municipality <span className="req">*</span></label>
-          <select name="city_municipality" className={`reg-input ${error ? 'reg-input-error' : ''}`} value={city_municipality || ''} disabled={!province} onChange={event => onChange({ region: 'CALABARZON', city_municipality: event.target.value })}>
+          <select
+            name="city_municipality"
+            className={`reg-input ${error ? 'reg-input-error' : ''}`}
+            value={city_municipality || ''}
+            disabled={disabled || !province}
+            onChange={event => onChange({ region: 'CALABARZON', city_municipality: event.target.value })}
+          >
             <option value="">Select city / municipality</option>
             {(calabarzonPlaces[province] || []).map(name => <option key={name} value={name}>{name}</option>)}
           </select>
         </div>
+      </div>
+      <div className="reg-field">
+        <label className="reg-label">Barangay <span className="req">*</span></label>
+        <input
+          name="barangay"
+          type="text"
+          className={`reg-input ${barangayError ? 'reg-input-error' : ''}`}
+          placeholder="Enter barangay"
+          value={barangay || ''}
+          disabled={disabled}
+          onChange={event => onChange({ barangay: event.target.value })}
+        />
+        {barangayError && <span className="reg-error-msg">{barangayError}</span>}
       </div>
       {error && <span className="reg-error-msg">{error}</span>}
     </div>

@@ -243,11 +243,22 @@ export default function StaffPortal() {
     setClientEditTarget(client);
     const addressParts = String(client.address || '').split(',').map(part => part.trim());
     const region = addressParts.at(-1) === 'CALABARZON' ? 'CALABARZON' : '';
+    let province = '';
+    let city = '';
+    let barangay = '';
+    if (region && addressParts.length >= 4) {
+      barangay = addressParts.at(-4) || '';
+      city = addressParts.at(-3) || '';
+      province = addressParts.at(-2) || '';
+    } else if (region && addressParts.length === 3) {
+      city = addressParts.at(-3) || '';
+      province = addressParts.at(-2) || '';
+    }
     setClientEditForm({
       first_name: client.first_name || '', middle_name: client.middle_name || '', last_name: client.last_name || '',
       birthdate: client.birthdate || '', gender: client.gender || '', contact_number: client.contact_number || '',
       email: client.email || '',
-      region, province: region ? addressParts.at(-2) || '' : '', city_municipality: region ? addressParts.at(-3) || '' : '',
+      region, province, city_municipality: city, barangay,
       emergency_contact: client.emergency_contact || '', emergency_number: client.emergency_number || '',
       fingerprint_enrolled: Boolean(client.fingerprint_enrolled),
     });
@@ -268,11 +279,12 @@ export default function StaffPortal() {
       first_name: validateName(clientEditForm.first_name, 'First name'),
       last_name: validateName(clientEditForm.last_name, 'Last name'),
       middle_name: clientEditForm.middle_name ? validateName(clientEditForm.middle_name, 'Middle name') : '',
-      birthdate: validateDateOfBirth(clientEditForm.birthdate),
+      birthdate: validateDateOfBirth(clientEditForm.birthdate, 3),
       email: clientEditForm.email ? validateEmail(clientEditForm.email) : '',
       contact_number: validateRequired(clientEditForm.contact_number, 'Contact number') || validateContactNumber(clientEditForm.contact_number),
       emergency_contact: clientEditForm.emergency_contact ? validateName(clientEditForm.emergency_contact, 'Emergency contact name') : '',
       address: validateAddressSelection(clientEditForm),
+      barangay: validateRequired(clientEditForm.barangay, 'Barangay'),
     };
     Object.keys(next).forEach(key => { if (!next[key]) delete next[key]; });
     return next;
@@ -285,7 +297,7 @@ export default function StaffPortal() {
     setSavingClientEdit(true);
     setClientEditError('');
     try {
-      const address = [clientEditForm.city_municipality, clientEditForm.province, clientEditForm.region].join(', ');
+      const address = [clientEditForm.barangay?.trim(), clientEditForm.city_municipality, clientEditForm.province, clientEditForm.region].filter(Boolean).join(', ');
       await api.updateClient(clientEditTarget.id, { ...clientEditForm, address });
       setClientEditTarget(null);
       await loadClients();
@@ -599,7 +611,13 @@ export default function StaffPortal() {
               </div>
               <label className="reg-field"><span className="reg-label">Contact Number</span><input className={`reg-input ${clientEditErrors.contact_number ? 'reg-input-error' : ''}`} type="tel" inputMode="numeric" maxLength={11} value={clientEditForm.contact_number || ''} onChange={event => handleClientEditField('contact_number', event.target.value)} />{clientEditErrors.contact_number && <span className="reg-error-msg">{clientEditErrors.contact_number}</span>}</label>
               <label className="reg-field"><span className="reg-label">Recovery Email</span><input className={`reg-input ${clientEditErrors.email ? 'reg-input-error' : ''}`} type="email" value={clientEditForm.email || ''} onChange={event => handleClientEditField('email', event.target.value)} />{clientEditErrors.email && <span className="reg-error-msg">{clientEditErrors.email}</span>}</label>
-              <CalabarzonAddressFields {...clientEditForm} onChange={values => { setClientEditForm(form => ({ ...form, ...values })); setClientEditErrors(current => (current.address ? { ...current, address: '' } : current)); }} error={clientEditErrors.address} />
+              <CalabarzonAddressFields
+                {...clientEditForm}
+                barangay={clientEditForm.barangay}
+                onChange={values => { setClientEditForm(form => ({ ...form, ...values })); setClientEditErrors(current => ({ ...current, address: '', barangay: '' })); }}
+                error={clientEditErrors.address}
+                barangayError={clientEditErrors.barangay}
+              />
               <div className="reg-grid-2">
                 <label className="reg-field"><span className="reg-label">Emergency Contact</span><input className={`reg-input ${clientEditErrors.emergency_contact ? 'reg-input-error' : ''}`} maxLength={15} value={clientEditForm.emergency_contact || ''} onChange={event => handleClientEditField('emergency_contact', event.target.value)} />{clientEditErrors.emergency_contact && <span className="reg-error-msg">{clientEditErrors.emergency_contact}</span>}</label>
                 <label className="reg-field"><span className="reg-label">Emergency Number</span><input className="reg-input" type="tel" value={clientEditForm.emergency_number || ''} onChange={event => handleClientEditField('emergency_number', event.target.value)} /></label>

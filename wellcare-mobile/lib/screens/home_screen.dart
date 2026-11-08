@@ -736,6 +736,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   String _formatVisitDate(String raw) {
     if (raw.isEmpty) return 'Recent visit';
+    // If string is already human-formatted (e.g. "Nov 8, 2026, 03:30 PM" or contains AM/PM)
+    if (raw.contains(' AM') || raw.contains(' PM')) return raw;
     try {
       final dt = DateTime.parse(raw).toLocal();
       const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];

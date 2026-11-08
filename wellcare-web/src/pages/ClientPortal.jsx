@@ -57,12 +57,24 @@ export default function ClientPortal() {
       }
       const addressParts = String(pRes.client.address || '').split(',').map(part => part.trim());
       const region = addressParts.at(-1) === 'CALABARZON' ? 'CALABARZON' : '';
+      let province = '';
+      let city = '';
+      let barangay = '';
+      if (region && addressParts.length >= 4) {
+        barangay = addressParts.at(-4) || '';
+        city = addressParts.at(-3) || '';
+        province = addressParts.at(-2) || '';
+      } else if (region && addressParts.length === 3) {
+        city = addressParts.at(-3) || '';
+        province = addressParts.at(-2) || '';
+      }
       setEditForm({
         email: pRes.client.email || '',
         contact_number: pRes.client.contact_number || '',
         region,
-        province: region ? addressParts.at(-2) || '' : '',
-        city_municipality: region ? addressParts.at(-3) || '' : '',
+        province,
+        city_municipality: city,
+        barangay,
         emergency_contact: pRes.client.emergency_contact || '',
         emergency_number: pRes.client.emergency_number || '',
       });
@@ -108,10 +120,15 @@ export default function ClientPortal() {
   const bottomRef = useRef(null);
 
   const handleSaveProfile = async () => {
-    const errors = [validateEmail(editForm.email), validateContactNumber(editForm.contact_number), validateAddressSelection(editForm)].filter(Boolean);
+    const errors = [
+      validateEmail(editForm.email),
+      validateContactNumber(editForm.contact_number),
+      validateAddressSelection(editForm),
+      !editForm.barangay?.trim() ? 'Barangay is required.' : '',
+    ].filter(Boolean);
     if (errors.length) { alert(errors.join('\n')); return; }
     try {
-      const address = [editForm.city_municipality, editForm.province, editForm.region].join(', ');
+      const address = [editForm.barangay?.trim(), editForm.city_municipality, editForm.province, editForm.region].filter(Boolean).join(', ');
       const result = await api.updateMyProfile({ ...editForm, address });
       setClient({ ...client, ...(result.client || editForm) });
       setEditForm(current => ({ ...current, email: result.client?.email ?? current.email }));
@@ -420,7 +437,11 @@ export default function ClientPortal() {
                 />
               </div>
             ))}
-            <CalabarzonAddressFields {...editForm} onChange={values => setEditForm(current => ({ ...current, ...values }))} />
+            <CalabarzonAddressFields
+              {...editForm}
+              barangay={editForm.barangay}
+              onChange={values => setEditForm(current => ({ ...current, ...values }))}
+            />
             {editSaved && (
               <div style={{ background: 'rgba(4,106,56,0.08)', border: '1px solid rgba(4,106,56,0.2)', borderRadius: '10px', padding: '10px 14px', color: 'var(--emerald)', fontSize: '0.85rem', fontWeight: 600 }}>
                 Profile updated successfully.
