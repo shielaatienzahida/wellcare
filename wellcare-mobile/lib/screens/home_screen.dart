@@ -153,7 +153,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     final sessions = _client.alkalineSessions;
-    final intakeLitres = sessions * 0.5;
+    final intakeLitres = sessions * 1.0;
 
     return Container(
       color: _bgDark,

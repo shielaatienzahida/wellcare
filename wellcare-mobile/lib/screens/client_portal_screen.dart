@@ -28,8 +28,67 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
   bool _historyLoading = true;
   bool _historyUnavailable = false;
 
-  // Auto-refresh: polls every 15 s so staff-logged events appear automatically
-  Timer? _pollTimer;
+  int _notifBadgeCount = 1;
+  bool _notificationsCleared = false;
+  final Set<String> _readNotifIds = {};
+
+  List<Map<String, dynamic>> _buildNotificationsList() {
+    if (_notificationsCleared) return [];
+    final list = <Map<String, dynamic>>[];
+
+    // 1. Dynamic notifications from attendance records
+    for (final v in _visitHistory) {
+      final type = (v['type'] ?? '').toString();
+      final dateRaw = (v['date'] ?? v['created_at'] ?? '').toString();
+      final dateStr = _formatDisplayDate(dateRaw);
+      final id = 'attendance_${v['id'] ?? dateRaw}';
+
+      final isCheckin = type.toLowerCase().contains('check-in') ||
+          type.toLowerCase().contains('visit') ||
+          type.toLowerCase().contains('attendance') ||
+          type.toLowerCase().contains('biometric') ||
+          type.toLowerCase().contains('fingerprint');
+
+      if (isCheckin) {
+        list.add({
+          'id': id,
+          'icon': Icons.how_to_reg_rounded,
+          'iconColor': kEmeraldLight,
+          'title': 'Attendance Recorded',
+          'time': dateStr,
+          'body': 'Attendance recorded for $dateStr.',
+          'fullDetail': 'Your biometric/center check-in was successfully logged in the system on $dateStr.',
+          'read': _readNotifIds.contains(id),
+        });
+      } else if (type.toLowerCase().contains('alkaline') || type.toLowerCase().contains('water')) {
+        list.add({
+          'id': id,
+          'icon': Icons.water_drop_rounded,
+          'iconColor': const Color(0xFF38BDF8),
+          'title': 'Alkaline Therapy Logged',
+          'time': dateStr,
+          'body': '1.0 L Alkaline water session recorded.',
+          'fullDetail': 'Your alkaline hydration session was logged in your account on $dateStr. Stay healthy and hydrated!',
+          'read': _readNotifIds.contains(id),
+        });
+      }
+    }
+
+    // 2. Default milestone notification
+    final milestoneId = 'milestone_goal';
+    list.add({
+      'id': milestoneId,
+      'icon': Icons.star_rounded,
+      'iconColor': Colors.orange,
+      'title': 'Wellness Member',
+      'time': 'Active',
+      'body': 'Welcome to Heiwa WellCare Center!',
+      'fullDetail': 'Thank you for being an active member of Heiwa WellCare Center. Check your daily hydration and attendance anytime.',
+      'read': _readNotifIds.contains(milestoneId),
+    });
+
+    return list;
+  }
 
   late final AnimationController _fadeCtrl;
   late final Animation<double> _fadeAnim;
@@ -299,7 +358,7 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      'Hydration logged! +${count * 500} mL alkaline water added.',
+                      'Hydration logged! +${count * 1.0} L (${count * 1000} mL) alkaline water added.',
                       style: const TextStyle(fontWeight: FontWeight.w700, color: kCream),
                     ),
                   ),
@@ -717,7 +776,7 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
               const SizedBox(width: 6),
               _headerIcon(Icons.chat_bubble_outline_rounded, 'Messages', () => _showMessagesModal(context)),
               const SizedBox(width: 6),
-              _headerIcon(Icons.notifications_none_rounded, 'Notifications', () => _showNotificationsModal(context), badge: 1),
+              _headerIcon(Icons.notifications_none_rounded, 'Notifications', () => _showNotificationsModal(context), badge: _notifBadgeCount),
               const SizedBox(width: 8),
 
               // Profile avatar — circular amber with initials or photo
@@ -1132,80 +1191,152 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        height: MediaQuery.of(ctx).size.height * 0.68,
-        decoration: const BoxDecoration(
-          color: kDarkSurface,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xxl)),
-        ),
-        child: Column(
-          children: [
-            Container(
-              margin: const EdgeInsets.only(top: 10, bottom: 8),
-              width: 38, height: 4,
-              decoration: BoxDecoration(color: const Color(0xFF1B5E5B), borderRadius: BorderRadius.circular(2)),
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setModalState) {
+          final notifs = _buildNotificationsList();
+
+          return Container(
+            height: MediaQuery.of(ctx).size.height * 0.72,
+            decoration: const BoxDecoration(
+              color: kDarkSurface,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xxl)),
             ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(children: [
-                    Container(
-                      width: 34, height: 34,
-                      decoration: BoxDecoration(
-                        color: AppColors.warningTint,
-                        borderRadius: BorderRadius.circular(AppRadius.xs + 2),
+            child: Column(
+              children: [
+                Container(
+                  margin: const EdgeInsets.only(top: 10, bottom: 8),
+                  width: 38, height: 4,
+                  decoration: BoxDecoration(color: const Color(0xFF1B5E5B), borderRadius: BorderRadius.circular(2)),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(children: [
+                        Container(
+                          width: 34, height: 34,
+                          decoration: BoxDecoration(
+                            color: AppColors.warningTint,
+                            borderRadius: BorderRadius.circular(AppRadius.xs + 2),
+                          ),
+                          child: const Icon(Icons.notifications_rounded, color: AppColors.warning, size: 19),
+                        ),
+                        const SizedBox(width: 10),
+                        const Text('Notifications', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: kTextPrimary)),
+                      ]),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (notifs.isNotEmpty) ...[
+                            TextButton.icon(
+                              onPressed: () {
+                                setModalState(() {
+                                  for (final n in notifs) {
+                                    _readNotifIds.add(n['id'] as String);
+                                  }
+                                });
+                                setState(() {
+                                  _notifBadgeCount = 0;
+                                });
+                              },
+                              style: TextButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                                minimumSize: Size.zero,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              icon: const Icon(Icons.done_all_rounded, size: 14, color: kEmeraldLight),
+                              label: const Text(
+                                'Mark read',
+                                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: kEmeraldLight),
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            TextButton.icon(
+                              onPressed: () {
+                                setModalState(() {
+                                  _notificationsCleared = true;
+                                });
+                                setState(() {
+                                  _notificationsCleared = true;
+                                  _notifBadgeCount = 0;
+                                });
+                              },
+                              style: TextButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                                minimumSize: Size.zero,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              icon: const Icon(Icons.delete_sweep_rounded, size: 14, color: Color(0xFFF87171)),
+                              label: const Text(
+                                'Clear all',
+                                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFFF87171)),
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                          ],
+                          IconButton(
+                            icon: const Icon(Icons.close_rounded, size: 20, color: kTextTertiary),
+                            onPressed: () => Navigator.pop(ctx),
+                          ),
+                        ],
                       ),
-                      child: const Icon(Icons.notifications_rounded, color: AppColors.warning, size: 19),
-                    ),
-                    const SizedBox(width: 11),
-                    const Text('Notifications', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: kTextPrimary)),
-                  ]),
-                  IconButton(
-                    icon: const Icon(Icons.close_rounded, size: 20, color: kTextTertiary),
-                    onPressed: () => Navigator.pop(ctx),
+                    ],
                   ),
-                ],
-              ),
+                ),
+                const Divider(height: 1, color: Color(0xFF1B5E5B)),
+                Expanded(
+                  child: notifs.isEmpty
+                      ? Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                width: 52, height: 52,
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.05),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.notifications_off_rounded, size: 24, color: kTextTertiary),
+                              ),
+                              const SizedBox(height: 12),
+                              const Text(
+                                'No notifications right now',
+                                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: kTextSecondary),
+                              ),
+                            ],
+                          ),
+                        )
+                      : ListView.builder(
+                          padding: const EdgeInsets.all(16),
+                          itemCount: notifs.length,
+                          itemBuilder: (context, i) {
+                            final n = notifs[i];
+                            return _notifTile(
+                              context,
+                              icon: n['icon'] as IconData,
+                              iconColor: n['iconColor'] as Color,
+                              title: n['title'] as String,
+                              time: n['time'] as String,
+                              body: n['body'] as String,
+                              fullDetail: n['fullDetail'] as String,
+                              read: _readNotifIds.contains(n['id'] as String),
+                              onTap: () {
+                                setModalState(() {
+                                  _readNotifIds.add(n['id'] as String);
+                                });
+                                setState(() {
+                                  _readNotifIds.add(n['id'] as String);
+                                });
+                              },
+                            );
+                          },
+                        ),
+                ),
+              ],
             ),
-            const Divider(height: 1, color: Color(0xFF1B5E5B)),
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.all(16),
-                children: [
-                  _notifTile(
-                    context,
-                    icon: Icons.check_circle_rounded,
-                    iconColor: kTurquoise,
-                    title: 'Attendance Confirmed',
-                    time: '2 hours ago',
-                    body: 'You checked in for therapy session on Sep 24, 2026.',
-                    fullDetail: 'Your session check-in was recorded by the WellCare reception desk. Keep up your regular therapy attendance for optimal health results!',
-                  ),
-                  _notifTile(
-                    context,
-                    icon: Icons.water_drop_rounded,
-                    iconColor: kTurquoise,
-                    title: 'Alkaline Therapy Logged',
-                    time: '2 days ago',
-                    body: '1 Alkaline Water session unit recorded.',
-                    fullDetail: 'Your alkaline therapy session has been logged in your account history. Stay hydrated and follow your wellness routine.',
-                  ),
-                  _notifTile(
-                    context,
-                    icon: Icons.star_rounded,
-                    iconColor: Colors.orange,
-                    title: 'Wellness Goal Reached!',
-                    time: '5 days ago',
-                    body: 'You have completed 10 total wellness therapy sessions.',
-                    fullDetail: 'Congratulations on completing 10 therapy sessions! You are building healthy wellness habits with WellCare System.',
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
@@ -1218,24 +1349,29 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
     required String time,
     required String body,
     required String fullDetail,
+    bool read = false,
+    VoidCallback? onTap,
   }) {
     return GestureDetector(
-      onTap: () => _showNotificationDetailModal(
-        context,
-        icon: icon,
-        iconColor: iconColor,
-        title: title,
-        time: time,
-        body: body,
-        fullDetail: fullDetail,
-      ),
+      onTap: () {
+        onTap?.call();
+        _showNotificationDetailModal(
+          context,
+          icon: icon,
+          iconColor: iconColor,
+          title: title,
+          time: time,
+          body: body,
+          fullDetail: fullDetail,
+        );
+      },
       child: Container(
         margin: const EdgeInsets.only(bottom: 10),
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: kDarkSurfaceAlt,
+          color: read ? kDarkSurfaceAlt.withValues(alpha: 0.6) : kDarkSurfaceAlt,
           borderRadius: BorderRadius.circular(AppRadius.lg),
-          border: Border.all(color: const Color(0xFF1B5E5B)),
+          border: Border.all(color: read ? const Color(0xFF1B5E5B).withValues(alpha: 0.5) : const Color(0xFF1B5E5B)),
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1260,10 +1396,10 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                         child: Text(title,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
+                            style: TextStyle(
                                 fontSize: 13.5,
-                                fontWeight: FontWeight.w800,
-                                color: kTextPrimary)),
+                                fontWeight: read ? FontWeight.w600 : FontWeight.w800,
+                                color: read ? kTextSecondary : kTextPrimary)),
                       ),
                       const SizedBox(width: 8),
                       Text(time,
@@ -1273,9 +1409,9 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                   ),
                   const SizedBox(height: 4),
                   Text(body,
-                      style: const TextStyle(
+                      style: TextStyle(
                           fontSize: 12,
-                          color: kTextTertiary,
+                          color: read ? kTextTertiary.withValues(alpha: 0.7) : kTextTertiary,
                           height: 1.35)),
                 ],
               ),
@@ -1780,12 +1916,13 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
     final remainder = sessions % 10;
     final progress = remainder == 0 && sessions > 0 ? 1.0 : remainder / 10;
     final toNext = sessions == 0 ? 10 : (10 - remainder) % 10;
-    final totalMl = sessions * 500;
-    final totalLiters = (sessions * 0.5).toStringAsFixed(1);
+    // 1 Bottle = 1.0 Liter = 1,000 mL
+    final totalMl = sessions * 1000;
+    final totalLiters = (sessions * 1.0).toStringAsFixed(1);
 
     // ── Daily hydration tracker ──────────────────────────────────────────────
-    // Goal: 8 glasses per day, each glass = 250 mL → 2,000 mL / day
-    // Each alkaline session bottle = 500 mL = 2 glasses
+    // Goal: 8 glasses per day, each glass = 250 mL → 2,000 mL / day (2 Liters)
+    // 1 Bottle = 1 Liter = 1,000 mL = 4 glasses
     final now = DateTime.now();
     final todayAlkalineSessions = _visitHistory
         .where((v) {
@@ -1794,8 +1931,8 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
           return isAlkaline && _isSameCalendarDay(v['date'], v['created_at'], now);
         })
         .length;
-    // mL consumed today via sessions
-    final todayMl = todayAlkalineSessions * 500;
+    // mL consumed today via sessions (1 session = 1 bottle = 1,000 mL)
+    final todayMl = todayAlkalineSessions * 1000;
     // daily goal in mL
     const int dailyGoalMl = 2000; // 8 × 250 mL
     const int glassVolumeMl = 250;
@@ -1999,7 +2136,7 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                         ),
                       ),
                       child: const Text(
-                        '500 mL / bottle',
+                        '1 Liter / bottle',
                         style: TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.w600,
@@ -2091,7 +2228,7 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                             ),
                             const SizedBox(height: 2),
                             const Text(
-                              'Standard 500 mL units',
+                              'Standard 1.0 L units',
                               style: TextStyle(
                                 fontSize: 10.5,
                                 fontWeight: FontWeight.w600,
@@ -2121,85 +2258,47 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // ── Header row: Title + Subtitle on the left, buttons cleanly arranged ──
                 Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Container(
-                      padding: const EdgeInsets.all(7),
+                      padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
                         color: const Color(0xFF0EA5E9).withValues(alpha: 0.16),
                         borderRadius: BorderRadius.circular(AppRadius.sm),
                       ),
                       child: const Icon(Icons.local_drink_rounded,
-                          size: 18, color: Color(0xFF38BDF8)),
+                          size: 20, color: Color(0xFF38BDF8)),
                     ),
                     const SizedBox(width: 10),
                     const Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Today\'s Hydration',
-                              style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w800,
-                                  color: kTextPrimary)),
-                          Text('Daily goal: 8 glasses · 250 mL each = 2,000 mL',
-                              style: TextStyle(
-                                  fontSize: 11,
-                                  color: kTextTertiary)),
+                          Text(
+                            "Today's Hydration",
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w800,
+                              color: kTextPrimary,
+                              letterSpacing: -0.2,
+                            ),
+                          ),
+                          SizedBox(height: 2),
+                          Text(
+                            'Daily goal: 8 glasses · 250 mL each = 2,000 mL',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: kTextTertiary,
+                            ),
+                          ),
                         ],
                       ),
                     ),
-                    // ── Quick Log Water Plus Button in header ──
-                    GestureDetector(
-                      onTap: _isLoggingWater ? null : () => _logWaterIntake(count: 1),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                        decoration: BoxDecoration(
-                          color: kAmber.withValues(alpha: 0.18),
-                          borderRadius: BorderRadius.circular(AppRadius.pill),
-                          border: Border.all(
-                            color: kAmber.withValues(alpha: 0.5),
-                            width: 1.2,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: kAmber.withValues(alpha: 0.2),
-                              blurRadius: 6,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            if (_isLoggingWater)
-                              const SizedBox(
-                                width: 12,
-                                height: 12,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: kAmber,
-                                ),
-                              )
-                            else
-                              const Icon(Icons.add_rounded, size: 15, color: kAmber),
-                            const SizedBox(width: 4),
-                            const Text(
-                              'Log Drink',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w800,
-                                color: kAmber,
-                                letterSpacing: 0.2,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 6),
+                    const SizedBox(width: 8),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
                       decoration: BoxDecoration(
                         color: const Color(0xFF0EA5E9).withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(AppRadius.pill),
@@ -2211,9 +2310,9 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                       child: Text(
                         todayAlkalineSessions == 0
                             ? 'Today'
-                            : '$todayAlkalineSessions session${todayAlkalineSessions == 1 ? '' : 's'} today',
+                            : '$todayAlkalineSessions bottle${todayAlkalineSessions == 1 ? '' : 's'} today',
                         style: const TextStyle(
-                          fontSize: 10,
+                          fontSize: 10.5,
                           fontWeight: FontWeight.w700,
                           color: Color(0xFF38BDF8),
                         ),
@@ -2387,7 +2486,7 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                               )
                             : const Icon(Icons.add_rounded, size: 18),
                         label: const Text(
-                          '+1 Bottle (500 mL)',
+                          '+1 Bottle (1 L)',
                           style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800),
                         ),
                       ),
@@ -2409,7 +2508,7 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                             Icon(Icons.add_rounded, size: 16, color: kAmber),
                             SizedBox(width: 4),
                             Text(
-                              '+2 Bottles',
+                              '+2 Bottles (2 L)',
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w800,
@@ -2487,7 +2586,7 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                           ),
                         ),
                         child: const Text(
-                          '500 mL/bottle',
+                          '1.0 L/bottle',
                           style: TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.w700,
@@ -2559,10 +2658,10 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                                   ),
                                 ),
                                 const SizedBox(height: 6),
-                                // mL label
+                                // Volume label
                                 if (count > 0)
                                   Text(
-                                    '${count * 500}mL',
+                                    '${count * 1000}mL',
                                     style: TextStyle(
                                       fontSize: 8,
                                       fontWeight: FontWeight.w600,
@@ -2609,7 +2708,7 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                             color: Color(0xFF34D399), size: 16),
                         const SizedBox(width: 6),
                         Text(
-                          'Peak: $maxCount bottle${maxCount == 1 ? '' : 's'} (${maxCount * 500} mL) in a day',
+                          'Peak: $maxCount bottle${maxCount == 1 ? '' : 's'} (${maxCount * 1000} mL) in a day',
                           style: const TextStyle(
                             fontSize: 11.5,
                             fontWeight: FontWeight.w700,
@@ -2750,7 +2849,7 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                   iconBg: const Color(0xFF0F2E36),
                   value: alkaline.toString(),
                   label: 'Alkaline sessions',
-                  subtext: '${(alkaline * 0.5).toStringAsFixed(1)} L total intake',
+                  subtext: '${(alkaline * 1.0).toStringAsFixed(1)} L total intake',
                 ),
               ),
               const SizedBox(width: 12),
@@ -3767,9 +3866,41 @@ class _MessagesModalContentState extends State<_MessagesModalContent> {
                   Text('Messages & Support',
                       style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: kTextPrimary)),
                 ]),
-                IconButton(
-                  icon: const Icon(Icons.close_rounded, size: 20, color: kTextTertiary),
-                  onPressed: () => Navigator.pop(context),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextButton.icon(
+                      onPressed: () {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: const Text('All messages marked as read'),
+                            behavior: SnackBarBehavior.floating,
+                            backgroundColor: kDarkSurfaceAlt,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(AppRadius.md),
+                              side: const BorderSide(color: kTurquoise, width: 1),
+                            ),
+                            duration: const Duration(seconds: 2),
+                          ),
+                        );
+                      },
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      icon: const Icon(Icons.done_all_rounded, size: 16, color: kTurquoise),
+                      label: const Text(
+                        'Mark all as read',
+                        style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: kTurquoise),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded, size: 20, color: kTextTertiary),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -4005,12 +4136,20 @@ class _EditProfileModalContentState extends State<_EditProfileModalContent> {
     return p;
   }
 
+  static String _cleanBirthdate(String? val) {
+    if (val == null) return '';
+    final s = val.trim();
+    if (s.isEmpty) return '';
+    if (s.contains('T')) return s.split('T')[0].trim();
+    return s;
+  }
+
   late final TextEditingController _firstNameCtrl = TextEditingController(text: widget.client.firstName);
   late final TextEditingController _middleNameCtrl = TextEditingController(text: widget.client.middleName);
   late final TextEditingController _lastNameCtrl = TextEditingController(text: widget.client.lastName);
   late final TextEditingController _usernameCtrl = TextEditingController(text: widget.client.username);
   late final TextEditingController _passwordCtrl = TextEditingController();
-  late final TextEditingController _birthdateCtrl = TextEditingController(text: widget.client.birthdate);
+  late final TextEditingController _birthdateCtrl = TextEditingController(text: _cleanBirthdate(widget.client.birthdate));
   late final TextEditingController _phoneCtrl = TextEditingController(text: _cleanPhone(widget.client.phone));
   late final TextEditingController _emailCtrl = TextEditingController(text: widget.client.email);
   late final TextEditingController _emergencyContactCtrl = TextEditingController(text: widget.client.emergencyContact);

@@ -59,6 +59,17 @@ class ClientModel {
     return 0;
   }
 
+  static String _cleanBirthdate(dynamic val) {
+    if (val == null) return '';
+    final s = val.toString().trim();
+    if (s.isEmpty) return '';
+    // Strip ISO time part e.g. "2006-06-25T00:00:00.000Z" -> "2006-06-25"
+    if (s.contains('T')) {
+      return s.split('T')[0].trim();
+    }
+    return s;
+  }
+
   factory ClientModel.fromJson(Map<String, dynamic> json) {
     return ClientModel(
       id: _parseInt(json['id']),
@@ -67,7 +78,7 @@ class ClientModel {
       middleName: (json['middleName'] ?? json['middle_name'] ?? '').toString(),
       lastName: (json['lastName'] ?? json['last_name'] ?? '').toString(),
       username: (json['username'] ?? '').toString(),
-      birthdate: (json['birthdate'] ?? '').toString(),
+      birthdate: _cleanBirthdate(json['birthdate']),
       phone: (json['phone'] ?? json['contact_number'] ?? '').toString(),
       email: (json['email'] ?? '').toString(),
       address: (json['address'] ?? '').toString(),

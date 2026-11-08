@@ -17,8 +17,36 @@ class _WellnessScreenState extends State<WellnessScreen> {
   bool _historyLoading = true;
   bool _historyUnavailable = false;
 
-  // Design tokens aligned with Home:
-  static const Color _bgDark = Color(0xFF061A12);
+  bool get _hasCheckedInToday {
+    final now = DateTime.now();
+    for (final v in _visitHistory) {
+      final type = (v['type'] ?? '').toString().toLowerCase();
+      // Check for attendance / check-in / biometric / visit
+      final isCheckin = type.contains('check-in') ||
+          type.contains('visit') ||
+          type.contains('attendance') ||
+          type.contains('biometric') ||
+          type.contains('fingerprint');
+      if (isCheckin) {
+        final raw = (v['date'] ?? v['created_at'] ?? '').toString();
+        if (_isSameCalendarDay(raw, now)) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  bool _isSameCalendarDay(String raw, DateTime target) {
+    if (raw.isEmpty) return false;
+    try {
+      final dt = DateTime.parse(raw).toLocal();
+      return dt.year == target.year && dt.month == target.month && dt.day == target.day;
+    } catch (_) {
+      final targetStr = '${target.year}-${target.month.toString().padLeft(2, '0')}-${target.day.toString().padLeft(2, '0')}';
+      return raw.startsWith(targetStr);
+    }
+  }
   static const Color _cardDark = Color(0xFF0C251C);
   static const Color _cardBorder = Color(0xFF153C2C);
   static const Color _amber = Color(0xFFF5A623);
@@ -151,7 +179,7 @@ class _WellnessScreenState extends State<WellnessScreen> {
               )
             else if (_historyUnavailable)
               _emptyState(Icons.cloud_off_rounded, 'Attendance history is unavailable.')
-            else if (_visitHistory.isEmpty)
+            else if (_visitHistory.isEmpty && _hasCheckedInToday)
               _emptyState(Icons.event_note_rounded, 'No attendance records yet.')
             else
               _buildTimeline(),
@@ -226,7 +254,11 @@ class _WellnessScreenState extends State<WellnessScreen> {
           const SizedBox(height: 16),
           _summaryRow('Total Check-ins', _client.checkins.toString(), const Color(0xFF10B981)),
           const SizedBox(height: 10),
-          _summaryRow('Absences', _client.absences.toString(), const Color(0xFFEF4444)),
+          _summaryRow(
+            'Absences',
+            (_hasCheckedInToday ? _client.absences : (_client.absences + 1)).toString(),
+            const Color(0xFFEF4444),
+          ),
           const SizedBox(height: 10),
           _summaryRow('Alkaline Sessions', _client.alkalineSessions.toString(), _amber),
           if (_client.lastSeen.isNotEmpty) ...[
@@ -284,8 +316,112 @@ class _WellnessScreenState extends State<WellnessScreen> {
 
   // ── TIMELINE (CREAM CARDS MATCHING HOME RECENT VISITS) ─────────────────────
   Widget _buildTimeline() {
+    final now = DateTime.now();
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    final todayFormatted = '${months[now.month - 1]} ${now.day}, ${now.year}';
+
     return Column(
       children: [
+        // If no attendance check-in timestamp exists for current day, explicitly display "Absent"
+        if (!_hasCheckedInToday)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
+                color: const Color(0xFF2C1A1C),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFEF4444).withValues(alpha: 0.4), width: 1.2),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.2),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 38,
+                    height: 38,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEF4444).withValues(alpha: 0.18),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(
+                      Icons.event_busy_rounded,
+                      color: Color(0xFFEF4444),
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Text(
+                              todayFormatted,
+                              style: const TextStyle(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFEF4444).withValues(alpha: 0.2),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: const Text(
+                                'TODAY',
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w900,
+                                  color: Color(0xFFEF4444),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 2),
+                        const Row(
+                          children: [
+                            Text(
+                              'Absent',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFFF87171),
+                              ),
+                            ),
+                            SizedBox(width: 6),
+                            Text(
+                              '· No check-in logged today',
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w600,
+                                color: _creamMuted,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Icon(
+                    Icons.cancel_rounded,
+                    color: Color(0xFFEF4444),
+                    size: 20,
+                  ),
+                ],
+              ),
+            ),
+          ),
         for (var i = 0; i < _visitHistory.length; i++)
           Padding(
             padding: const EdgeInsets.only(bottom: 10),
