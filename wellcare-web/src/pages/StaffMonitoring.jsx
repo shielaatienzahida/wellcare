@@ -283,7 +283,7 @@ emergency_contact: member.emergency_contact || '', emergency_number: member.emer
                   </div>
                   <label className="reg-field"><span className="reg-label">Barangay <span className="req">*</span></span><input className={`reg-input ${staffValidationErrors.barangay ? 'reg-input-error' : ''}`} placeholder="Enter barangay" value={newStaff.barangay || ''} onChange={event => { setNewStaff(form => ({ ...form, barangay: event.target.value })); setAddStaffError(''); setStaffValidationErrors(errors => ({ ...errors, barangay: '' })); }} />{staffValidationErrors.barangay && <span className="reg-error-msg">{staffValidationErrors.barangay}</span>}</label>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14 }}>
-                    <label className="reg-field"><span className="reg-label">Email <span className="req">*</span></span><input className={`reg-input ${staffValidationErrors.email ? 'reg-input-error' : ''}`} type="email" autoComplete="email" value={newStaff.email} onChange={event => { setNewStaff(form => ({ ...form, email: event.target.value })); setAddStaffError(''); setStaffValidationErrors(errors => ({ ...errors, email: '' })); }} />{staffValidationErrors.email && <span className="reg-error-msg">{staffValidationErrors.email}</span>}</label>
+                    <label className="reg-field"><span className="reg-label">Email <span className="opt">(optional)</span></span><input className={`reg-input ${staffValidationErrors.email ? 'reg-input-error' : ''}`} type="email" autoComplete="email" placeholder="name@example.com (optional)" value={newStaff.email} onChange={event => { setNewStaff(form => ({ ...form, email: event.target.value })); setAddStaffError(''); setStaffValidationErrors(errors => ({ ...errors, email: '' })); }} />{staffValidationErrors.email && <span className="reg-error-msg">{staffValidationErrors.email}</span>}</label>
                     <label className="reg-field"><span className="reg-label">Contact Number <span className="req">*</span></span><input className={`reg-input ${staffValidationErrors.contact_number ? 'reg-input-error' : ''}`} type="tel" autoComplete="tel" inputMode="numeric" maxLength={11} value={newStaff.contact_number} onChange={event => { setNewStaff(form => ({ ...form, contact_number: event.target.value })); setStaffValidationErrors(errors => ({ ...errors, contact_number: '' })); }} />{staffValidationErrors.contact_number && <span className="reg-error-msg">{staffValidationErrors.contact_number}</span>}</label>
                   </div>
                   {addStaffError && <div className="login-error" role="alert">{addStaffError}</div>}
@@ -295,7 +295,7 @@ const fieldErrors = {
                         middle_name: newStaff.middle_name ? validateName(newStaff.middle_name, 'Middle name') : '',
                         last_name: validateRequired(newStaff.last_name, 'Last name'),
                         birthdate: validateRequiredDateOfBirth(newStaff.birthdate),
-                        email: validateRequired(newStaff.email, 'Email') || validateEmail(newStaff.email),
+                        email: newStaff.email?.trim() ? validateEmail(newStaff.email) : '',
                         contact_number: validateRequired(newStaff.contact_number, 'Contact number') || validateContactNumber(newStaff.contact_number),
                         address: validateAddressSelection(newStaff),
                         barangay: validateRequired(newStaff.barangay, 'Barangay'),

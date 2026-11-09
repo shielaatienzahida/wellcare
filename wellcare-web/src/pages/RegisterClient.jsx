@@ -185,7 +185,7 @@ export default function RegisterClient() {
     if (addressError) e.address = addressError;
     if (!form.barangay?.trim()) e.barangay = 'Barangay is required.';
     e.contact_number = validateRequired(form.contact_number, 'Contact number') || validateContactNumber(form.contact_number);
-    e.email = validateRequired(form.email, 'Email address') || validateEmail(form.email);
+    e.email = form.email?.trim() ? validateEmail(form.email) : '';
     e.emergency_number = form.emergency_number.trim() && !/^09\d{9}$/.test(form.emergency_number.trim())
       ? 'Emergency contact number must be exactly 11 digits and start with 09.'
       : '';
@@ -310,8 +310,8 @@ export default function RegisterClient() {
             />
 
             <div className="reg-field">
-              <label className="reg-label">Email Address <span className="req">*</span></label>
-              <input type="email" name="email" value={form.email} onChange={handleChange} className={`reg-input ${errors.email ? 'reg-input-error' : ''}`} placeholder="name@example.com" autoComplete="email" />
+              <label className="reg-label">Email Address <span className="opt">(optional)</span></label>
+              <input type="email" name="email" value={form.email} onChange={handleChange} className={`reg-input ${errors.email ? 'reg-input-error' : ''}`} placeholder="name@example.com (optional)" autoComplete="email" />
               {errors.email && <span className="reg-error-msg">{errors.email}</span>}
             </div>
 

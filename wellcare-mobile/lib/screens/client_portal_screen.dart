@@ -345,10 +345,18 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
             setState(() {
               _visitHistory = history;
               _historyUnavailable = false;
+              _notificationsCleared = false;
+              _notifBadgeCount++;
             });
           }
         } else {
           await _refreshVisitHistory();
+          if (mounted) {
+            setState(() {
+              _notificationsCleared = false;
+              _notifBadgeCount++;
+            });
+          }
         }
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -2404,7 +2412,7 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                       ),
                     ],
                     Text(
-                      '${todayMl.clamp(0, dailyGoalMl)} / $dailyGoalMl mL',
+                      '$todayMl / $dailyGoalMl mL',
                       style: const TextStyle(
                         fontSize: 11.5,
                         fontWeight: FontWeight.w700,

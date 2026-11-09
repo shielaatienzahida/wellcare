@@ -141,7 +141,7 @@ export default function StaffClientRegistration({ onRegistered, onBack }) {
       gender: validateRequired(form.gender, 'Gender'),
       birthdate: validateRequiredDateOfBirth(form.birthdate, 3),
       contact_number: validateRequired(form.contact_number, 'Contact number') || validateContactNumber(form.contact_number),
-      email: validateRequired(form.email, 'Email') || validateEmail(form.email),
+      email: form.email?.trim() ? validateEmail(form.email) : '',
       address: validateAddressSelection(form),
       barangay: validateRequired(form.barangay, 'Barangay'),
       emergency_contact: form.emergency_contact.trim() ? validateName(form.emergency_contact, 'Emergency contact name') : '',
@@ -271,7 +271,7 @@ export default function StaffClientRegistration({ onRegistered, onBack }) {
                 <div className="reg-field"><label className="reg-label">Contact Number <span className="req">*</span></label><input name="contact_number" value={form.contact_number} onChange={handleChange} className={`reg-input ${errors.contact_number ? 'reg-input-error' : ''}`} autoComplete="tel" inputMode="numeric" maxLength={11} />{errors.contact_number && <span className="reg-error-msg">{errors.contact_number}</span>}</div>
                 <div className="reg-field"><label className="reg-label">Emergency Contact <span className="opt">(optional)</span></label><input name="emergency_contact" value={form.emergency_contact} onChange={handleChange} className={`reg-input ${errors.emergency_contact ? 'reg-input-error' : ''}`} maxLength={15} />{errors.emergency_contact && <span className="reg-error-msg">{errors.emergency_contact}</span>}</div>
               </div>
-              <div className="reg-field"><label className="reg-label">Email <span className="req">*</span></label><input type="email" name="email" value={form.email} onChange={handleChange} className={`reg-input ${errors.email ? 'reg-input-error' : ''}`} autoComplete="email" />{errors.email && <span className="reg-error-msg">{errors.email}</span>}</div>
+              <div className="reg-field"><label className="reg-label">Email <span className="opt">(optional)</span></label><input type="email" name="email" value={form.email} onChange={handleChange} className={`reg-input ${errors.email ? 'reg-input-error' : ''}`} autoComplete="email" placeholder="name@example.com (optional)" />{errors.email && <span className="reg-error-msg">{errors.email}</span>}</div>
               <div className="reg-field"><label className="reg-label">Emergency Contact Number <span className="opt">(optional)</span></label><input name="emergency_number" value={form.emergency_number} onChange={handleChange} className={`reg-input ${errors.emergency_number ? 'reg-input-error' : ''}`} inputMode="numeric" maxLength={11} />{errors.emergency_number && <span className="reg-error-msg">{errors.emergency_number}</span>}</div>
               {error && <div className="login-error" role="alert">{error}</div>}
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>

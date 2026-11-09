@@ -223,7 +223,7 @@ export default function UsersPage() {
     const next = {
       ...validatePersonNameFields(staffForm),
       birthdate: validateRequiredDateOfBirth(staffForm.birthdate),
-      email: validateRequired(staffForm.email, 'Email') || validateEmail(staffForm.email),
+      email: staffForm.email?.trim() ? validateEmail(staffForm.email) : '',
       contact_number: validateRequired(staffForm.contact_number, 'Contact number') || validateContactNumber(staffForm.contact_number),
       address: validateAddressSelection(staffForm),
       barangay: validateRequired(staffForm.barangay, 'Barangay'),
@@ -408,8 +408,8 @@ export default function UsersPage() {
                   </div>
                   <div className="reg-grid-2">
                     <div className="reg-field">
-                      <label className="reg-label">Email <span className="req">*</span></label>
-                      <input name="email" type="email" value={staffForm.email} onChange={handleStaffChange} className={`reg-input ${staffErrors.email ? 'reg-input-error' : ''}`} autoComplete="email" />
+                      <label className="reg-label">Email <span className="opt">(optional)</span></label>
+                      <input name="email" type="email" value={staffForm.email} onChange={handleStaffChange} className={`reg-input ${staffErrors.email ? 'reg-input-error' : ''}`} autoComplete="email" placeholder="name@example.com (optional)" />
                       {staffErrors.email && <span className="reg-error-msg">{staffErrors.email}</span>}
                     </div>
                     <div className="reg-field">

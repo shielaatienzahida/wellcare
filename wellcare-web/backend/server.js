@@ -603,10 +603,15 @@ app.post('/api/v1/staff', auth, isAdmin, async (req, res) => {
     return res.status(400).json({ success: false, message: 'First name and last name are required' });
   }
   const nameErrors = [nameValidationError(first_name, 'First name'), middle_name?.trim() ? nameValidationError(middle_name, 'Middle name') : '', nameValidationError(last_name, 'Last name')].filter(Boolean);
-  const profileErrors = [dateOfBirthValidation(birthdate), emailValidationError(email), contactValidationError(contact_number), addressValidationError(req.body)].filter(Boolean);
+  const profileErrors = [
+    dateOfBirthValidation(birthdate),
+    email?.trim() ? emailValidationError(email) : '',
+    contactValidationError(contact_number),
+    addressValidationError(req.body)
+  ].filter(Boolean);
   if (nameErrors.length || profileErrors.length) return res.status(400).json({ success: false, message: [...nameErrors, ...profileErrors].join(' ') });
-  const normalizedEmail = email.trim().toLowerCase();
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+  const normalizedEmail = email?.trim() ? email.trim().toLowerCase() : null;
+  if (normalizedEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
     return res.status(400).json({ success: false, message: 'Enter a valid email address' });
   }
   const hasFingerprint = fingerprint_id !== undefined && fingerprint_id !== null && String(fingerprint_id).trim() !== '';
@@ -732,7 +737,10 @@ app.post('/api/v1/clients', auth, isAdminOrStaff, async (req, res) => {
   }
 
   const full_name = `${first_name}${middle_name ? ' ' + middle_name : ''} ${last_name}`.trim();
-  if (!email?.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return res.status(400).json({ success: false, message: 'A valid recovery email is required.' });
+  const normalizedEmail = email?.trim() ? email.trim().toLowerCase() : null;
+  if (normalizedEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+    return res.status(400).json({ success: false, message: 'Enter a valid recovery email address.' });
+  }
   
   const username = (first_name + last_name).toLowerCase().replace(/\s+/g, '');
 
