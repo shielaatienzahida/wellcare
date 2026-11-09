@@ -89,8 +89,14 @@ class _LandingScreenState extends State<LandingScreen> {
             decoration: BoxDecoration(
               gradient: AppColors.gradientEmerald,
               borderRadius: BorderRadius.circular(AppRadius.md),
-              boxShadow: AppShadows.medium,
-              border: Border.all(color: Colors.white, width: 2),
+              boxShadow: [
+                BoxShadow(
+                  color: kAmber.withValues(alpha: 0.25),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+              border: Border.all(color: kAmber, width: 2),
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(AppRadius.md - 2),
@@ -106,18 +112,31 @@ class _LandingScreenState extends State<LandingScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text('Wellcare',
-                    style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w900,
-                        color: kTextPrimary,
-                        height: 1.1,
-                        letterSpacing: -0.5)),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text('Heiwa ',
+                        style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w900,
+                            color: kAmber,
+                            height: 1.1,
+                            letterSpacing: -0.5)),
+                    Text('Wellcare',
+                        style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w900,
+                            color: kTextPrimary,
+                            height: 1.1,
+                            letterSpacing: -0.5)),
+                  ],
+                ),
+                SizedBox(height: 1),
                 Text('Wellness Center System',
                     style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
-                        color: kEmeraldLight,
+                        color: kCreamMuted,
                         letterSpacing: 0.3)),
               ],
             ),
@@ -131,17 +150,34 @@ class _LandingScreenState extends State<LandingScreen> {
               borderRadius: BorderRadius.circular(AppRadius.pill),
               child: Ink(
                 decoration: BoxDecoration(
-                  gradient: AppColors.gradientTeal,
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFFF5A623), Color(0xFFD48B12)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
                   borderRadius: BorderRadius.circular(AppRadius.pill),
-                  boxShadow: AppShadows.button,
+                  boxShadow: [
+                    BoxShadow(
+                      color: kAmber.withValues(alpha: 0.35),
+                      blurRadius: 10,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
                 ),
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                child: const Text('Login',
-                    style: TextStyle(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 14,
-                        color: Colors.white,
-                        letterSpacing: 0.5)),
+                padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 11),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.login_rounded, size: 16, color: Color(0xFF071F15)),
+                    SizedBox(width: 6),
+                    Text('Login',
+                        style: TextStyle(
+                            fontWeight: FontWeight.w900,
+                            fontSize: 13.5,
+                            color: Color(0xFF071F15),
+                            letterSpacing: 0.3)),
+                  ],
+                ),
               ),
             ),
           ),
@@ -157,7 +193,7 @@ class _LandingScreenState extends State<LandingScreen> {
       decoration: BoxDecoration(
         color: kDarkSurface,
         borderRadius: BorderRadius.circular(AppRadius.pill),
-        border: Border.all(color: Color(0xFF1B5E5B), width: 1.2),
+        border: Border.all(color: kAmber.withValues(alpha: 0.35), width: 1.2),
         boxShadow: AppShadows.card,
       ),
       child: Row(
@@ -167,15 +203,15 @@ class _LandingScreenState extends State<LandingScreen> {
             width: 24,
             height: 24,
             decoration: BoxDecoration(
-              color: kEmeraldLight.withOpacity(0.2),
+              color: kAmber.withValues(alpha: 0.18),
               borderRadius: BorderRadius.circular(AppRadius.xs),
             ),
-            child: Icon(icon, size: 14, color: kEmeraldLight),
+            child: Icon(icon, size: 14, color: kAmber),
           ),
           const SizedBox(width: 8),
           Text(label,
               style: const TextStyle(
-                  fontSize: 12, fontWeight: FontWeight.w700, color: kTextPrimary)),
+                  fontSize: 12, fontWeight: FontWeight.w700, color: kCream)),
         ],
       ),
     );
@@ -274,10 +310,16 @@ class _LandingScreenState extends State<LandingScreen> {
                                 width: 96,
                                 height: 96,
                                 decoration: BoxDecoration(
-                                  gradient: AppColors.gradientEmerald,
                                   borderRadius: BorderRadius.circular(AppRadius.xxl),
-                                  boxShadow: AppShadows.glow,
-                                  border: Border.all(color: Colors.white, width: 3),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: kAmber.withValues(alpha: 0.3),
+                                      blurRadius: 24,
+                                      spreadRadius: 2,
+                                      offset: const Offset(0, 8),
+                                    ),
+                                  ],
+                                  border: Border.all(color: kAmber, width: 3),
                                 ),
                                 child: ClipRRect(
                                   borderRadius: BorderRadius.circular(AppRadius.xxl - 3),
@@ -291,35 +333,55 @@ class _LandingScreenState extends State<LandingScreen> {
                               // Modern badge
                               Container(
                                 padding: const EdgeInsets.symmetric(
-                                    horizontal: 16, vertical: 8),
+                                    horizontal: 18, vertical: 8),
                                 decoration: BoxDecoration(
-                                  gradient: AppColors.gradientTeal,
+                                  color: kAmber.withValues(alpha: 0.15),
                                   borderRadius: BorderRadius.circular(AppRadius.pill),
-                                  boxShadow: AppShadows.medium,
+                                  border: Border.all(color: kAmber.withValues(alpha: 0.45), width: 1.2),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: kAmber.withValues(alpha: 0.12),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
                                 ),
-                                child: const Text('YOUR WELLNESS WORKSPACE',
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w800,
-                                        letterSpacing: 1.2,
-                                        color: Colors.white)),
+                                child: const Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.spa_rounded, size: 14, color: kAmber),
+                                    SizedBox(width: 6),
+                                    Text('YOUR WELLNESS WORKSPACE',
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w800,
+                                            letterSpacing: 1.2,
+                                            color: kAmber)),
+                                  ],
+                                ),
                               ),
                               
                               const SizedBox(height: 28),
                               
                               // Modern typography with gradient
-                              ShaderMask(
-                                shaderCallback: (bounds) => AppColors.gradientEmerald.createShader(bounds),
-                                child: const Text(
-                                  'A little care,\nevery day.',
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                      fontSize: 44,
-                                      height: 1.05,
-                                      fontWeight: FontWeight.w900,
-                                      letterSpacing: -1.2,
-                                      color: Colors.white),
+                              const Text(
+                                'A little care,\nevery day.',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                    fontSize: 44,
+                                    height: 1.05,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: -1.2,
+                                    color: Colors.white),
+                              ),
+                              const SizedBox(height: 10),
+                              Container(
+                                width: 44,
+                                height: 3.5,
+                                decoration: BoxDecoration(
+                                  color: kAmber,
+                                  borderRadius: BorderRadius.circular(2),
                                 ),
                               ),
                               
@@ -361,22 +423,33 @@ class _LandingScreenState extends State<LandingScreen> {
                                     onTap: _navigateToLogin,
                                     borderRadius: BorderRadius.circular(AppRadius.buttonLargeR),
                                     child: Ink(
-                                      decoration: appButtonDecoration(
-                                        gradient: AppColors.gradientEmerald,
-                                        radius: AppRadius.buttonLargeR,
+                                      decoration: BoxDecoration(
+                                        gradient: const LinearGradient(
+                                          colors: [Color(0xFFF5A623), Color(0xFFD48B12)],
+                                          begin: Alignment.topLeft,
+                                          end: Alignment.bottomRight,
+                                        ),
+                                        borderRadius: BorderRadius.circular(AppRadius.buttonLargeR),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: kAmber.withValues(alpha: 0.4),
+                                            blurRadius: 16,
+                                            offset: const Offset(0, 5),
+                                          ),
+                                        ],
                                       ),
                                       padding: const EdgeInsets.symmetric(vertical: 18),
-                                      child: Row(
+                                      child: const Row(
                                         mainAxisAlignment: MainAxisAlignment.center,
                                         children: [
-                                          const Icon(Icons.arrow_forward_rounded,
-                                              size: 22, color: Colors.white),
-                                          const SizedBox(width: 10),
-                                          const Text('Sign in to your portal',
+                                          Icon(Icons.arrow_forward_rounded,
+                                              size: 22, color: Color(0xFF071F15)),
+                                          SizedBox(width: 10),
+                                          Text('Sign in to your portal',
                                               style: TextStyle(
                                                   fontSize: 16,
-                                                  fontWeight: FontWeight.w800,
-                                                  color: Colors.white)),
+                                                  fontWeight: FontWeight.w900,
+                                                  color: Color(0xFF071F15))),
                                         ],
                                       ),
                                     ),
@@ -398,21 +471,21 @@ class _LandingScreenState extends State<LandingScreen> {
                                       decoration: BoxDecoration(
                                         color: kDarkSurfaceAlt,
                                         borderRadius: BorderRadius.circular(AppRadius.buttonLargeR),
-                                        border: Border.all(color: Color(0xFF1B5E5B), width: 1.5),
+                                        border: Border.all(color: kAmber.withValues(alpha: 0.35), width: 1.5),
                                         boxShadow: AppShadows.card,
                                       ),
                                       padding: const EdgeInsets.symmetric(vertical: 16),
-                                      child: Row(
+                                      child: const Row(
                                         mainAxisAlignment: MainAxisAlignment.center,
                                         children: [
-                                          const Icon(Icons.chat_bubble_outline_rounded,
-                                              size: 20, color: kEmeraldLight),
-                                          const SizedBox(width: 10),
+                                          Icon(Icons.chat_bubble_outline_rounded,
+                                              size: 20, color: kAmber),
+                                          SizedBox(width: 10),
                                           Text('Contact us on Facebook',
                                               style: TextStyle(
                                                   fontSize: 15,
                                                   fontWeight: FontWeight.w700,
-                                                  color: kEmeraldLight)),
+                                                  color: kCream)),
                                         ],
                                       ),
                                     ),

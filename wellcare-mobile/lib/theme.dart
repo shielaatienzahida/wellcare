@@ -412,11 +412,22 @@ String get kBackendUrl {
 }
 
 List<String> get candidateBackendUrls {
+  // If running in browser on production host (Firebase Hosting, web domain, etc.),
+  // do NOT fallback to localhost because browser blocks mixed-content / cannot reach local port.
+  final isWebLocalhost = kIsWeb &&
+      (Uri.base.host == 'localhost' ||
+       Uri.base.host == '127.0.0.1' ||
+       Uri.base.host.startsWith('192.168.') ||
+       Uri.base.host.startsWith('10.') ||
+       Uri.base.host.startsWith('172.'));
+
   return [
     'https://wellcare-1zo0.onrender.com/api/v1', // Live Cloud Backend (Render)
     if (kIsWeb) ...[
-      'http://localhost:5000/api/v1',
-      'http://localhost:5001/api/v1',
+      if (isWebLocalhost) ...[
+        'http://localhost:5000/api/v1',
+        'http://localhost:5001/api/v1',
+      ],
     ] else ...[
       'http://localhost:5000/api/v1', // USB adb reverse (port 5000)
       'http://localhost:5001/api/v1', // USB adb reverse (port 5001)

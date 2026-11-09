@@ -146,10 +146,15 @@ class _LoginScreenState extends State<LoginScreen> {
                                 width: 54,
                                 height: 54,
                                 decoration: BoxDecoration(
-                                  gradient: AppColors.gradientEmerald,
                                   borderRadius: BorderRadius.circular(AppRadius.md),
-                                  boxShadow: AppShadows.medium,
-                                  border: Border.all(color: Colors.white, width: 2),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: kAmber.withValues(alpha: 0.25),
+                                      blurRadius: 12,
+                                      offset: const Offset(0, 3),
+                                    ),
+                                  ],
+                                  border: Border.all(color: kAmber, width: 2),
                                 ),
                                 child: ClipRRect(
                                   borderRadius: BorderRadius.circular(AppRadius.md - 2),
@@ -160,8 +165,14 @@ class _LoginScreenState extends State<LoginScreen> {
                               const Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text('WELLCARE', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: kTextPrimary, letterSpacing: 1.5)),
-                                  Text('Wellness Center System', style: TextStyle(fontSize: 12, color: kEmeraldLight, fontWeight: FontWeight.w600, letterSpacing: 0.3)),
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text('HEIWA ', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: kAmber, letterSpacing: 1.2)),
+                                      Text('WELLCARE', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: kTextPrimary, letterSpacing: 1.2)),
+                                    ],
+                                  ),
+                                  Text('Wellness Center System', style: TextStyle(fontSize: 12, color: kCreamMuted, fontWeight: FontWeight.w600, letterSpacing: 0.3)),
                                 ],
                               ),
                             ],
@@ -170,12 +181,25 @@ class _LoginScreenState extends State<LoginScreen> {
                           const SizedBox(height: 36),
                           
                           // Modern welcome text
-                          ShaderMask(
-                            shaderCallback: (bounds) => AppColors.gradientEmerald.createShader(bounds),
-                            child: const Text('Welcome back', style: TextStyle(fontSize: 34, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: -0.8)),
+                          const Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Welcome back', style: TextStyle(fontSize: 34, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: -0.8)),
+                              SizedBox(height: 6),
+                              SizedBox(
+                                width: 36,
+                                height: 3.5,
+                                child: DecoratedBox(
+                                  decoration: BoxDecoration(
+                                    color: kAmber,
+                                    borderRadius: BorderRadius.all(Radius.circular(2)),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                           
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 12),
                           
                           const Text('Sign in to access your WellCare mobile portal', style: TextStyle(fontSize: 15, height: 1.5, color: kTextSecondary, fontWeight: FontWeight.w500)),
                           
@@ -187,16 +211,16 @@ class _LoginScreenState extends State<LoginScreen> {
                             decoration: BoxDecoration(
                               color: kDarkSurface,
                               borderRadius: BorderRadius.circular(AppRadius.xxxl),
-                              border: Border.all(color: const Color(0xFF1B5E5B), width: 1),
+                              border: Border.all(color: kAmber.withValues(alpha: 0.35), width: 1.2),
                               boxShadow: [
                                 BoxShadow(
-                                  color: kEmerald.withOpacity(0.08),
+                                  color: Colors.black.withOpacity(0.3),
                                   blurRadius: 40,
                                   offset: const Offset(0, 16),
                                   spreadRadius: -8,
                                 ),
                                 BoxShadow(
-                                  color: kEmerald.withOpacity(0.04),
+                                  color: kAmber.withOpacity(0.06),
                                   blurRadius: 20,
                                   offset: const Offset(0, 8),
                                   spreadRadius: -4,
@@ -235,12 +259,13 @@ class _LoginScreenState extends State<LoginScreen> {
                                   alignment: Alignment.centerRight,
                                   child: Material(
                                     borderRadius: BorderRadius.circular(AppRadius.pill),
+                                    color: Colors.transparent,
                                     child: InkWell(
                                       onTap: _showPasswordHelp,
                                       borderRadius: BorderRadius.circular(AppRadius.pill),
-                                      child: Ink(
-                                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                        child: Text('Forgot password?', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: kEmeraldLight)),
+                                      child: const Padding(
+                                        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                        child: Text('Forgot password?', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: kAmber)),
                                       ),
                                     ),
                                   ),
@@ -280,23 +305,33 @@ class _LoginScreenState extends State<LoginScreen> {
                                       onTap: _loading ? null : _login,
                                       borderRadius: BorderRadius.circular(AppRadius.buttonLargeR),
                                       child: Ink(
-                                        decoration: appButtonDecoration(
-                                          gradient: AppColors.gradientEmerald,
-                                          radius: AppRadius.buttonLargeR,
-                                          elevated: !_loading,
+                                        decoration: BoxDecoration(
+                                          gradient: const LinearGradient(
+                                            colors: [Color(0xFFF5A623), Color(0xFFD48B12)],
+                                            begin: Alignment.topLeft,
+                                            end: Alignment.bottomRight,
+                                          ),
+                                          borderRadius: BorderRadius.circular(AppRadius.buttonLargeR),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: kAmber.withValues(alpha: 0.35),
+                                              blurRadius: 16,
+                                              offset: const Offset(0, 5),
+                                            ),
+                                          ],
                                         ),
                                         padding: const EdgeInsets.symmetric(vertical: 18),
                                         child: _loading
                                           ? const SizedBox(
                                               width: 24,
                                               height: 24,
-                                              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
+                                              child: CircularProgressIndicator(color: Color(0xFF071F15), strokeWidth: 2.5))
                                           : const Row(
                                               mainAxisAlignment: MainAxisAlignment.center,
                                               children: [
-                                                Icon(Icons.login_rounded, size: 20, color: Colors.white),
+                                                Icon(Icons.login_rounded, size: 20, color: Color(0xFF071F15)),
                                                 SizedBox(width: 10),
-                                                Text('Sign In to Portal', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Colors.white)),
+                                                Text('Sign In to Portal', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Color(0xFF071F15))),
                                               ],
                                             ),
                                       ),
@@ -381,11 +416,19 @@ class _LoginScreenState extends State<LoginScreen> {
       decoration: InputDecoration(
         hintText: hint,
         hintStyle: const TextStyle(color: kTextTertiary, fontSize: 15, fontWeight: FontWeight.w500),
-        prefixIcon: Icon(icon, size: 20, color: kEmeraldLight),
+        prefixIcon: Icon(icon, size: 20, color: kAmber),
         suffixIcon: suffix,
         filled: true,
         fillColor: kDarkSurfaceAlt,
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppRadius.sm + 2),
+          borderSide: BorderSide(color: kAmber.withValues(alpha: 0.35), width: 1.2),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppRadius.sm + 2),
+          borderSide: const BorderSide(color: kAmber, width: 1.8),
+        ),
       ),
     );
   }
