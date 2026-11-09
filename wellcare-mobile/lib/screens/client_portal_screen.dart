@@ -850,14 +850,22 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                 Icon(icon, color: const Color(0xFFF5EFE6), size: 19),
                 if (badge > 0)
                   Positioned(
-                    right: -2,
-                    top: -2,
+                    right: 1,
+                    top: 1,
                     child: Container(
-                      width: 7,
-                      height: 7,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFFF5A623), // Amber notification dot
+                      width: 9,
+                      height: 9,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFEF4444), // Bright red notification dot
                         shape: BoxShape.circle,
+                        border: Border.all(color: const Color(0xFF0C251C), width: 1.5),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Color(0xFFEF4444),
+                            blurRadius: 4,
+                            spreadRadius: 1,
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -1899,6 +1907,24 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
     );
   }
 
+  bool get _hasCheckedInToday {
+    final now = DateTime.now();
+    for (final v in _visitHistory) {
+      final type = (v['type'] ?? '').toString().toLowerCase();
+      final isCheckin = type.contains('check-in') ||
+          type.contains('visit') ||
+          type.contains('attendance') ||
+          type.contains('biometric') ||
+          type.contains('fingerprint');
+      if (isCheckin) {
+        if (_isSameCalendarDay(v['date'], v['created_at'], now)) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
   bool _isSameCalendarDay(dynamic rawDateVal, dynamic rawCreatedVal, DateTime target) {
     final dStr = (rawDateVal ?? '').toString();
     final cStr = (rawCreatedVal ?? '').toString();
@@ -2782,7 +2808,8 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
   Widget _buildReportTab() {
     final totalVisits = _visitHistory.length;
     final checkins = _client.checkins;
-    final absences = _client.absences;
+    final effectiveAbsences = _hasCheckedInToday ? _client.absences : (_client.absences + 1);
+    final absences = effectiveAbsences;
     final alkaline = _client.alkalineSessions;
     final totalSessions = checkins + absences;
     final safeTotal = totalSessions == 0 ? 1 : totalSessions;
