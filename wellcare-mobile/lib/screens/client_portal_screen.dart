@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../theme.dart';
@@ -4167,6 +4168,8 @@ class _EditProfileModalContentState extends State<_EditProfileModalContent> {
   // Address fields
   String? _selectedProvince;
   String? _selectedCity;
+  String? _selectedBarangay;
+  Map<String, List<String>> _calabarzonBarangays = {};
   late final TextEditingController _barangayCtrl = TextEditingController();
   late final TextEditingController _streetCtrl = TextEditingController();
 
@@ -4177,6 +4180,25 @@ class _EditProfileModalContentState extends State<_EditProfileModalContent> {
   void initState() {
     super.initState();
     _parseAddress(widget.client.address);
+    _loadBarangays();
+  }
+
+  Future<void> _loadBarangays() async {
+    try {
+      final jsonStr = await rootBundle.loadString('assets/calabarzonBarangays.json');
+      final Map<String, dynamic> decoded = jsonDecode(jsonStr);
+      if (mounted) {
+        setState(() {
+          _calabarzonBarangays = decoded.map((k, v) => MapEntry(k, List<String>.from(v as List)));
+          if (_selectedBarangay == null && _barangayCtrl.text.isNotEmpty) {
+            final list = _calabarzonBarangays[_selectedCity] ?? [];
+            if (list.contains(_barangayCtrl.text.trim())) {
+              _selectedBarangay = _barangayCtrl.text.trim();
+            }
+          }
+        });
+      }
+    } catch (_) {}
   }
 
   /// Parse an existing address string like:
@@ -4227,6 +4249,7 @@ class _EditProfileModalContentState extends State<_EditProfileModalContent> {
 
     _selectedProvince = province;
     _selectedCity = city;
+    _selectedBarangay = barangay;
     _barangayCtrl.text = barangay ?? '';
     _streetCtrl.text = street ?? '';
   }
@@ -4234,7 +4257,9 @@ class _EditProfileModalContentState extends State<_EditProfileModalContent> {
   String _buildFullAddress() {
     final parts = <String>[];
     final st = _streetCtrl.text.trim();
-    final brgy = _barangayCtrl.text.trim();
+    final brgy = (_selectedBarangay != null && _selectedBarangay!.isNotEmpty)
+        ? _selectedBarangay!.trim()
+        : _barangayCtrl.text.trim();
     if (st.isNotEmpty) parts.add(st);
     if (brgy.isNotEmpty) parts.add(brgy);
     if (_selectedCity != null && _selectedCity!.isNotEmpty) parts.add(_selectedCity!);
@@ -4440,6 +4465,8 @@ class _EditProfileModalContentState extends State<_EditProfileModalContent> {
                     onChanged: (val) => setState(() {
                       _selectedProvince = val;
                       _selectedCity = null;
+                      _selectedBarangay = null;
+                      _barangayCtrl.text = '';
                     }),
                   ),
 
@@ -4450,17 +4477,37 @@ class _EditProfileModalContentState extends State<_EditProfileModalContent> {
                     value: _selectedCity,
                     hint: _selectedProvince == null ? 'Select province first' : 'Select city / municipality',
                     items: _selectedProvince != null ? kCalabarzonPlaces[_selectedProvince!]! : [],
-                    onChanged: _selectedProvince == null ? null : (val) => setState(() => _selectedCity = val),
+                    onChanged: _selectedProvince == null ? null : (val) => setState(() {
+                      _selectedCity = val;
+                      _selectedBarangay = null;
+                      _barangayCtrl.text = '';
+                    }),
                     enabled: _selectedProvince != null,
                   ),
 
                   const SizedBox(height: 14),
-                  // Barangay text field
-                  _inputTile(
-                    controller: _barangayCtrl,
-                    label: 'Barangay',
-                    icon: Icons.holiday_village_outlined,
-                  ),
+                  // Barangay dropdown
+                  _addressLabel('Barangay'),
+                  Builder(builder: (context) {
+                    final bgyList = (_selectedCity != null) ? (_calabarzonBarangays[_selectedCity] ?? []) : <String>[];
+                    if (bgyList.isNotEmpty) {
+                      return _dropdownTile(
+                        value: _selectedBarangay,
+                        hint: _selectedCity == null ? 'Select city first' : 'Select barangay',
+                        items: bgyList,
+                        onChanged: (val) => setState(() {
+                          _selectedBarangay = val;
+                          _barangayCtrl.text = val ?? '';
+                        }),
+                        enabled: _selectedCity != null,
+                      );
+                    }
+                    return _inputTile(
+                      controller: _barangayCtrl,
+                      label: 'Barangay',
+                      icon: Icons.holiday_village_outlined,
+                    );
+                  }),
 
                   // Street / House No.
                   _inputTile(

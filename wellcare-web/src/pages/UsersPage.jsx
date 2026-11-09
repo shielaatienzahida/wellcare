@@ -4,6 +4,7 @@ import { api } from '../api';
 import AdminLayout from '../components/AdminLayout';
 import { UserPlus, Search, Edit2, Archive as ArchiveIcon, X, Fingerprint, Filter } from 'lucide-react';
 import { formatPersonName } from '../nameValidation';
+import calabarzonBarangays from '../calabarzonBarangays.json';
 import { hasFieldErrors, validateAddressSelection, validateContactNumber, validateEmail, validatePersonNameFields, validateRequired, validateRequiredDateOfBirth, validateRequiredName } from '../formValidation';
 
 /* ── Confirm Modal ── */
@@ -223,7 +224,7 @@ export default function UsersPage() {
     const next = {
       ...validatePersonNameFields(staffForm),
       birthdate: validateRequiredDateOfBirth(staffForm.birthdate),
-      email: staffForm.email?.trim() ? validateEmail(staffForm.email) : '',
+      email: validateRequired(staffForm.email, 'Email') || validateEmail(staffForm.email),
       contact_number: validateRequired(staffForm.contact_number, 'Contact number') || validateContactNumber(staffForm.contact_number),
       address: validateAddressSelection(staffForm),
       barangay: validateRequired(staffForm.barangay, 'Barangay'),
@@ -386,18 +387,40 @@ export default function UsersPage() {
                   <div className="reg-grid-2">
                     <div className="reg-field">
                       <label className="reg-label">Province <span className="req">*</span></label>
-                      <select name="province" value={staffForm.province} onChange={e => { setStaffForm({ ...staffForm, province: e.target.value, city_municipality: '' }); clearStaffError('address'); }} className={`reg-input ${staffErrors.address ? 'reg-input-error' : ''}`}><option value="">Select province</option>{Object.keys(calabarzonPlaces).map(place => <option key={place}>{place}</option>)}</select>
+                      <select name="province" value={staffForm.province} onChange={e => { setStaffForm({ ...staffForm, province: e.target.value, city_municipality: '', barangay: '' }); clearStaffError('address'); }} className={`reg-input ${staffErrors.address ? 'reg-input-error' : ''}`}><option value="">Select province</option>{Object.keys(calabarzonPlaces).map(place => <option key={place}>{place}</option>)}</select>
                     </div>
                     <div className="reg-field">
                       <label className="reg-label">City / Municipality <span className="req">*</span></label>
-                      <select name="city_municipality" value={staffForm.city_municipality} onChange={handleStaffChange} className={`reg-input ${staffErrors.address ? 'reg-input-error' : ''}`} disabled={!staffForm.province}><option value="">Select city / municipality</option>{(calabarzonPlaces[staffForm.province] || []).map(place => <option key={place}>{place}</option>)}</select>
+                      <select name="city_municipality" value={staffForm.city_municipality} onChange={e => { handleStaffChange(e); setStaffForm(prev => ({ ...prev, city_municipality: e.target.value, barangay: '' })); }} className={`reg-input ${staffErrors.address ? 'reg-input-error' : ''}`} disabled={!staffForm.province}><option value="">Select city / municipality</option>{(calabarzonPlaces[staffForm.province] || []).map(place => <option key={place}>{place}</option>)}</select>
                       {staffErrors.address && <span className="reg-error-msg">{staffErrors.address}</span>}
                     </div>
                   </div>
                   <div className="reg-grid-2">
                     <div className="reg-field">
                       <label className="reg-label">Barangay <span className="req">*</span></label>
-                      <input name="barangay" value={staffForm.barangay} onChange={handleStaffChange} className={`reg-input ${staffErrors.barangay ? 'reg-input-error' : ''}`} placeholder="Barangay" />
+                      {(calabarzonBarangays[staffForm.city_municipality] || []).length > 0 ? (
+                        <select
+                          name="barangay"
+                          value={staffForm.barangay}
+                          onChange={handleStaffChange}
+                          className={`reg-input ${staffErrors.barangay ? 'reg-input-error' : ''}`}
+                          disabled={!staffForm.city_municipality}
+                        >
+                          <option value="">{staffForm.city_municipality ? 'Select barangay' : 'Select city first'}</option>
+                          {(calabarzonBarangays[staffForm.city_municipality] || []).map(bgy => (
+                            <option key={bgy} value={bgy}>{bgy}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input
+                          name="barangay"
+                          value={staffForm.barangay}
+                          onChange={handleStaffChange}
+                          className={`reg-input ${staffErrors.barangay ? 'reg-input-error' : ''}`}
+                          placeholder={staffForm.city_municipality ? "Barangay" : "Select city first"}
+                          disabled={!staffForm.city_municipality}
+                        />
+                      )}
                       {staffErrors.barangay && <span className="reg-error-msg">{staffErrors.barangay}</span>}
                     </div>
                     <div className="reg-field">
@@ -408,8 +431,8 @@ export default function UsersPage() {
                   </div>
                   <div className="reg-grid-2">
                     <div className="reg-field">
-                      <label className="reg-label">Email <span className="opt">(optional)</span></label>
-                      <input name="email" type="email" value={staffForm.email} onChange={handleStaffChange} className={`reg-input ${staffErrors.email ? 'reg-input-error' : ''}`} autoComplete="email" placeholder="name@example.com (optional)" />
+                      <label className="reg-label">Email <span className="req">*</span></label>
+                      <input name="email" type="email" value={staffForm.email} onChange={handleStaffChange} className={`reg-input ${staffErrors.email ? 'reg-input-error' : ''}`} autoComplete="email" placeholder="name@example.com" />
                       {staffErrors.email && <span className="reg-error-msg">{staffErrors.email}</span>}
                     </div>
                     <div className="reg-field">

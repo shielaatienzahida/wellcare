@@ -4,6 +4,7 @@ import { RefreshCw, UserRound, CheckCircle2, CalendarX2, Pencil, Trash2, X, User
 import { api } from '../api';
 import AdminLayout from '../components/AdminLayout';
 import calabarzonPlaces from '../calabarzonPlaces.json';
+import calabarzonBarangays from '../calabarzonBarangays.json';
 import { hasFieldErrors, validateAddressSelection, validateContactNumber, validateEmail, validateFullName, validateName, validateRequired, validateRequiredDateOfBirth } from '../formValidation';
 import { formatPersonName } from '../nameValidation';
 
@@ -279,11 +280,43 @@ emergency_contact: member.emergency_contact || '', emergency_number: member.emer
                   <label className="reg-field"><span className="reg-label">Region</span><select className="reg-input" value={newStaff.region} disabled><option value="CALABARZON">Region IV-A (CALABARZON)</option></select></label>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14 }}>
                     <label className="reg-field"><span className="reg-label">Province <span className="req">*</span></span><select className={`reg-input ${staffValidationErrors.address ? 'reg-input-error' : ''}`} value={newStaff.province} onChange={event => { setNewStaff(form => ({ ...form, province: event.target.value, city_municipality: '', barangay: '' })); setAddStaffError(''); setStaffValidationErrors(errors => ({ ...errors, address: '', barangay: '' })); }}><option value="">Select province</option>{Object.keys(calabarzonPlaces).map(province => <option key={province} value={province}>{province}</option>)}</select></label>
-                    <label className="reg-field"><span className="reg-label">City / Municipality <span className="req">*</span></span><select className={`reg-input ${staffValidationErrors.address ? 'reg-input-error' : ''}`} value={newStaff.city_municipality} disabled={!newStaff.province} onChange={event => { setNewStaff(form => ({ ...form, city_municipality: event.target.value })); setAddStaffError(''); setStaffValidationErrors(errors => ({ ...errors, address: '' })); }}><option value="">Select city / municipality</option>{(calabarzonPlaces[newStaff.province] || []).map(place => <option key={place} value={place}>{place}</option>)}</select>{staffValidationErrors.address && <span className="reg-error-msg">{staffValidationErrors.address}</span>}</label>
+                    <label className="reg-field"><span className="reg-label">City / Municipality <span className="req">*</span></span><select className={`reg-input ${staffValidationErrors.address ? 'reg-input-error' : ''}`} value={newStaff.city_municipality} disabled={!newStaff.province} onChange={event => { setNewStaff(form => ({ ...form, city_municipality: event.target.value, barangay: '' })); setAddStaffError(''); setStaffValidationErrors(errors => ({ ...errors, address: '', barangay: '' })); }}><option value="">Select city / municipality</option>{(calabarzonPlaces[newStaff.province] || []).map(place => <option key={place} value={place}>{place}</option>)}</select>{staffValidationErrors.address && <span className="reg-error-msg">{staffValidationErrors.address}</span>}</label>
                   </div>
-                  <label className="reg-field"><span className="reg-label">Barangay <span className="req">*</span></span><input className={`reg-input ${staffValidationErrors.barangay ? 'reg-input-error' : ''}`} placeholder="Enter barangay" value={newStaff.barangay || ''} onChange={event => { setNewStaff(form => ({ ...form, barangay: event.target.value })); setAddStaffError(''); setStaffValidationErrors(errors => ({ ...errors, barangay: '' })); }} />{staffValidationErrors.barangay && <span className="reg-error-msg">{staffValidationErrors.barangay}</span>}</label>
+                  <label className="reg-field">
+                    <span className="reg-label">Barangay <span className="req">*</span></span>
+                    {(calabarzonBarangays[newStaff.city_municipality] || []).length > 0 ? (
+                      <select
+                        className={`reg-input ${staffValidationErrors.barangay ? 'reg-input-error' : ''}`}
+                        value={newStaff.barangay || ''}
+                        disabled={!newStaff.city_municipality}
+                        onChange={event => {
+                          setNewStaff(form => ({ ...form, barangay: event.target.value }));
+                          setAddStaffError('');
+                          setStaffValidationErrors(errors => ({ ...errors, barangay: '' }));
+                        }}
+                      >
+                        <option value="">{newStaff.city_municipality ? 'Select barangay' : 'Select city first'}</option>
+                        {(calabarzonBarangays[newStaff.city_municipality] || []).map(bgy => (
+                          <option key={bgy} value={bgy}>{bgy}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        className={`reg-input ${staffValidationErrors.barangay ? 'reg-input-error' : ''}`}
+                        placeholder={newStaff.city_municipality ? "Enter barangay" : "Select city first"}
+                        value={newStaff.barangay || ''}
+                        disabled={!newStaff.city_municipality}
+                        onChange={event => {
+                          setNewStaff(form => ({ ...form, barangay: event.target.value }));
+                          setAddStaffError('');
+                          setStaffValidationErrors(errors => ({ ...errors, barangay: '' }));
+                        }}
+                      />
+                    )}
+                    {staffValidationErrors.barangay && <span className="reg-error-msg">{staffValidationErrors.barangay}</span>}
+                  </label>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14 }}>
-                    <label className="reg-field"><span className="reg-label">Email <span className="opt">(optional)</span></span><input className={`reg-input ${staffValidationErrors.email ? 'reg-input-error' : ''}`} type="email" autoComplete="email" placeholder="name@example.com (optional)" value={newStaff.email} onChange={event => { setNewStaff(form => ({ ...form, email: event.target.value })); setAddStaffError(''); setStaffValidationErrors(errors => ({ ...errors, email: '' })); }} />{staffValidationErrors.email && <span className="reg-error-msg">{staffValidationErrors.email}</span>}</label>
+                    <label className="reg-field"><span className="reg-label">Email <span className="req">*</span></span><input className={`reg-input ${staffValidationErrors.email ? 'reg-input-error' : ''}`} type="email" autoComplete="email" placeholder="name@example.com" value={newStaff.email} onChange={event => { setNewStaff(form => ({ ...form, email: event.target.value })); setAddStaffError(''); setStaffValidationErrors(errors => ({ ...errors, email: '' })); }} />{staffValidationErrors.email && <span className="reg-error-msg">{staffValidationErrors.email}</span>}</label>
                     <label className="reg-field"><span className="reg-label">Contact Number <span className="req">*</span></span><input className={`reg-input ${staffValidationErrors.contact_number ? 'reg-input-error' : ''}`} type="tel" autoComplete="tel" inputMode="numeric" maxLength={11} value={newStaff.contact_number} onChange={event => { setNewStaff(form => ({ ...form, contact_number: event.target.value })); setStaffValidationErrors(errors => ({ ...errors, contact_number: '' })); }} />{staffValidationErrors.contact_number && <span className="reg-error-msg">{staffValidationErrors.contact_number}</span>}</label>
                   </div>
                   {addStaffError && <div className="login-error" role="alert">{addStaffError}</div>}
@@ -295,7 +328,7 @@ const fieldErrors = {
                         middle_name: newStaff.middle_name ? validateName(newStaff.middle_name, 'Middle name') : '',
                         last_name: validateRequired(newStaff.last_name, 'Last name'),
                         birthdate: validateRequiredDateOfBirth(newStaff.birthdate),
-                        email: newStaff.email?.trim() ? validateEmail(newStaff.email) : '',
+                        email: validateRequired(newStaff.email, 'Email') || validateEmail(newStaff.email),
                         contact_number: validateRequired(newStaff.contact_number, 'Contact number') || validateContactNumber(newStaff.contact_number),
                         address: validateAddressSelection(newStaff),
                         barangay: validateRequired(newStaff.barangay, 'Barangay'),

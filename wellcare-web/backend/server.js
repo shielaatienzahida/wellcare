@@ -605,13 +605,13 @@ app.post('/api/v1/staff', auth, isAdmin, async (req, res) => {
   const nameErrors = [nameValidationError(first_name, 'First name'), middle_name?.trim() ? nameValidationError(middle_name, 'Middle name') : '', nameValidationError(last_name, 'Last name')].filter(Boolean);
   const profileErrors = [
     dateOfBirthValidation(birthdate),
-    email?.trim() ? emailValidationError(email) : '',
+    emailValidationError(email),
     contactValidationError(contact_number),
     addressValidationError(req.body)
   ].filter(Boolean);
   if (nameErrors.length || profileErrors.length) return res.status(400).json({ success: false, message: [...nameErrors, ...profileErrors].join(' ') });
   const normalizedEmail = email?.trim() ? email.trim().toLowerCase() : null;
-  if (normalizedEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+  if (!normalizedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
     return res.status(400).json({ success: false, message: 'Enter a valid email address' });
   }
   const hasFingerprint = fingerprint_id !== undefined && fingerprint_id !== null && String(fingerprint_id).trim() !== '';
