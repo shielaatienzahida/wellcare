@@ -54,13 +54,16 @@ class _SplashRouterState extends State<_SplashRouter> {
       if (raw != null && raw.isNotEmpty) {
         final json = jsonDecode(raw) as Map<String, dynamic>;
         final client = ClientModel.fromJson(json);
-        // Make sure we actually have a token before restoring
-        if (client.token.isNotEmpty && mounted) {
+        // Make sure we actually have a valid (unexpired) token before restoring
+        if (client.token.isNotEmpty && !client.isTokenExpired() && mounted) {
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(builder: (_) => ClientPortalScreen(client: client)),
           );
           return;
+        } else if (client.isTokenExpired()) {
+          // Token is expired, clear saved session
+          await prefs.remove('heiwa_session_client');
         }
       }
     } catch (_) {

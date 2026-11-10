@@ -116,15 +116,41 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
     super.dispose();
   }
 
+  void _forceLogoutExpired() async {
+    if (!mounted) return;
+    _pollTimer?.cancel();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('heiwa_session_client');
+    if (!mounted) return;
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const LandingScreen(
+          logoutMessage: 'Your session has expired. Please log in again.',
+        ),
+      ),
+      (_) => false,
+    );
+  }
+
   /// Silently refreshes client data + visit history in the background.
   /// Does NOT show loading spinners so the UI stays smooth.
   Future<void> _silentPoll() async {
+    if (_client.isTokenExpired()) {
+      _forceLogoutExpired();
+      return;
+    }
+
     try {
       // --- client data (alkaline sessions, check-ins, last seen, etc.) ---
       final res = await getApi(
         '/clients/me',
         headers: {'Authorization': 'Bearer ${_client.token}'},
       );
+      if (res.statusCode == 401) {
+        _forceLogoutExpired();
+        return;
+      }
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
         if (data['success'] == true && mounted) {
@@ -170,11 +196,19 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
   }
 
   Future<void> _refreshData() async {
+    if (_client.isTokenExpired()) {
+      _forceLogoutExpired();
+      return;
+    }
     try {
       final res = await getApi(
         '/clients/me',
         headers: {'Authorization': 'Bearer ${_client.token}'},
       );
+      if (res.statusCode == 401) {
+        _forceLogoutExpired();
+        return;
+      }
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
         if (data['success'] == true) {
@@ -281,12 +315,20 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
   }
 
   Future<void> _refreshVisitHistory() async {
+    if (_client.isTokenExpired()) {
+      _forceLogoutExpired();
+      return;
+    }
     if (mounted) setState(() => _historyLoading = true);
     try {
       final response = await getApi(
         '/clients/me/history',
         headers: {'Authorization': 'Bearer ${_client.token}'},
       );
+      if (response.statusCode == 401) {
+        _forceLogoutExpired();
+        return;
+      }
       final data = jsonDecode(response.body);
       if (response.statusCode == 200 && data['success'] == true) {
         final history = (data['history'] as List<dynamic>? ?? [])

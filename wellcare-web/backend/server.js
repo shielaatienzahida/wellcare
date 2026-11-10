@@ -472,7 +472,7 @@ app.post('/api/v1/login', authLimiter, async (req, res) => {
     if (admins.length > 0) {
       const valid = await bcrypt.compare(password, admins[0].password);
       if (!valid) return res.status(401).json({ success: false, message: 'Invalid credentials' });
-      const token = jwt.sign({ id: admins[0].id, role: 'admin', username }, JWT_SECRET, { expiresIn: '8h' });
+      const token = jwt.sign({ id: admins[0].id, role: 'admin', username }, JWT_SECRET, { expiresIn: '10m' });
       return res.json({ success: true, token, role: 'admin' });
     }
 
@@ -481,7 +481,7 @@ app.post('/api/v1/login', authLimiter, async (req, res) => {
     if (staffRows.length > 0) {
       const valid = await bcrypt.compare(password, staffRows[0].password);
       if (!valid) return res.status(401).json({ success: false, message: 'Invalid credentials' });
-      const token = jwt.sign({ id: staffRows[0].id, role: 'staff', username, name: staffRows[0].name }, JWT_SECRET, { expiresIn: '8h' });
+      const token = jwt.sign({ id: staffRows[0].id, role: 'staff', username, name: staffRows[0].name }, JWT_SECRET, { expiresIn: '10m' });
       return res.json({ success: true, token, role: 'staff', staff: { id: staffRows[0].id, name: staffRows[0].name, username: staffRows[0].username } });
     }
 
@@ -491,7 +491,7 @@ app.post('/api/v1/login', authLimiter, async (req, res) => {
     const client = clients[0];
     const valid = await bcrypt.compare(password, client.password);
     if (!valid) return res.status(401).json({ success: false, message: 'Invalid credentials' });
-    const token = jwt.sign({ id: client.id, role: 'client', username: client.username }, JWT_SECRET, { expiresIn: '8h' });
+    const token = jwt.sign({ id: client.id, role: 'client', username: client.username }, JWT_SECRET, { expiresIn: '10m' });
     return res.json({ success: true, token, role: 'client', client: formatClient(client) });
   } catch (err) {
     console.error(err);

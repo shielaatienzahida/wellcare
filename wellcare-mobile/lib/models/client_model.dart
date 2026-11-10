@@ -160,4 +160,29 @@ class ClientModel {
       profilePhoto: profilePhoto ?? this.profilePhoto,
     );
   }
+
+  bool isTokenExpired() {
+    if (token.isEmpty) return true;
+    try {
+      final parts = token.split('.');
+      if (parts.length != 3) return false;
+      // Base64 decode JWT payload
+      String payloadStr = parts[1];
+      // Normalize base64 padding
+      while (payloadStr.length % 4 != 0) {
+        payloadStr += '=';
+      }
+      final decodedJson = jsonDecode(utf8.decode(base64Url.decode(payloadStr)));
+      if (decodedJson is Map && decodedJson.containsKey('exp')) {
+        final expSec = decodedJson['exp'];
+        if (expSec is int || expSec is num) {
+          final expMs = (expSec * 1000).toInt();
+          return DateTime.now().millisecondsSinceEpoch >= expMs;
+        }
+      }
+      return false;
+    } catch (_) {
+      return false;
+    }
+  }
 }

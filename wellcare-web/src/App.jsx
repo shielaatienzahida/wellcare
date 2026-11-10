@@ -52,11 +52,20 @@ function RequireSession({ sessionKey, children }) {
   const [authorized, setAuthorized] = useState(() => checkSession(sessionKey));
 
   useEffect(() => {
-    const valid = checkSession(sessionKey);
-    setAuthorized(valid);
-    if (!valid) {
-      navigate('/login', { replace: true, state: { authNotice: 'Session expired. Please log in again.' } });
-    }
+    // Initial check on mount
+    const verify = () => {
+      const valid = checkSession(sessionKey);
+      setAuthorized(valid);
+      if (!valid) {
+        navigate('/login', { replace: true, state: { authNotice: 'Session expired. Please log in again.' } });
+      }
+    };
+
+    verify();
+
+    // Periodic check every 15 seconds to ensure expired tokens immediately log out
+    const interval = setInterval(verify, 15000);
+    return () => clearInterval(interval);
   }, [sessionKey, navigate]);
 
   return authorized ? children : null;
