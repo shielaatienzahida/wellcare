@@ -105,7 +105,7 @@ let smtpTransport = null;
 function nameValidationError(value, label = 'Name') {
   const name = String(value || '');
   if (name !== name.trim()) return `${label} cannot start or end with spaces.`;
-  if (name.length < 2 || name.length > 15) return `${label} must be 2 to 15 characters long.`;
+  if (name.length < 2 || name.length > 20) return `${label} must be 2 to 20 characters long.`;
   if (!/^\p{L}+(?: \p{L}+)*$/u.test(name)) return `${label} may contain letters and single spaces only.`;
   if (/(\p{L})\1{2,}/iu.test(name)) return `${label} cannot contain the same letter more than twice in a row.`;
   return '';
@@ -115,7 +115,7 @@ function fullNameValidationError(value, label = 'Full name') {
   const name = String(value || '').trim();
   if (!name) return `${label} is required.`;
   const parts = name.split(/\s+/);
-  if (parts.some(part => part.length < 2 || part.length > 15)) return 'Each name must be 2 to 15 characters long.';
+  if (parts.some(part => part.length < 2 || part.length > 20)) return 'Each name must be 2 to 20 characters long.';
   if (!/^\p{L}+(?: \p{L}+)*$/u.test(name)) return `${label} may contain letters and single spaces only.`;
   const repeated = parts.find(part => /(\p{L})\1{2,}/iu.test(part));
   return repeated ? `${label} cannot contain the same letter more than twice in a row.` : '';

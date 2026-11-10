@@ -439,86 +439,240 @@ class _WellnessScreenState extends State<WellnessScreen> {
     final loggedBy = (visit['logged_by'] ?? 'Staff').toString();
     final isAlkaline = type.toLowerCase().contains('alkaline');
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: _cream,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => _showAttendanceDetailsDialog(visit),
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.2),
-            blurRadius: 8,
-            offset: const Offset(0, 3),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: _cream,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.2),
+                blurRadius: 8,
+                offset: const Offset(0, 3),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              color: _cardDark,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(
-              isAlkaline ? Icons.water_drop_rounded : Icons.event_available_rounded,
-              color: isAlkaline ? _amber : _cream,
-              size: 20,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  displayDate,
-                  style: const TextStyle(
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w800,
-                    color: _darkInk,
-                  ),
+          child: Row(
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: _cardDark,
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                const SizedBox(height: 2),
-                Row(
+                child: Icon(
+                  isAlkaline ? Icons.water_drop_rounded : Icons.event_available_rounded,
+                  color: isAlkaline ? _amber : _cream,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: _amber.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        type,
-                        style: const TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w800,
-                          color: _darkInk,
-                        ),
+                    Text(
+                      displayDate,
+                      style: const TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w800,
+                        color: _darkInk,
                       ),
                     ),
-                    const SizedBox(width: 6),
-                    Text(
-                      '· ${loggedBy[0].toUpperCase()}${loggedBy.substring(1)}',
-                      style: const TextStyle(
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w600,
-                        color: _oliveMuted,
-                      ),
+                    const SizedBox(height: 2),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: _amber.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            type,
+                            style: const TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                              color: _darkInk,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          '· ${loggedBy[0].toUpperCase()}${loggedBy.substring(1)}',
+                          style: const TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w600,
+                            color: _oliveMuted,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-              ],
-            ),
+              ),
+              const Icon(
+                Icons.info_outline_rounded,
+                color: _darkInk,
+                size: 20,
+              ),
+            ],
           ),
-          const Icon(
-            Icons.check_circle_rounded,
-            color: Color(0xFF10B981),
-            size: 20,
+        ),
+      ),
+    );
+  }
+
+  void _showAttendanceDetailsDialog(Map<String, dynamic> visit) {
+    final rawDate = (visit['date'] ?? visit['created_at'] ?? '').toString();
+    final displayDate = _formatVisitDate(rawDate);
+    final type = (visit['type'] ?? 'Visit').toString();
+    final loggedBy = (visit['logged_by'] ?? 'Staff').toString();
+    final isAlkaline = type.toLowerCase().contains('alkaline');
+    final staffId = visit['staff_id'];
+    final id = visit['id'];
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: _cardDark,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: BorderSide(color: _amber.withOpacity(0.4), width: 1.4),
+        ),
+        titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
+        contentPadding: const EdgeInsets.fromLTRB(20, 10, 20, 16),
+        title: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: isAlkaline ? _amber.withOpacity(0.18) : const Color(0xFF10B981).withOpacity(0.18),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: isAlkaline ? _amber.withOpacity(0.35) : const Color(0xFF10B981).withOpacity(0.35),
+                  width: 1.2,
+                ),
+              ),
+              child: Icon(
+                isAlkaline ? Icons.water_drop_rounded : Icons.how_to_reg_rounded,
+                color: isAlkaline ? _amber : const Color(0xFF34D399),
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Attendance Info',
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    type,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: isAlkaline ? _amber : const Color(0xFF34D399),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: _bgDark,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: _cardBorder),
+              ),
+              child: Column(
+                children: [
+                  _infoRow('Date & Time', displayDate, Icons.calendar_today_rounded),
+                  const Divider(color: _cardBorder, height: 16),
+                  _infoRow('Status', 'Recorded & Verified', Icons.verified_rounded, valueColor: const Color(0xFF34D399)),
+                  const Divider(color: _cardBorder, height: 16),
+                  _infoRow('Session Type', type, Icons.category_rounded),
+                  const Divider(color: _cardBorder, height: 16),
+                  _infoRow(
+                    'Logged By',
+                    '${loggedBy[0].toUpperCase()}${loggedBy.substring(1)}${staffId != null ? ' (Staff #$staffId)' : ''}',
+                    Icons.person_pin_rounded,
+                  ),
+                  if (id != null) ...[
+                    const Divider(color: _cardBorder, height: 16),
+                    _infoRow('Record ID', '#$id', Icons.tag_rounded),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              onPressed: () => Navigator.pop(ctx),
+              style: FilledButton.styleFrom(
+                backgroundColor: _amber,
+                foregroundColor: _darkInk,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              child: const Text(
+                'Close',
+                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5),
+              ),
+            ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _infoRow(String label, String value, IconData icon, {Color? valueColor}) {
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: _amber),
+        const SizedBox(width: 8),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: _creamMuted),
+        ),
+        const Spacer(),
+        Flexible(
+          child: Text(
+            value,
+            textAlign: TextAlign.end,
+            style: TextStyle(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w800,
+              color: valueColor ?? Colors.white,
+            ),
+          ),
+        ),
+      ],
     );
   }
 

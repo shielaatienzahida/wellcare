@@ -630,13 +630,28 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             ),
             if (_visitHistory.isNotEmpty)
               GestureDetector(
-                onTap: () => widget.onSwitchTab?.call(2), // View all in Reports
-                child: const Text(
-                  'View all',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: _amber,
+                onTap: () => _showAllVisitsModal(context),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: _amber.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: _amber.withOpacity(0.4), width: 1),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'View more',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          color: _amber,
+                        ),
+                      ),
+                      SizedBox(width: 4),
+                      Icon(Icons.open_in_new_rounded, size: 13, color: _amber),
+                    ],
                   ),
                 ),
               ),
@@ -882,5 +897,339 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     } catch (_) {
       return raw;
     }
+  }
+
+  // ── VIEW ALL VISITS MODAL WITH 1-10 PAGINATION ─────────────────────────────
+  void _showAllVisitsModal(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => _AllVisitsPaginationModal(
+        history: _visitHistory,
+        formatDate: _formatVisitDate,
+        onSwitchTab: widget.onSwitchTab,
+      ),
+    );
+  }
+}
+
+class _AllVisitsPaginationModal extends StatefulWidget {
+  final List<Map<String, dynamic>> history;
+  final String Function(String) formatDate;
+  final void Function(int index)? onSwitchTab;
+
+  const _AllVisitsPaginationModal({
+    required this.history,
+    required this.formatDate,
+    this.onSwitchTab,
+  });
+
+  @override
+  State<_AllVisitsPaginationModal> createState() => _AllVisitsPaginationModalState();
+}
+
+class _AllVisitsPaginationModalState extends State<_AllVisitsPaginationModal> {
+  static const int _pageSize = 10;
+  int _currentPage = 1;
+
+  @override
+  Widget build(BuildContext context) {
+    final totalItems = widget.history.length;
+    final totalPages = (totalItems / _pageSize).ceil().clamp(1, 9999);
+    final startIndex = (_currentPage - 1) * _pageSize;
+    final endIndex = (startIndex + _pageSize).clamp(0, totalItems);
+    final currentItems = totalItems == 0 ? <Map<String, dynamic>>[] : widget.history.sublist(startIndex, endIndex);
+
+    return Container(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.sizeOf(context).height * 0.85,
+      ),
+      decoration: const BoxDecoration(
+        color: _HomeScreenState._bgDark,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        border: Border(
+          top: BorderSide(color: _HomeScreenState._amber, width: 1.5),
+          left: BorderSide(color: _HomeScreenState._cardBorder, width: 1),
+          right: BorderSide(color: _HomeScreenState._cardBorder, width: 1),
+        ),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Column(
+          children: [
+            // Handle bar
+            const SizedBox(height: 12),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: _HomeScreenState._creamMuted.withOpacity(0.4),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 14),
+
+            // Header title & count
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Row(
+                children: [
+                  Container(
+                    width: 38,
+                    height: 38,
+                    decoration: BoxDecoration(
+                      color: _HomeScreenState._amber.withOpacity(0.18),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: _HomeScreenState._amber.withOpacity(0.35)),
+                    ),
+                    child: const Icon(
+                      Icons.history_rounded,
+                      color: _HomeScreenState._amber,
+                      size: 22,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Visit History',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                          ),
+                        ),
+                        Text(
+                          '$totalItems total recorded sessions',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: _HomeScreenState._creamMuted,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close_rounded, color: _HomeScreenState._creamMuted),
+                    splashRadius: 20,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Divider(color: _HomeScreenState._cardBorder, height: 1),
+
+            // Visits list
+            Expanded(
+              child: currentItems.isEmpty
+                  ? const Center(
+                      child: Text(
+                        'No visit history available.',
+                        style: TextStyle(color: _HomeScreenState._creamMuted, fontSize: 13),
+                      ),
+                    )
+                  : ListView.separated(
+                      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+                      itemCount: currentItems.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 10),
+                      itemBuilder: (context, index) {
+                        final item = currentItems[index];
+                        final rawDate = (item['date'] ?? item['created_at'] ?? '').toString();
+                        final displayDate = widget.formatDate(rawDate);
+                        final type = (item['type'] ?? 'Visit').toString();
+                        final loggedBy = (item['logged_by'] ?? 'Staff').toString();
+                        final itemNumber = startIndex + index + 1;
+
+                        return Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          decoration: BoxDecoration(
+                            color: _HomeScreenState._cardDark,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: _HomeScreenState._cardBorder, width: 1.1),
+                          ),
+                          child: Row(
+                            children: [
+                              // Number index badge
+                              Container(
+                                width: 28,
+                                height: 28,
+                                decoration: BoxDecoration(
+                                  color: _HomeScreenState._iconBoxDark,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: _HomeScreenState._cardBorder),
+                                ),
+                                alignment: Alignment.center,
+                                child: Text(
+                                  '$itemNumber',
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w800,
+                                    color: _HomeScreenState._amber,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      displayDate,
+                                      style: const TextStyle(
+                                        fontSize: 13.5,
+                                        fontWeight: FontWeight.w800,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      '$type · Logged by ${loggedBy[0].toUpperCase()}${loggedBy.substring(1)}',
+                                      style: const TextStyle(
+                                        fontSize: 11.5,
+                                        fontWeight: FontWeight.w600,
+                                        color: _HomeScreenState._creamMuted,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF10B981).withOpacity(0.15),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: const Text(
+                                  'Recorded',
+                                  style: TextStyle(
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w800,
+                                    color: Color(0xFF34D399),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+            ),
+
+            // Pagination footer (10 items per page: 1-10, 11-20, etc.)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: const BoxDecoration(
+                color: _HomeScreenState._cardDark,
+                border: Border(top: BorderSide(color: _HomeScreenState._cardBorder, width: 1)),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  // Range info (e.g. "Showing 1–10 of 24")
+                  Text(
+                    totalItems == 0
+                        ? '0 of 0'
+                        : 'Showing ${startIndex + 1}–$endIndex of $totalItems',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: _HomeScreenState._creamMuted,
+                    ),
+                  ),
+
+                  // Pagination controls
+                  Row(
+                    children: [
+                      // Prev button
+                      InkWell(
+                        onTap: _currentPage > 1
+                            ? () => setState(() => _currentPage--)
+                            : null,
+                        borderRadius: BorderRadius.circular(8),
+                        child: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: _currentPage > 1
+                                ? _HomeScreenState._iconBoxDark
+                                : Colors.transparent,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: _currentPage > 1
+                                  ? _HomeScreenState._cardBorder
+                                  : _HomeScreenState._cardBorder.withOpacity(0.3),
+                            ),
+                          ),
+                          child: Icon(
+                            Icons.chevron_left_rounded,
+                            size: 20,
+                            color: _currentPage > 1
+                                ? Colors.white
+                                : _HomeScreenState._creamMuted.withOpacity(0.3),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+
+                      // Page indicator pill (e.g. "Page 1 / 3")
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: _HomeScreenState._amber.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: _HomeScreenState._amber.withOpacity(0.35)),
+                        ),
+                        child: Text(
+                          'Page $_currentPage of $totalPages',
+                          style: const TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w800,
+                            color: _HomeScreenState._amber,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+
+                      // Next button
+                      InkWell(
+                        onTap: _currentPage < totalPages
+                            ? () => setState(() => _currentPage++)
+                            : null,
+                        borderRadius: BorderRadius.circular(8),
+                        child: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: _currentPage < totalPages
+                                ? _HomeScreenState._iconBoxDark
+                                : Colors.transparent,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: _currentPage < totalPages
+                                  ? _HomeScreenState._cardBorder
+                                  : _HomeScreenState._cardBorder.withOpacity(0.3),
+                            ),
+                          ),
+                          child: Icon(
+                            Icons.chevron_right_rounded,
+                            size: 20,
+                            color: _currentPage < totalPages
+                                ? Colors.white
+                                : _HomeScreenState._creamMuted.withOpacity(0.3),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

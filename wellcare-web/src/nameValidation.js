@@ -10,5 +10,5 @@ export function formatPersonName(value) {
 
 export function isValidPersonName(value) {
   const name = value.trim();
-  return name.length >= 2 && name.length <= 15 && /^\p{L}+(?:\s+\p{L}+)*$/u.test(name);
+  return name.length >= 2 && name.length <= 20 && /^\p{L}+(?:\s+\p{L}+)*$/u.test(name);
 }

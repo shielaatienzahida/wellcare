@@ -410,7 +410,7 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      'Hydration logged! +${count * 1.0} L (${count * 1000} mL) alkaline water added.',
+                      'Hydration logged! +500 mL alkaline water added.',
                       style: const TextStyle(fontWeight: FontWeight.w700, color: kCream),
                     ),
                   ),
@@ -1613,53 +1613,34 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
             ),
             child: Row(
               children: [
-                // Avatar with camera tap badge
+                // Avatar without camera badge overlay (clean circle)
                 GestureDetector(
                   onTap: _pickProfilePhoto,
-                  child: Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      Container(
-                        width: 56,
-                        height: 56,
-                        decoration: const BoxDecoration(
-                          color: Color(0xFFF5A623), // Amber
-                          shape: BoxShape.circle,
-                        ),
-                        clipBehavior: Clip.antiAlias,
-                        child: _profilePhotoBytes == null
-                            ? Center(
-                                child: Text(
-                                  _initials,
-                                  style: const TextStyle(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.w900,
-                                    color: Color(0xFF071F15),
-                                  ),
-                                ),
-                              )
-                            : Image.memory(
-                                _profilePhotoBytes!,
-                                fit: BoxFit.cover,
-                                width: 56,
-                                height: 56,
+                  child: Container(
+                    width: 56,
+                    height: 56,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFF5A623), // Amber
+                      shape: BoxShape.circle,
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: _profilePhotoBytes == null
+                        ? Center(
+                            child: Text(
+                              _initials,
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w900,
+                                color: Color(0xFF071F15),
                               ),
-                      ),
-                      Positioned(
-                        right: -2,
-                        bottom: -2,
-                        child: Container(
-                          width: 20,
-                          height: 20,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF071F15),
-                            shape: BoxShape.circle,
-                            border: Border.all(color: const Color(0xFFF5EFE6), width: 1.5),
+                            ),
+                          )
+                        : Image.memory(
+                            _profilePhotoBytes!,
+                            fit: BoxFit.cover,
+                            width: 56,
+                            height: 56,
                           ),
-                          child: const Icon(Icons.camera_alt, size: 11, color: Color(0xFFF5EFE6)),
-                        ),
-                      ),
-                    ],
                   ),
                 ),
                 const SizedBox(width: 14),
@@ -2541,63 +2522,32 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                 ],
 
                 const SizedBox(height: 14),
-                // ── Quick Add Water Intake Action Buttons ──
-                Row(
-                  children: [
-                    Expanded(
-                      child: FilledButton.icon(
-                        onPressed: _isLoggingWater ? null : () => _logWaterIntake(count: 1),
-                        style: FilledButton.styleFrom(
-                          backgroundColor: kAmber,
-                          foregroundColor: Colors.black,
-                          padding: const EdgeInsets.symmetric(vertical: 11),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(AppRadius.md),
-                          ),
-                          elevation: 0,
-                        ),
-                        icon: _isLoggingWater
-                            ? const SizedBox(
-                                width: 14,
-                                height: 14,
-                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black),
-                              )
-                            : const Icon(Icons.add_rounded, size: 18),
-                        label: const Text(
-                          '+1 Bottle (1 L)',
-                          style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800),
-                        ),
+                // ── Quick Add Water Intake Action Buttons (Single +500 mL) ──
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: _isLoggingWater ? null : () => _logWaterIntake(count: 1),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: kAmber,
+                      foregroundColor: const Color(0xFF071F15),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(AppRadius.md),
                       ),
+                      elevation: 0,
                     ),
-                    const SizedBox(width: 8),
-                    InkWell(
-                      onTap: _isLoggingWater ? null : () => _logWaterIntake(count: 2),
-                      borderRadius: BorderRadius.circular(AppRadius.md),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                        decoration: BoxDecoration(
-                          color: kDarkSurface,
-                          borderRadius: BorderRadius.circular(AppRadius.md),
-                          border: Border.all(color: kAmber.withValues(alpha: 0.4), width: 1.2),
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.add_rounded, size: 16, color: kAmber),
-                            SizedBox(width: 4),
-                            Text(
-                              '+2 Bottles (2 L)',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w800,
-                                color: kAmber,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                    icon: _isLoggingWater
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF071F15)),
+                          )
+                        : const Icon(Icons.water_drop_rounded, size: 19),
+                    label: const Text(
+                      '+500 mL',
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, letterSpacing: 0.3),
                     ),
-                  ],
+                  ),
                 ),
               ],
             ),
@@ -4231,7 +4181,9 @@ class _EditProfileModalContentState extends State<_EditProfileModalContent> {
   late final TextEditingController _birthdateCtrl = TextEditingController(text: _cleanBirthdate(widget.client.birthdate));
   late final TextEditingController _phoneCtrl = TextEditingController(text: _cleanPhone(widget.client.phone));
   late final TextEditingController _emailCtrl = TextEditingController(text: widget.client.email);
-  late final TextEditingController _emergencyContactCtrl = TextEditingController(text: widget.client.emergencyContact);
+  late final TextEditingController _emergencyFirstNameCtrl;
+  late final TextEditingController _emergencyMiddleNameCtrl;
+  late final TextEditingController _emergencyLastNameCtrl;
   late final TextEditingController _emergencyNumberCtrl = TextEditingController(text: _cleanPhone(widget.client.emergencyNumber));
 
   // Address fields
@@ -4245,11 +4197,143 @@ class _EditProfileModalContentState extends State<_EditProfileModalContent> {
   bool _saving = false;
   String? _errorMsg;
 
+  // Real-time validation error getters
+  String? get _firstNameError {
+    final v = _firstNameCtrl.text.trim();
+    if (v.isEmpty) return 'First name is required.';
+    if (v.length < 2 || v.length > 20) return 'Must be 2 to 20 characters.';
+    return null;
+  }
+
+  String? get _middleNameError {
+    final v = _middleNameCtrl.text.trim();
+    if (v.isEmpty) return null; // optional
+    if (v.length < 2 || v.length > 20) return 'Must be 2 to 20 characters.';
+    return null;
+  }
+
+  String? get _lastNameError {
+    final v = _lastNameCtrl.text.trim();
+    if (v.isEmpty) return 'Last name is required.';
+    if (v.length < 2 || v.length > 20) return 'Must be 2 to 20 characters.';
+    return null;
+  }
+
+  String? get _emergencyFirstNameError {
+    final v = _emergencyFirstNameCtrl.text.trim();
+    if (v.isEmpty) return null;
+    if (v.length < 2 || v.length > 20) return 'Must be 2 to 20 characters.';
+    return null;
+  }
+
+  String? get _emergencyMiddleNameError {
+    final v = _emergencyMiddleNameCtrl.text.trim();
+    if (v.isEmpty) return null;
+    if (v.length < 2 || v.length > 20) return 'Must be 2 to 20 characters.';
+    return null;
+  }
+
+  String? get _emergencyLastNameError {
+    final v = _emergencyLastNameCtrl.text.trim();
+    if (v.isEmpty) return null;
+    if (v.length < 2 || v.length > 20) return 'Must be 2 to 20 characters.';
+    return null;
+  }
+
+  String? get _usernameError {
+    final v = _usernameCtrl.text.trim();
+    if (v.isEmpty) return 'Username is required.';
+    if (v.length < 3) return 'Username must be at least 3 characters.';
+    return null;
+  }
+
+  String? get _birthdateError {
+    final v = _birthdateCtrl.text.trim();
+    if (v.isEmpty) return null; // optional or validated
+    if (!RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(v)) {
+      return 'Format must be YYYY-MM-DD (e.g. 2000-01-15).';
+    }
+    return null;
+  }
+
+  String? get _phoneError {
+    final raw = _phoneCtrl.text.trim();
+    if (raw.isEmpty) return null;
+    if (!raw.startsWith('09')) {
+      return 'Number must start with 09 (e.g. 09123456789).';
+    }
+    if (raw.length != 11) {
+      return 'Must be exactly 11 digits (${raw.length}/11).';
+    }
+    return null;
+  }
+
+  String? get _emailError {
+    final v = _emailCtrl.text.trim();
+    if (v.isEmpty) return null; // optional
+    if (!RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(v)) {
+      return 'Enter a valid email address (e.g. name@domain.com).';
+    }
+    return null;
+  }
+
+  String? get _emergencyNumberError {
+    final raw = _emergencyNumberCtrl.text.trim();
+    if (raw.isEmpty) return null;
+    if (!raw.startsWith('09')) {
+      return 'Emergency number must start with 09.';
+    }
+    if (raw.length != 11) {
+      return 'Must be exactly 11 digits (${raw.length}/11).';
+    }
+    return null;
+  }
+
+  String? get _passwordError {
+    final v = _passwordCtrl.text.trim();
+    if (v.isEmpty) return null; // optional on edit
+    if (v.length < 6) return 'Password must be at least 6 characters.';
+    return null;
+  }
+
   @override
   void initState() {
     super.initState();
+    _parseEmergencyContact(widget.client.emergencyContact);
     _parseAddress(widget.client.address);
     _loadBarangays();
+  }
+
+  void _parseEmergencyContact(String raw) {
+    final trimmed = raw.trim();
+    if (trimmed.isEmpty) {
+      _emergencyFirstNameCtrl = TextEditingController();
+      _emergencyMiddleNameCtrl = TextEditingController();
+      _emergencyLastNameCtrl = TextEditingController();
+      return;
+    }
+    final parts = trimmed.split(RegExp(r'\s+')).where((s) => s.isNotEmpty).toList();
+    if (parts.length == 1) {
+      _emergencyFirstNameCtrl = TextEditingController(text: parts[0]);
+      _emergencyMiddleNameCtrl = TextEditingController();
+      _emergencyLastNameCtrl = TextEditingController();
+    } else if (parts.length == 2) {
+      _emergencyFirstNameCtrl = TextEditingController(text: parts[0]);
+      _emergencyMiddleNameCtrl = TextEditingController();
+      _emergencyLastNameCtrl = TextEditingController(text: parts[1]);
+    } else {
+      _emergencyFirstNameCtrl = TextEditingController(text: parts[0]);
+      _emergencyMiddleNameCtrl = TextEditingController(text: parts.sublist(1, parts.length - 1).join(' '));
+      _emergencyLastNameCtrl = TextEditingController(text: parts.last);
+    }
+  }
+
+  String _buildEmergencyContactName() {
+    final fn = _emergencyFirstNameCtrl.text.trim();
+    final mn = _emergencyMiddleNameCtrl.text.trim();
+    final ln = _emergencyLastNameCtrl.text.trim();
+    final parts = [fn, if (mn.isNotEmpty) mn, ln].where((s) => s.isNotEmpty);
+    return parts.join(' ');
   }
 
   Future<void> _loadBarangays() async {
@@ -4349,7 +4433,9 @@ class _EditProfileModalContentState extends State<_EditProfileModalContent> {
     _emailCtrl.dispose();
     _barangayCtrl.dispose();
     _streetCtrl.dispose();
-    _emergencyContactCtrl.dispose();
+    _emergencyFirstNameCtrl.dispose();
+    _emergencyMiddleNameCtrl.dispose();
+    _emergencyLastNameCtrl.dispose();
     _emergencyNumberCtrl.dispose();
     super.dispose();
   }
@@ -4359,23 +4445,24 @@ class _EditProfileModalContentState extends State<_EditProfileModalContent> {
     final ln = _lastNameCtrl.text.trim();
     final un = _usernameCtrl.text.trim();
 
-    if (fn.isEmpty || ln.isEmpty || un.isEmpty) {
-      setState(() => _errorMsg = 'First name, last name, and username are required.');
+    if (_firstNameError != null ||
+        _middleNameError != null ||
+        _lastNameError != null ||
+        _emergencyFirstNameError != null ||
+        _emergencyMiddleNameError != null ||
+        _emergencyLastNameError != null ||
+        _usernameError != null ||
+        _birthdateError != null ||
+        _phoneError != null ||
+        _emailError != null ||
+        _emergencyNumberError != null ||
+        _passwordError != null) {
+      setState(() => _errorMsg = 'Please resolve the highlighted errors before saving.');
       return;
     }
 
     final phone = _cleanPhone(_phoneCtrl.text);
     final emergencyPhone = _cleanPhone(_emergencyNumberCtrl.text);
-
-    if (phone.isNotEmpty && !RegExp(r'^09\d{9}$').hasMatch(phone)) {
-      setState(() => _errorMsg = 'Phone number must be 11 digits starting with 09 (e.g. 09123456789).');
-      return;
-    }
-
-    if (emergencyPhone.isNotEmpty && !RegExp(r'^09\d{9}$').hasMatch(emergencyPhone)) {
-      setState(() => _errorMsg = 'Emergency phone number must be 11 digits starting with 09.');
-      return;
-    }
 
     setState(() {
       _saving = true;
@@ -4398,7 +4485,7 @@ class _EditProfileModalContentState extends State<_EditProfileModalContent> {
         'city_municipality': _selectedCity ?? '',
         'barangay': _barangayCtrl.text.trim(),
         'street': _streetCtrl.text.trim(),
-        'emergency_contact': _emergencyContactCtrl.text.trim(),
+        'emergency_contact': _buildEmergencyContactName(),
         'emergency_number': emergencyPhone,
       };
 
@@ -4508,15 +4595,66 @@ class _EditProfileModalContentState extends State<_EditProfileModalContent> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _fieldLabel('PERSONAL DETAILS'),
-                  _inputTile(controller: _firstNameCtrl, label: 'First Name', icon: Icons.person_rounded),
-                  _inputTile(controller: _middleNameCtrl, label: 'Middle Name (Optional)', icon: Icons.person_outline_rounded),
-                  _inputTile(controller: _lastNameCtrl, label: 'Last Name', icon: Icons.person_rounded),
-                  _inputTile(controller: _birthdateCtrl, label: 'Birthdate (YYYY-MM-DD)', icon: Icons.cake_rounded),
+                  _inputTile(
+                    controller: _firstNameCtrl,
+                    label: 'First Name',
+                    icon: Icons.person_rounded,
+                    textCapitalization: TextCapitalization.words,
+                    errorText: _firstNameError,
+                    onChanged: (_) => setState(() {}),
+                  ),
+                  _inputTile(
+                    controller: _middleNameCtrl,
+                    label: 'Middle Name (Optional)',
+                    icon: Icons.person_outline_rounded,
+                    textCapitalization: TextCapitalization.words,
+                    errorText: _middleNameError,
+                    onChanged: (_) => setState(() {}),
+                  ),
+                  _inputTile(
+                    controller: _lastNameCtrl,
+                    label: 'Last Name',
+                    icon: Icons.person_rounded,
+                    textCapitalization: TextCapitalization.words,
+                    errorText: _lastNameError,
+                    onChanged: (_) => setState(() {}),
+                  ),
+                  _inputTile(
+                    controller: _birthdateCtrl,
+                    label: 'Birthdate (YYYY-MM-DD)',
+                    icon: Icons.cake_rounded,
+                    errorText: _birthdateError,
+                    onChanged: (_) => setState(() {}),
+                  ),
 
                   const SizedBox(height: 10),
                   _fieldLabel('CONTACT INFORMATION'),
-                  _inputTile(controller: _phoneCtrl, label: 'Phone Number', icon: Icons.phone_rounded),
-                  _inputTile(controller: _emailCtrl, label: 'Recovery Email', icon: Icons.email_outlined),
+                  _inputTile(
+                    controller: _phoneCtrl,
+                    label: 'Phone Number',
+                    icon: Icons.phone_rounded,
+                    keyboardType: TextInputType.phone,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.digitsOnly,
+                      LengthLimitingTextInputFormatter(11),
+                    ],
+                    maxLength: 11,
+                    errorText: _phoneError,
+                    onChanged: (val) {
+                      if (val.length >= 2 && !val.startsWith('09')) {
+                        // User typed something not starting with 09
+                      }
+                      setState(() {});
+                    },
+                  ),
+                  _inputTile(
+                    controller: _emailCtrl,
+                    label: 'Recovery Email',
+                    icon: Icons.email_outlined,
+                    keyboardType: TextInputType.emailAddress,
+                    errorText: _emailError,
+                    onChanged: (_) => setState(() {}),
+                  ),
 
                   const SizedBox(height: 10),
                   _fieldLabel('ADDRESS — CALABARZON'),
@@ -4575,6 +4713,7 @@ class _EditProfileModalContentState extends State<_EditProfileModalContent> {
                       controller: _barangayCtrl,
                       label: 'Barangay',
                       icon: Icons.holiday_village_outlined,
+                      onChanged: (_) => setState(() {}),
                     );
                   }),
 
@@ -4583,17 +4722,66 @@ class _EditProfileModalContentState extends State<_EditProfileModalContent> {
                     controller: _streetCtrl,
                     label: 'Street / House No.',
                     icon: Icons.signpost_outlined,
+                    onChanged: (_) => setState(() {}),
                   ),
 
                   const SizedBox(height: 10),
                   _fieldLabel('EMERGENCY CONTACT'),
-                  _inputTile(controller: _emergencyContactCtrl, label: 'Emergency Contact Name', icon: Icons.contact_phone_rounded),
-                  _inputTile(controller: _emergencyNumberCtrl, label: 'Emergency Phone Number', icon: Icons.phone_callback_rounded),
+                  _inputTile(
+                    controller: _emergencyFirstNameCtrl,
+                    label: 'Emergency Contact First Name',
+                    icon: Icons.person_rounded,
+                    textCapitalization: TextCapitalization.words,
+                    errorText: _emergencyFirstNameError,
+                    onChanged: (_) => setState(() {}),
+                  ),
+                  _inputTile(
+                    controller: _emergencyMiddleNameCtrl,
+                    label: 'Emergency Contact Middle Name (Optional)',
+                    icon: Icons.person_outline_rounded,
+                    textCapitalization: TextCapitalization.words,
+                    errorText: _emergencyMiddleNameError,
+                    onChanged: (_) => setState(() {}),
+                  ),
+                  _inputTile(
+                    controller: _emergencyLastNameCtrl,
+                    label: 'Emergency Contact Last Name',
+                    icon: Icons.person_rounded,
+                    textCapitalization: TextCapitalization.words,
+                    errorText: _emergencyLastNameError,
+                    onChanged: (_) => setState(() {}),
+                  ),
+                  _inputTile(
+                    controller: _emergencyNumberCtrl,
+                    label: 'Emergency Phone Number',
+                    icon: Icons.phone_callback_rounded,
+                    keyboardType: TextInputType.phone,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.digitsOnly,
+                      LengthLimitingTextInputFormatter(11),
+                    ],
+                    maxLength: 11,
+                    errorText: _emergencyNumberError,
+                    onChanged: (_) => setState(() {}),
+                  ),
 
                   const SizedBox(height: 10),
                   _fieldLabel('ACCOUNT CREDENTIALS'),
-                  _inputTile(controller: _usernameCtrl, label: 'Username', icon: Icons.alternate_email_rounded),
-                  _inputTile(controller: _passwordCtrl, label: 'New Password (optional)', icon: Icons.lock_outline_rounded, isPassword: true),
+                  _inputTile(
+                    controller: _usernameCtrl,
+                    label: 'Username',
+                    icon: Icons.alternate_email_rounded,
+                    errorText: _usernameError,
+                    onChanged: (_) => setState(() {}),
+                  ),
+                  _inputTile(
+                    controller: _passwordCtrl,
+                    label: 'New Password (optional)',
+                    icon: Icons.lock_outline_rounded,
+                    isPassword: true,
+                    errorText: _passwordError,
+                    onChanged: (_) => setState(() {}),
+                  ),
 
                   const SizedBox(height: 14),
                   SizedBox(
@@ -4723,7 +4911,14 @@ class _EditProfileModalContentState extends State<_EditProfileModalContent> {
     required String label,
     required IconData icon,
     bool isPassword = false,
+    String? errorText,
+    ValueChanged<String>? onChanged,
+    TextInputType? keyboardType,
+    List<TextInputFormatter>? inputFormatters,
+    int? maxLength,
+    TextCapitalization textCapitalization = TextCapitalization.none,
   }) {
+    final hasError = errorText != null && errorText.isNotEmpty;
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
       child: Column(
@@ -4741,6 +4936,12 @@ class _EditProfileModalContentState extends State<_EditProfileModalContent> {
           TextField(
             controller: controller,
             obscureText: isPassword,
+            keyboardType: keyboardType,
+            inputFormatters: inputFormatters,
+            textCapitalization: textCapitalization,
+            maxLength: maxLength,
+            buildCounter: maxLength != null ? (_, {required currentLength, required isFocused, maxLength}) => null : null,
+            onChanged: onChanged,
             style: const TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w600,
@@ -4752,24 +4953,44 @@ class _EditProfileModalContentState extends State<_EditProfileModalContent> {
                 fontSize: 12.5,
                 color: kTextTertiary,
               ),
-              prefixIcon: Icon(icon, size: 19, color: kAmber),
+              prefixIcon: Icon(icon, size: 19, color: hasError ? const Color(0xFFEF4444) : kAmber),
               filled: true,
               fillColor: kDarkSurfaceAlt,
               contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(AppRadius.sm),
-                borderSide: const BorderSide(color: Color(0xFF1B5E5B)),
+                borderSide: BorderSide(color: hasError ? const Color(0xFFEF4444) : const Color(0xFF1B5E5B)),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(AppRadius.sm),
-                borderSide: const BorderSide(color: Color(0xFF1B5E5B)),
+                borderSide: BorderSide(color: hasError ? const Color(0xFFEF4444) : const Color(0xFF1B5E5B)),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(AppRadius.sm),
-                borderSide: const BorderSide(color: kAmber, width: 1.8),
+                borderSide: BorderSide(color: hasError ? const Color(0xFFEF4444) : kAmber, width: 1.8),
               ),
             ),
           ),
+          if (hasError)
+            Padding(
+              padding: const EdgeInsets.only(top: 5, left: 4),
+              child: Row(
+                children: [
+                  const Icon(Icons.cancel_rounded, size: 13, color: Color(0xFFF87171)),
+                  const SizedBox(width: 5),
+                  Expanded(
+                    child: Text(
+                      errorText,
+                      style: const TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFFF87171),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
         ],
       ),
     );

@@ -161,13 +161,46 @@ export default function RegisterClient() {
     return () => clearInterval(interval);
   }, [enrollSessionId, fpStatus]);
 
+  const validateSingleField = (name, value) => {
+    switch (name) {
+      case 'first_name':
+        return value.trim() ? validateName(value, 'First name') : 'Required';
+      case 'last_name':
+        return value.trim() ? validateName(value, 'Last name') : 'Required';
+      case 'middle_name':
+        return value.trim() ? validateName(value, 'Middle name') : '';
+      case 'emergency_contact':
+        return value.trim() ? validateName(value, 'Emergency contact name') : '';
+      case 'birthdate':
+        return value ? validateDateOfBirth(value, 3) : 'Required';
+      case 'gender':
+        return value ? '' : 'Required';
+      case 'contact_number':
+        return validateRequired(value, 'Contact number') || validateContactNumber(value);
+      case 'email':
+        return value.trim() ? validateEmail(value) : '';
+      case 'emergency_number':
+        return value.trim() && !/^09\d{9}$/.test(value.trim())
+          ? 'Emergency contact number must be exactly 11 digits and start with 09.'
+          : '';
+      default:
+        return '';
+    }
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
-    const nextValue = ['first_name', 'last_name', 'middle_name', 'emergency_contact'].includes(name)
+    let nextValue = ['first_name', 'last_name', 'middle_name', 'emergency_contact'].includes(name)
       ? formatPersonName(value)
       : value;
-    setForm({ ...form, [name]: nextValue });
-    setErrors({ ...errors, [name]: '' });
+
+    if (['contact_number', 'emergency_number'].includes(name)) {
+      nextValue = nextValue.replace(/\D/g, '').slice(0, 11);
+    }
+
+    setForm(prev => ({ ...prev, [name]: nextValue }));
+    const fieldError = validateSingleField(name, nextValue);
+    setErrors(prev => ({ ...prev, [name]: fieldError }));
   };
 
   const validateStep1 = () => {
@@ -263,19 +296,19 @@ export default function RegisterClient() {
             <div className="reg-grid-2">
               <div className="reg-field">
                 <label className="reg-label">First Name <span className="req">*</span></label>
-                <input name="first_name" value={form.first_name} onChange={handleChange} className={`reg-input ${errors.first_name ? 'reg-input-error' : ''}`} placeholder="Juan" maxLength={15} />
+                <input name="first_name" value={form.first_name} onChange={handleChange} className={`reg-input ${errors.first_name ? 'reg-input-error' : ''}`} placeholder="Juan" maxLength={20} />
                 {errors.first_name && <span className="reg-error-msg">{errors.first_name}</span>}
               </div>
               <div className="reg-field">
                 <label className="reg-label">Last Name <span className="req">*</span></label>
-                <input name="last_name" value={form.last_name} onChange={handleChange} className={`reg-input ${errors.last_name ? 'reg-input-error' : ''}`} placeholder="Dela Cruz" maxLength={15} />
+                <input name="last_name" value={form.last_name} onChange={handleChange} className={`reg-input ${errors.last_name ? 'reg-input-error' : ''}`} placeholder="Dela Cruz" maxLength={20} />
                 {errors.last_name && <span className="reg-error-msg">{errors.last_name}</span>}
               </div>
             </div>
 
             <div className="reg-field">
               <label className="reg-label">Middle Name <span className="opt">(optional)</span></label>
-              <input name="middle_name" value={form.middle_name} onChange={handleChange} className={`reg-input ${errors.middle_name ? 'reg-input-error' : ''}`} placeholder="Santos" maxLength={15} />
+              <input name="middle_name" value={form.middle_name} onChange={handleChange} className={`reg-input ${errors.middle_name ? 'reg-input-error' : ''}`} placeholder="Santos" maxLength={20} />
               {errors.middle_name && <span className="reg-error-msg">{errors.middle_name}</span>}
             </div>
 
@@ -323,7 +356,7 @@ export default function RegisterClient() {
               </div>
               <div className="reg-field">
                 <label className="reg-label">Emergency Contact <span className="opt">(optional)</span></label>
-                <input name="emergency_contact" value={form.emergency_contact} onChange={handleChange} className={`reg-input ${errors.emergency_contact ? 'reg-input-error' : ''}`} placeholder="Contact person name" maxLength={15} />
+                <input name="emergency_contact" value={form.emergency_contact} onChange={handleChange} className={`reg-input ${errors.emergency_contact ? 'reg-input-error' : ''}`} placeholder="Contact person name" maxLength={20} />
                 {errors.emergency_contact && <span className="reg-error-msg">{errors.emergency_contact}</span>}
               </div>
             </div>

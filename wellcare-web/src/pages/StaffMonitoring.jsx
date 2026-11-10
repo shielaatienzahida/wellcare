@@ -90,8 +90,21 @@ emergency_contact: member.emergency_contact || '', emergency_number: member.emer
   };
 
   const updateEditForm = (field, value) => {
-    setEditForm(form => ({ ...form, [field]: value }));
-    clearEditFieldError(field);
+    let nextValue = ['name', 'emergency_contact'].includes(field)
+      ? formatPersonName(value)
+      : value;
+    if (['contact_number', 'emergency_number'].includes(field)) {
+      nextValue = nextValue.replace(/\D/g, '').slice(0, 11);
+    }
+    setEditForm(form => ({ ...form, [field]: nextValue }));
+
+    // Real-time validation
+    let err = '';
+    if (field === 'name') err = validateFullName(nextValue);
+    else if (field === 'birthdate') err = validateRequiredDateOfBirth(nextValue);
+    else if (field === 'contact_number') err = validateRequired(nextValue, 'Contact number') || validateContactNumber(nextValue);
+    else if (field === 'emergency_contact') err = nextValue ? validateName(nextValue, 'Emergency contact name') : '';
+    setEditErrors(errors => ({ ...errors, [field]: err }));
   };
 
   const validateEditForm = () => {
@@ -269,9 +282,60 @@ emergency_contact: member.emergency_contact || '', emergency_number: member.emer
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 13 }}>
                   <p style={{ fontSize: '0.78rem', fontWeight: 800, color: 'var(--emerald-700)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Personal Information</p>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 14 }}>
-                    <label className="reg-field"><span className="reg-label">First Name <span className="req">*</span></span><input className={`reg-input ${staffValidationErrors.first_name ? 'reg-input-error' : ''}`} autoFocus maxLength={15} value={newStaff.first_name} onChange={event => { setNewStaff(form => ({ ...form, first_name: formatPersonName(event.target.value) })); setAddStaffError(''); setStaffValidationErrors(errors => ({ ...errors, first_name: '' })); }} />{staffValidationErrors.first_name && <span className="reg-error-msg">{staffValidationErrors.first_name}</span>}</label>
-                    <label className="reg-field"><span className="reg-label">Middle Name</span><input className={`reg-input ${staffValidationErrors.middle_name ? 'reg-input-error' : ''}`} maxLength={15} value={newStaff.middle_name} onChange={event => { setNewStaff(form => ({ ...form, middle_name: formatPersonName(event.target.value) })); setStaffValidationErrors(errors => ({ ...errors, middle_name: '' })); }} />{staffValidationErrors.middle_name && <span className="reg-error-msg">{staffValidationErrors.middle_name}</span>}</label>
-                    <label className="reg-field"><span className="reg-label">Last Name <span className="req">*</span></span><input className={`reg-input ${staffValidationErrors.last_name ? 'reg-input-error' : ''}`} maxLength={15} value={newStaff.last_name} onChange={event => { setNewStaff(form => ({ ...form, last_name: formatPersonName(event.target.value) })); setAddStaffError(''); setStaffValidationErrors(errors => ({ ...errors, last_name: '' })); }} />{staffValidationErrors.last_name && <span className="reg-error-msg">{staffValidationErrors.last_name}</span>}</label>
+                    <label className="reg-field">
+                      <span className="reg-label">First Name <span className="req">*</span></span>
+                      <input
+                        className={`reg-input ${staffValidationErrors.first_name ? 'reg-input-error' : ''}`}
+                        autoFocus
+                        maxLength={20}
+                        value={newStaff.first_name}
+                        onChange={event => {
+                          const val = formatPersonName(event.target.value);
+                          setNewStaff(form => ({ ...form, first_name: val }));
+                          setAddStaffError('');
+                          setStaffValidationErrors(errors => ({
+                            ...errors,
+                            first_name: val.trim() ? validateName(val, 'First name') : 'First name is required.'
+                          }));
+                        }}
+                      />
+                      {staffValidationErrors.first_name && <span className="reg-error-msg">{staffValidationErrors.first_name}</span>}
+                    </label>
+                    <label className="reg-field">
+                      <span className="reg-label">Middle Name</span>
+                      <input
+                        className={`reg-input ${staffValidationErrors.middle_name ? 'reg-input-error' : ''}`}
+                        maxLength={20}
+                        value={newStaff.middle_name}
+                        onChange={event => {
+                          const val = formatPersonName(event.target.value);
+                          setNewStaff(form => ({ ...form, middle_name: val }));
+                          setStaffValidationErrors(errors => ({
+                            ...errors,
+                            middle_name: val.trim() ? validateName(val, 'Middle name') : ''
+                          }));
+                        }}
+                      />
+                      {staffValidationErrors.middle_name && <span className="reg-error-msg">{staffValidationErrors.middle_name}</span>}
+                    </label>
+                    <label className="reg-field">
+                      <span className="reg-label">Last Name <span className="req">*</span></span>
+                      <input
+                        className={`reg-input ${staffValidationErrors.last_name ? 'reg-input-error' : ''}`}
+                        maxLength={20}
+                        value={newStaff.last_name}
+                        onChange={event => {
+                          const val = formatPersonName(event.target.value);
+                          setNewStaff(form => ({ ...form, last_name: val }));
+                          setAddStaffError('');
+                          setStaffValidationErrors(errors => ({
+                            ...errors,
+                            last_name: val.trim() ? validateName(val, 'Last name') : 'Last name is required.'
+                          }));
+                        }}
+                      />
+                      {staffValidationErrors.last_name && <span className="reg-error-msg">{staffValidationErrors.last_name}</span>}
+                    </label>
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14 }}>
                     <label className="reg-field"><span className="reg-label">Date of Birth <span className="req">*</span></span><input className={`reg-input ${staffValidationErrors.birthdate ? 'reg-input-error' : ''}`} type="date" max={localDateString()} value={newStaff.birthdate} onChange={event => { setNewStaff(form => ({ ...form, birthdate: event.target.value })); setAddStaffError(''); setStaffValidationErrors(errors => ({ ...errors, birthdate: '' })); }} />{staffValidationErrors.birthdate && <span className="reg-error-msg">{staffValidationErrors.birthdate}</span>}</label>
@@ -439,8 +503,8 @@ const fieldErrors = {
               <label className="reg-field"><span className="reg-label">Contact Number</span><input className={`reg-input ${editErrors.contact_number ? 'reg-input-error' : ''}`} type="tel" inputMode="numeric" maxLength={11} value={editForm.contact_number} onChange={event => updateEditForm('contact_number', event.target.value)} />{editErrors.contact_number && <span className="reg-error-msg">{editErrors.contact_number}</span>}</label>
               <CalabarzonAddressFields {...editForm} onChange={values => { setEditForm(form => ({ ...form, ...values })); clearEditFieldError('address'); }} error={editErrors.address} />
               <div className="reg-grid-2">
-                <label className="reg-field"><span className="reg-label">Emergency Contact</span><input className={`reg-input ${editErrors.emergency_contact ? 'reg-input-error' : ''}`} maxLength={15} value={editForm.emergency_contact} onChange={event => updateEditForm('emergency_contact', formatPersonName(event.target.value))} />{editErrors.emergency_contact && <span className="reg-error-msg">{editErrors.emergency_contact}</span>}</label>
-                <label className="reg-field"><span className="reg-label">Emergency Number</span><input className="reg-input" type="tel" value={editForm.emergency_number} onChange={event => updateEditForm('emergency_number', event.target.value)} /></label>
+                <label className="reg-field"><span className="reg-label">Emergency Contact</span><input className={`reg-input ${editErrors.emergency_contact ? 'reg-input-error' : ''}`} maxLength={20} value={editForm.emergency_contact} onChange={event => updateEditForm('emergency_contact', formatPersonName(event.target.value))} />{editErrors.emergency_contact && <span className="reg-error-msg">{editErrors.emergency_contact}</span>}</label>
+                <label className="reg-field"><span className="reg-label">Emergency Number</span><input className="reg-input" type="tel" maxLength={11} value={editForm.emergency_number} onChange={event => updateEditForm('emergency_number', event.target.value)} /></label>
               </div>
               {editError && <div className="login-error" role="alert">{editError}</div>}
             </div>
