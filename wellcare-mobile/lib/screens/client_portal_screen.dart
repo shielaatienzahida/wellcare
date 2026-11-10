@@ -1,9 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart' show rootBundle;
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../theme.dart';
@@ -477,11 +477,11 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
         return;
       }
       final path = prefs.getString('${_profilePhotoKey}_path');
-      if (path != null) {
-        final photo = File(path);
-        if (await photo.exists()) {
-          final bytes = await photo.readAsBytes();
-          if (mounted) setState(() => _profilePhotoBytes = bytes);
+      if (path != null && !kIsWeb) {
+        // Local path lookup only on non-web platforms
+        final bytes = await rootBundle.load(path).then((b) => b.buffer.asUint8List()).catchError((_) => Uint8List(0));
+        if (bytes.isNotEmpty && mounted) {
+          setState(() => _profilePhotoBytes = bytes);
         }
       }
     } catch (_) {}
@@ -1975,13 +1975,13 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
     final remainder = sessions % 10;
     final progress = remainder == 0 && sessions > 0 ? 1.0 : remainder / 10;
     final toNext = sessions == 0 ? 10 : (10 - remainder) % 10;
-    // 1 Bottle = 1.0 Liter = 1,000 mL
-    final totalMl = sessions * 1000;
-    final totalLiters = (sessions * 1.0).toStringAsFixed(1);
+    // 1 Bottle / Session logged = 500 mL = 0.5 Liters
+    final totalMl = sessions * 500;
+    final totalLiters = (sessions * 0.5).toStringAsFixed(1);
 
     // ── Daily hydration tracker ──────────────────────────────────────────────
     // Goal: 8 glasses per day, each glass = 250 mL → 2,000 mL / day (2 Liters)
-    // 1 Bottle = 1 Liter = 1,000 mL = 4 glasses
+    // 1 Session = 500 mL = 2 glasses
     final now = DateTime.now();
     final todayAlkalineSessions = _visitHistory
         .where((v) {
@@ -1990,8 +1990,8 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
           return isAlkaline && _isSameCalendarDay(v['date'], v['created_at'], now);
         })
         .length;
-    // mL consumed today via sessions (1 session = 1 bottle = 1,000 mL)
-    final todayMl = todayAlkalineSessions * 1000;
+    // mL consumed today via sessions (1 session = 500 mL)
+    final todayMl = todayAlkalineSessions * 500;
     // daily goal in mL
     const int dailyGoalMl = 2000; // 8 × 250 mL
     const int glassVolumeMl = 250;
@@ -2195,7 +2195,7 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                         ),
                       ),
                       child: const Text(
-                        '1 Liter / bottle',
+                        '0.5 L / 500 mL per log',
                         style: TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.w600,
@@ -2287,7 +2287,7 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                             ),
                             const SizedBox(height: 2),
                             const Text(
-                              'Standard 1.0 L units',
+                              'Standard 0.5 L (500 mL) units',
                               style: TextStyle(
                                 fontSize: 10.5,
                                 fontWeight: FontWeight.w600,
@@ -2492,7 +2492,7 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                         children: [
                           const TextSpan(text: '💧  Today you drank '),
                           TextSpan(
-                            text: '$todayAlkalineSessions bottle${todayAlkalineSessions == 1 ? '' : 's'} ($todayMl mL)',
+                            text: '$todayAlkalineSessions session${todayAlkalineSessions == 1 ? '' : 's'} ($todayMl mL)',
                             style: const TextStyle(
                                 fontWeight: FontWeight.w800,
                                 color: Color(0xFF38BDF8)),
@@ -2689,7 +2689,7 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                                 // Volume label
                                 if (count > 0)
                                   Text(
-                                    '${count * 1000}mL',
+                                    '${count * 500}mL',
                                     style: TextStyle(
                                       fontSize: 8,
                                       fontWeight: FontWeight.w600,
@@ -2736,7 +2736,7 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                             color: Color(0xFF34D399), size: 16),
                         const SizedBox(width: 6),
                         Text(
-                          'Peak: $maxCount bottle${maxCount == 1 ? '' : 's'} (${maxCount * 1000} mL) in a day',
+                          'Peak: $maxCount session${maxCount == 1 ? '' : 's'} (${maxCount * 500} mL) in a day',
                           style: const TextStyle(
                             fontSize: 11.5,
                             fontWeight: FontWeight.w700,

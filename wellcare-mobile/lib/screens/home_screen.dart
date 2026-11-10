@@ -1152,24 +1152,41 @@ class _AllVisitsPaginationModalState extends State<_AllVisitsPaginationModal> {
                             : null,
                         borderRadius: BorderRadius.circular(8),
                         child: Container(
-                          padding: const EdgeInsets.all(6),
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                           decoration: BoxDecoration(
                             color: _currentPage > 1
-                                ? _HomeScreenState._iconBoxDark
-                                : Colors.transparent,
+                                ? _HomeScreenState._amber.withValues(alpha: 0.2)
+                                : Colors.white.withValues(alpha: 0.05),
                             borderRadius: BorderRadius.circular(8),
                             border: Border.all(
                               color: _currentPage > 1
-                                  ? _HomeScreenState._cardBorder
-                                  : _HomeScreenState._cardBorder.withOpacity(0.3),
+                                  ? _HomeScreenState._amber
+                                  : Colors.white.withValues(alpha: 0.2),
+                              width: 1.2,
                             ),
                           ),
-                          child: Icon(
-                            Icons.chevron_left_rounded,
-                            size: 20,
-                            color: _currentPage > 1
-                                ? Colors.white
-                                : _HomeScreenState._creamMuted.withOpacity(0.3),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.arrow_back_ios_new_rounded,
+                                size: 14,
+                                color: _currentPage > 1
+                                    ? _HomeScreenState._amber
+                                    : Colors.white.withValues(alpha: 0.3),
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                'Prev',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w800,
+                                  color: _currentPage > 1
+                                      ? _HomeScreenState._amber
+                                      : Colors.white.withValues(alpha: 0.3),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ),
@@ -1177,16 +1194,16 @@ class _AllVisitsPaginationModalState extends State<_AllVisitsPaginationModal> {
 
                       // Page indicator pill (e.g. "Page 1 / 3")
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                         decoration: BoxDecoration(
-                          color: _HomeScreenState._amber.withOpacity(0.15),
+                          color: _HomeScreenState._amber.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: _HomeScreenState._amber.withOpacity(0.35)),
+                          border: Border.all(color: _HomeScreenState._amber.withValues(alpha: 0.4), width: 1.2),
                         ),
                         child: Text(
                           'Page $_currentPage of $totalPages',
                           style: const TextStyle(
-                            fontSize: 11.5,
+                            fontSize: 12,
                             fontWeight: FontWeight.w800,
                             color: _HomeScreenState._amber,
                           ),
@@ -1201,24 +1218,41 @@ class _AllVisitsPaginationModalState extends State<_AllVisitsPaginationModal> {
                             : null,
                         borderRadius: BorderRadius.circular(8),
                         child: Container(
-                          padding: const EdgeInsets.all(6),
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                           decoration: BoxDecoration(
                             color: _currentPage < totalPages
-                                ? _HomeScreenState._iconBoxDark
-                                : Colors.transparent,
+                                ? _HomeScreenState._amber.withValues(alpha: 0.2)
+                                : Colors.white.withValues(alpha: 0.05),
                             borderRadius: BorderRadius.circular(8),
                             border: Border.all(
                               color: _currentPage < totalPages
-                                  ? _HomeScreenState._cardBorder
-                                  : _HomeScreenState._cardBorder.withOpacity(0.3),
+                                  ? _HomeScreenState._amber
+                                  : Colors.white.withValues(alpha: 0.2),
+                              width: 1.2,
                             ),
                           ),
-                          child: Icon(
-                            Icons.chevron_right_rounded,
-                            size: 20,
-                            color: _currentPage < totalPages
-                                ? Colors.white
-                                : _HomeScreenState._creamMuted.withOpacity(0.3),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'Next',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w800,
+                                  color: _currentPage < totalPages
+                                      ? _HomeScreenState._amber
+                                      : Colors.white.withValues(alpha: 0.3),
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              Icon(
+                                Icons.arrow_forward_ios_rounded,
+                                size: 14,
+                                color: _currentPage < totalPages
+                                    ? _HomeScreenState._amber
+                                    : Colors.white.withValues(alpha: 0.3),
+                              ),
+                            ],
                           ),
                         ),
                       ),

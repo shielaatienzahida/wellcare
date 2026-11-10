@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 class ClientModel {
   final int id;
   final String clientIdNumber;

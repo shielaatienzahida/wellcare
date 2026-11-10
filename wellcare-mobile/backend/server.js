@@ -106,14 +106,82 @@ app.get('/api/v1/clients/me', auth, async (req, res) => {
 
 app.patch('/api/v1/clients/me', auth, async (req, res) => {
   if (req.user.role !== 'client') return res.status(403).json({ success: false, message: 'Forbidden' });
-  const { contact_number, address, emergency_contact, emergency_number, profile_photo } = req.body;
+  const {
+    first_name,
+    last_name,
+    middle_name,
+    username,
+    password,
+    birthdate,
+    contact_number,
+    address,
+    emergency_contact,
+    emergency_number,
+    profile_photo
+  } = req.body;
+
   if (profile_photo !== undefined) {
     await db.execute('UPDATE clients SET profile_photo=? WHERE id=?', [profile_photo || null, req.user.id]);
   }
-  await db.execute(
-    'UPDATE clients SET contact_number=?, address=?, emergency_contact=?, emergency_number=? WHERE id=?',
-    [contact_number || null, address || null, emergency_contact || null, emergency_number || null, req.user.id]
-  );
+
+  // Build dynamic update query to support all profile fields
+  const fields = [];
+  const params = [];
+
+  if (first_name !== undefined) {
+    fields.push('first_name=?');
+    params.push(first_name);
+  }
+  if (last_name !== undefined) {
+    fields.push('last_name=?');
+    params.push(last_name);
+  }
+  if (middle_name !== undefined) {
+    fields.push('middle_name=?');
+    params.push(middle_name || null);
+  }
+  if (first_name !== undefined || last_name !== undefined || middle_name !== undefined) {
+    const fn = first_name !== undefined ? first_name : '';
+    const mn = middle_name ? ` ${middle_name}` : '';
+    const ln = last_name !== undefined ? last_name : '';
+    fields.push('full_name=?');
+    params.push(`${fn}${mn} ${ln}`.trim());
+  }
+  if (username !== undefined && username.trim()) {
+    fields.push('username=?');
+    params.push(username.trim());
+  }
+  if (password !== undefined && password.trim().length >= 6) {
+    const hashed = await bcrypt.hash(password.trim(), 10);
+    fields.push('password=?');
+    params.push(hashed);
+  }
+  if (birthdate !== undefined) {
+    fields.push('birthdate=?');
+    params.push(birthdate || null);
+  }
+  if (contact_number !== undefined) {
+    fields.push('contact_number=?');
+    params.push(contact_number || null);
+  }
+  if (address !== undefined) {
+    fields.push('address=?');
+    params.push(address || null);
+  }
+  if (emergency_contact !== undefined) {
+    fields.push('emergency_contact=?');
+    params.push(emergency_contact || null);
+  }
+  if (emergency_number !== undefined) {
+    fields.push('emergency_number=?');
+    params.push(emergency_number || null);
+  }
+
+  if (fields.length > 0) {
+    params.push(req.user.id);
+    await db.execute(`UPDATE clients SET ${fields.join(', ')} WHERE id=?`, params);
+  }
+
   const [updated] = await db.execute('SELECT * FROM clients WHERE id = ?', [req.user.id]);
   res.json({ success: true, client: formatClient(updated[0]) });
 });

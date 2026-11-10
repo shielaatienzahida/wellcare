@@ -463,12 +463,14 @@ class _WellnessScreenState extends State<WellnessScreen> {
                 width: 38,
                 height: 38,
                 decoration: BoxDecoration(
-                  color: _cardDark,
+                  color: isAlkaline
+                      ? _amber.withValues(alpha: 0.18)
+                      : _cardDark,
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(
                   isAlkaline ? Icons.water_drop_rounded : Icons.event_available_rounded,
-                  color: isAlkaline ? _amber : _cream,
+                  color: isAlkaline ? _amber : const Color(0xFF10B981),
                   size: 20,
                 ),
               ),
@@ -491,15 +493,17 @@ class _WellnessScreenState extends State<WellnessScreen> {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
-                            color: _amber.withOpacity(0.2),
+                            color: isAlkaline
+                                ? _amber.withValues(alpha: 0.2)
+                                : const Color(0xFF10B981).withValues(alpha: 0.2),
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(
                             type,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.w800,
-                              color: _darkInk,
+                              color: isAlkaline ? _darkInk : const Color(0xFF065F46),
                             ),
                           ),
                         ),
@@ -540,113 +544,134 @@ class _WellnessScreenState extends State<WellnessScreen> {
 
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: _cardDark,
-        surfaceTintColor: Colors.transparent,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-          side: BorderSide(color: _amber.withOpacity(0.4), width: 1.4),
-        ),
-        titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
-        contentPadding: const EdgeInsets.fromLTRB(20, 10, 20, 16),
-        title: Row(
-          children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: isAlkaline ? _amber.withOpacity(0.18) : const Color(0xFF10B981).withOpacity(0.18),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: isAlkaline ? _amber.withOpacity(0.35) : const Color(0xFF10B981).withOpacity(0.35),
-                  width: 1.2,
-                ),
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 420),
+          decoration: BoxDecoration(
+            color: _cardDark,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: _amber.withValues(alpha: 0.5), width: 1.5),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.6),
+                blurRadius: 24,
+                offset: const Offset(0, 10),
               ),
-              child: Icon(
-                isAlkaline ? Icons.water_drop_rounded : Icons.how_to_reg_rounded,
-                color: isAlkaline ? _amber : const Color(0xFF34D399),
-                size: 24,
-              ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Attendance Info',
-                    style: TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w900,
-                      color: Colors.white,
+            ],
+          ),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header
+                Row(
+                  children: [
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: isAlkaline
+                            ? _amber.withValues(alpha: 0.18)
+                            : const Color(0xFF10B981).withValues(alpha: 0.18),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: isAlkaline
+                              ? _amber.withValues(alpha: 0.4)
+                              : const Color(0xFF10B981).withValues(alpha: 0.4),
+                          width: 1.2,
+                        ),
+                      ),
+                      child: Icon(
+                        isAlkaline ? Icons.water_drop_rounded : Icons.how_to_reg_rounded,
+                        color: isAlkaline ? _amber : const Color(0xFF34D399),
+                        size: 24,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    type,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: isAlkaline ? _amber : const Color(0xFF34D399),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Attendance Info',
+                            style: TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w900,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            type,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: isAlkaline ? _amber : const Color(0xFF34D399),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: _bgDark,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: _cardBorder),
-              ),
-              child: Column(
-                children: [
-                  _infoRow('Date & Time', displayDate, Icons.calendar_today_rounded),
-                  const Divider(color: _cardBorder, height: 16),
-                  _infoRow('Status', 'Recorded & Verified', Icons.verified_rounded, valueColor: const Color(0xFF34D399)),
-                  const Divider(color: _cardBorder, height: 16),
-                  _infoRow('Session Type', type, Icons.category_rounded),
-                  const Divider(color: _cardBorder, height: 16),
-                  _infoRow(
-                    'Logged By',
-                    '${loggedBy[0].toUpperCase()}${loggedBy.substring(1)}${staffId != null ? ' (Staff #$staffId)' : ''}',
-                    Icons.person_pin_rounded,
-                  ),
-                  if (id != null) ...[
-                    const Divider(color: _cardBorder, height: 16),
-                    _infoRow('Record ID', '#$id', Icons.tag_rounded),
                   ],
-                ],
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton(
-              onPressed: () => Navigator.pop(ctx),
-              style: FilledButton.styleFrom(
-                backgroundColor: _amber,
-                foregroundColor: _darkInk,
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              ),
-              child: const Text(
-                'Close',
-                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5),
-              ),
+                ),
+                const SizedBox(height: 18),
+
+                // Content Details Container
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: _bgDark,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: _cardBorder),
+                  ),
+                  child: Column(
+                    children: [
+                      _infoRow('Date & Time', displayDate, Icons.calendar_today_rounded),
+                      const Divider(color: _cardBorder, height: 16),
+                      _infoRow('Status', 'Recorded & Verified', Icons.verified_rounded, valueColor: const Color(0xFF34D399)),
+                      const Divider(color: _cardBorder, height: 16),
+                      _infoRow('Session Type', type, Icons.category_rounded),
+                      const Divider(color: _cardBorder, height: 16),
+                      _infoRow(
+                        'Logged By',
+                        '${loggedBy[0].toUpperCase()}${loggedBy.substring(1)}${staffId != null ? ' (Staff #$staffId)' : ''}',
+                        Icons.person_pin_rounded,
+                      ),
+                      if (id != null) ...[
+                        const Divider(color: _cardBorder, height: 16),
+                        _infoRow('Record ID', '#$id', Icons.tag_rounded),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 18),
+
+                // Close Button
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: _amber,
+                      foregroundColor: _darkInk,
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    child: const Text(
+                      'Close',
+                      style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
-        ],
+        ),
       ),
     );
   }
