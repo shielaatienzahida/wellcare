@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, CheckCircle, CheckCircle2, AlertCircle, Bell, Droplets, MessageCircle, Users, Send, X, User, UserPlus, Search, SlidersHorizontal, ArchiveRestore, Trash2, Pencil, Archive as ArchiveIcon, LayoutDashboard, Activity, Lock, Eye, EyeOff, ShieldCheck, Mail, Save, Calendar, Shield, UserCheck, KeyRound, Fingerprint } from 'lucide-react';
+import { ArrowLeft, CheckCircle, CheckCircle2, AlertCircle, Bell, Droplets, MessageCircle, Users, Send, X, User, UserPlus, Search, SlidersHorizontal, ArchiveRestore, Trash2, Pencil, Archive as ArchiveIcon, LayoutDashboard, Activity, Lock, Eye, EyeOff, ShieldCheck, Mail, Save, Calendar, Shield, UserCheck, KeyRound, Fingerprint, CheckCheck, UserRound } from 'lucide-react';
 import { api } from '../api';
 import AppLayout from '../components/AppLayout';
 import StaffClientRegistration from './StaffClientRegistration';
@@ -71,6 +71,20 @@ export default function StaffPortal() {
       return null;
     }
   })();
+
+  const staffNotifKey = `heiwa_staff_notifications_${staff?.username || staff?.id || 'staff'}`;
+  const [clientNotifState, setClientNotifState] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem(staffNotifKey) || '{"readIds":[],"deletedIds":[]}');
+    } catch {
+      return { readIds: [], deletedIds: [] };
+    }
+  });
+
+  const saveClientNotifState = (nextState) => {
+    setClientNotifState(nextState);
+    localStorage.setItem(staffNotifKey, JSON.stringify(nextState));
+  };
 
   const loadClients = useCallback(async () => {
     try {
@@ -268,10 +282,38 @@ export default function StaffPortal() {
 
   const NAME_EDIT_FIELDS = ['first_name', 'middle_name', 'last_name', 'emergency_contact'];
   const handleClientEditField = (field, rawValue) => {
-    const value = NAME_EDIT_FIELDS.includes(field) ? formatPersonName(rawValue) : rawValue;
+    let value = NAME_EDIT_FIELDS.includes(field) ? formatPersonName(rawValue) : rawValue;
+    if (['contact_number', 'emergency_number'].includes(field)) {
+      value = value.replace(/\D/g, '').slice(0, 11);
+    }
     setClientEditForm(form => ({ ...form, [field]: value }));
-    setClientEditErrors(current => (current[field] ? { ...current, [field]: '' } : current));
+
+    // Real-time validation
+    let err = '';
+    if (field === 'first_name') err = value.trim() ? validateName(value, 'First name') : 'First name is required.';
+    else if (field === 'last_name') err = value.trim() ? validateName(value, 'Last name') : 'Last name is required.';
+    else if (field === 'middle_name') err = value.trim() ? validateName(value, 'Middle name') : '';
+    else if (field === 'birthdate') err = value ? validateDateOfBirth(value, 3) : 'Birthdate is required.';
+    else if (field === 'gender') err = value ? '' : 'Gender is required.';
+    else if (field === 'contact_number') err = validateRequired(value, 'Contact number') || validateContactNumber(value);
+    else if (field === 'email') err = value.trim() ? validateEmail(value) : '';
+    else if (field === 'emergency_contact') err = value.trim() ? validateName(value, 'Emergency contact name') : '';
+    else if (field === 'emergency_number') err = value.trim() && !/^09\d{9}$/.test(value.trim()) ? 'Emergency contact number must be exactly 11 digits and start with 09.' : '';
+
+    setClientEditErrors(current => ({ ...current, [field]: err }));
     setClientEditError('');
+  };
+
+  const handleClientEditAddressChange = (values) => {
+    const nextForm = { ...clientEditForm, ...values };
+    setClientEditForm(nextForm);
+    const addrError = validateAddressSelection(nextForm);
+    const bgyError = nextForm.barangay?.trim() ? '' : (values.barangay !== undefined ? 'Barangay is required.' : '');
+    setClientEditErrors(current => ({
+      ...current,
+      address: addrError,
+      barangay: bgyError,
+    }));
   };
 
   const validateClientEditForm = () => {
@@ -541,11 +583,31 @@ export default function StaffPortal() {
       if (m.client_name) threads[m.client_id].client_name = m.client_name;
     });
 
+  // Sort threads with Hierarchy:
+  // 1. Unread messages from clients always appear at the top
+  // 2. Most recent message (by created_at or id) appears next
   const threadList = Object.values(threads).sort((a, b) => {
+    const aUnread = a.messages.filter(m => m.sender === 'client' && m.recipient === 'staff' && !m.read_by_staff).length;
+    const bUnread = b.messages.filter(m => m.sender === 'client' && m.recipient === 'staff' && !m.read_by_staff).length;
+    if (aUnread > 0 && bUnread === 0) return -1;
+    if (bUnread > 0 && aUnread === 0) return 1;
+
     const aL = a.messages[a.messages.length - 1];
     const bL = b.messages[b.messages.length - 1];
-    return new Date(bL.created_at || bL.timestamp || 0) - new Date(aL.created_at || aL.timestamp || 0);
+    const aTime = new Date(aL?.created_at || aL?.timestamp || 0).getTime() || (aL?.id || 0);
+    const bTime = new Date(bL?.created_at || bL?.timestamp || 0).getTime() || (bL?.id || 0);
+    return bTime - aTime;
   });
+  const staffUnreadThreads = threadList.filter(t => t.messages.some(m => m.sender === 'client' && m.recipient === 'staff' && !m.read_by_staff));
+  const staffRecentThreads = threadList.filter(t => !t.messages.some(m => m.sender === 'client' && m.recipient === 'staff' && !m.read_by_staff));
+
+  const STAFF_QUICK_REPLIES = [
+    'Hello! Our wellness center is open Monday to Saturday, 8:00 AM – 5:00 PM.',
+    'Please scan your fingerprint at the kiosk upon arrival to log your attendance.',
+    'Stay hydrated! Remember to log your daily alkaline water sessions in the app.',
+    'We have recorded your attendance/alkaline session for today. Thank you!',
+    'Thank you for messaging Heiwa Staff! How can we assist you today?'
+  ];
 
   const activeThread = activeClientId ? threads[activeClientId] : null;
 
@@ -556,6 +618,48 @@ export default function StaffPortal() {
   const totalAbsences = clients.reduce((s, c) => s + Number(c.absences || 0), 0);
   const recentClients = [...clients].sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0)).slice(0, 5);
   const unreadMessages = allMessages.filter(m => m.sender === 'client' && m.recipient === 'staff' && !m.read_by_staff);
+
+  // New Registered Clients (sorted newest first, filtered by deletedIds)
+  const recentRegisteredClients = [...clients]
+    .filter(c => c.created_at)
+    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+    .slice(0, 30);
+  const visibleClientNotifs = recentRegisteredClients.filter(c => !clientNotifState.deletedIds.includes(String(c.id)));
+  const unreadClientNotifs = visibleClientNotifs.filter(c => !clientNotifState.readIds.includes(String(c.id)));
+
+  const totalNotifCount = unreadMessages.length + unreadClientNotifs.length;
+
+  const markAllClientNotifsRead = () => {
+    saveClientNotifState({
+      ...clientNotifState,
+      readIds: [...new Set([...clientNotifState.readIds, ...visibleClientNotifs.map(c => String(c.id))])],
+    });
+  };
+
+  const deleteClientNotif = (clientId) => {
+    const id = String(clientId);
+    saveClientNotifState({
+      ...clientNotifState,
+      deletedIds: [...new Set([...clientNotifState.deletedIds, id])],
+    });
+  };
+
+  const deleteAllClientNotifs = () => {
+    saveClientNotifState({
+      ...clientNotifState,
+      deletedIds: [...new Set([...clientNotifState.deletedIds, ...visibleClientNotifs.map(c => String(c.id))])],
+    });
+  };
+
+  const openClientNotif = (client) => {
+    const id = String(client.id);
+    saveClientNotifState({
+      ...clientNotifState,
+      readIds: [...new Set([...clientNotifState.readIds, id])],
+    });
+    setSelectedClientDetail(client);
+  };
+
   const memberSince = staffProfile?.created_at
     ? new Date(staffProfile.created_at).toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' })
     : 'Not available';
@@ -577,7 +681,7 @@ export default function StaffPortal() {
       showArchive={true}
       archiveCount={archivedClients.length}
       showNotifications={true}
-      notificationCount={unreadMessages.length}
+      notificationCount={totalNotifCount}
       logoLabel="· Staff Portal"
       isMobile={false}
     >
@@ -614,7 +718,7 @@ export default function StaffPortal() {
               <CalabarzonAddressFields
                 {...clientEditForm}
                 barangay={clientEditForm.barangay}
-                onChange={values => { setClientEditForm(form => ({ ...form, ...values })); setClientEditErrors(current => ({ ...current, address: '', barangay: '' })); }}
+                onChange={handleClientEditAddressChange}
                 error={clientEditErrors.address}
                 barangayError={clientEditErrors.barangay}
               />
@@ -1089,36 +1193,247 @@ export default function StaffPortal() {
 
         {tab === 'notifications' && (
           <section style={{ maxWidth: 900, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 18 }}>
-            <header>
-              <p className="page-eyebrow">Updates</p>
-              <h2 className="page-title">Notifications</h2>
-              <p className="page-sub">Unread messages from clients appear here.</p>
+            <header style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+              <div>
+                <p className="page-eyebrow">Updates</p>
+                <h2 className="page-title">Notifications</h2>
+                <p className="page-sub">Newly registered clients and unread messages from clients appear here.</p>
+              </div>
+              {visibleClientNotifs.length > 0 && (
+                <div style={{ display: 'flex', gap: 9, flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    onClick={markAllClientNotifsRead}
+                    disabled={unreadClientNotifs.length === 0}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 7,
+                      padding: '8px 14px',
+                      borderRadius: 10,
+                      border: '1px solid #d1d5db',
+                      background: '#fff',
+                      color: unreadClientNotifs.length === 0 ? '#9ca3af' : '#14532d',
+                      fontSize: 13,
+                      fontWeight: 700,
+                      cursor: unreadClientNotifs.length === 0 ? 'not-allowed' : 'pointer',
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+                    }}
+                  >
+                    <CheckCheck size={16} /> Mark all as read
+                  </button>
+                  <button
+                    type="button"
+                    onClick={deleteAllClientNotifs}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 7,
+                      padding: '8px 14px',
+                      borderRadius: 10,
+                      border: '1px solid #fecaca',
+                      background: '#fff',
+                      color: '#b91c1c',
+                      fontSize: 13,
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+                    }}
+                  >
+                    <Trash2 size={16} /> Delete all
+                  </button>
+                </div>
+              )}
             </header>
-            <div className="notification-list">
-              {unreadMessages.length === 0 ? (
+
+            {/* ── Unread Client Messages Section ── */}
+            {unreadMessages.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24, borderRadius: '50%', background: '#dbeafe', color: '#1d4ed8' }}>
+                    <MessageCircle size={14} />
+                  </span>
+                  <h3 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: '#1e3a8a' }}>
+                    Unread Client Messages ({unreadMessages.length})
+                  </h3>
+                </div>
+                <div className="notification-list">
+                  {unreadMessages.map(message => (
+                    <button
+                      key={message.id}
+                      onClick={() => { setActiveClientId(message.client_id); setTab('messages'); }}
+                      className="notification-item is-unread"
+                    >
+                      <div className="notification-item-icon" style={{ background: '#eff6ff', color: '#2563eb', borderColor: '#dbeafe' }}><MessageCircle size={18} /></div>
+                      <span className="notification-item-content">
+                        <span className="notification-item-heading">
+                          <strong className="notification-item-title">{message.client_name || 'Client message'}</strong>
+                          <span className="notification-new">New</span>
+                          <span className="notification-item-time">{message.time || message.created_at || 'Unread'}</span>
+                        </span>
+                        <span className="notification-item-description">{message.text}</span>
+                      </span>
+                      <span className="notification-unread-dot" aria-label="Unread" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* ── Newly Registered Clients Section ── */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24, borderRadius: '50%', background: '#dcfce7', color: '#047857' }}>
+                  <UserPlus size={14} />
+                </span>
+                <h3 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: '#064e3b' }}>
+                  Newly Registered Clients ({visibleClientNotifs.length})
+                </h3>
+              </div>
+
+              {visibleClientNotifs.length === 0 && unreadMessages.length === 0 ? (
                 <div className="notification-empty">
                   <div style={{ width: 52, height: 52, margin: '0 auto 14px', display: 'grid', placeItems: 'center', borderRadius: 16, background: '#ecfdf5', color: '#059669' }}><Bell size={23} /></div>
-                  <strong>You’re all caught up</strong>
-                  <p>New client messages will appear here.</p>
+                  <strong>You’re all caught up!</strong>
+                  <p>New client registrations and messages will appear here.</p>
                 </div>
-              ) : unreadMessages.map(message => (
-                <button
-                  key={message.id}
-                  onClick={() => { setActiveClientId(message.client_id); setTab('messages'); }}
-                  className="notification-item is-unread"
-                >
-                  <div className="notification-item-icon" style={{ background: '#eff6ff', color: '#2563eb', borderColor: '#dbeafe' }}><MessageCircle size={18} /></div>
-                  <span className="notification-item-content">
-                    <span className="notification-item-heading">
-                      <strong className="notification-item-title">{message.client_name || 'Client message'}</strong>
-                      <span className="notification-new">New</span>
-                      <span className="notification-item-time">{message.time || message.created_at || 'Unread'}</span>
-                    </span>
-                    <span className="notification-item-description">{message.text}</span>
-                  </span>
-                  <span className="notification-unread-dot" aria-label="Unread" />
-                </button>
-              ))}
+              ) : visibleClientNotifs.length === 0 ? (
+                <div style={{ padding: 24, textAlign: 'center', background: '#f8fafc', borderRadius: 14, border: '1px dashed #cbd5e1', color: '#64748b', fontSize: 13 }}>
+                  No new client registration notifications.
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {visibleClientNotifs.map(client => {
+                    const isUnread = !clientNotifState.readIds.includes(String(client.id));
+                    const formatRegTime = (val) => {
+                      const d = new Date(val);
+                      if (Number.isNaN(d.getTime())) return 'Recently';
+                      return d.toLocaleString('en-PH', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                        hour: 'numeric',
+                        minute: '2-digit',
+                      });
+                    };
+
+                    return (
+                      <div
+                        key={client.id}
+                        style={{
+                          background: isUnread ? '#ffffff' : '#f8fafc',
+                          border: isUnread ? '1.5px solid #a7f3d0' : '1px solid #e2e8f0',
+                          borderLeft: isUnread ? '4px solid #059669' : '4px solid #94a3b8',
+                          borderRadius: 14,
+                          padding: '14px 18px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 16,
+                          boxShadow: isUnread ? '0 4px 14px rgba(16, 185, 129, 0.08)' : '0 1px 3px rgba(0,0,0,0.02)',
+                          transition: 'all 0.2s ease',
+                        }}
+                      >
+                        {/* Icon */}
+                        <div
+                          style={{
+                            width: 44,
+                            height: 44,
+                            borderRadius: 12,
+                            background: isUnread ? '#dcfce7' : '#f1f5f9',
+                            color: isUnread ? '#047857' : '#64748b',
+                            display: 'grid',
+                            placeItems: 'center',
+                            flexShrink: 0,
+                          }}
+                        >
+                          <UserPlus size={22} />
+                        </div>
+
+                        {/* Content */}
+                        <div
+                          onClick={() => openClientNotif(client)}
+                          style={{ flex: 1, minWidth: 0, cursor: 'pointer' }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 4 }}>
+                            <span style={{ fontWeight: 800, fontSize: 14.5, color: '#0f172a' }}>
+                              New client registered
+                            </span>
+                            {isUnread && (
+                              <span
+                                style={{
+                                  background: '#10b981',
+                                  color: '#fff',
+                                  fontSize: 10.5,
+                                  fontWeight: 800,
+                                  padding: '2px 8px',
+                                  borderRadius: 9999,
+                                  letterSpacing: '0.04em',
+                                }}
+                              >
+                                NEW
+                              </span>
+                            )}
+                            <span style={{ fontSize: 12, color: '#64748b', marginLeft: 'auto' }}>
+                              {formatRegTime(client.created_at)}
+                            </span>
+                          </div>
+
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13.5, color: '#334155' }}>
+                            <strong style={{ color: '#047857', fontWeight: 700 }}>
+                              {client.full_name || client.name || 'Client'}
+                            </strong>
+                            {client.client_id_number && (
+                              <span
+                                style={{
+                                  background: '#f1f5f9',
+                                  padding: '2px 8px',
+                                  borderRadius: 6,
+                                  fontSize: 11.5,
+                                  color: '#475569',
+                                  fontWeight: 600,
+                                }}
+                              >
+                                ID: {client.client_id_number}
+                              </span>
+                            )}
+                            {client.address && (
+                              <span style={{ fontSize: 12, color: '#94a3b8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                • {client.address}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Right Delete Button */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                          <button
+                            type="button"
+                            onClick={() => deleteClientNotif(client.id)}
+                            aria-label={`Dismiss notification for ${client.full_name || 'client'}`}
+                            title="Dismiss notification"
+                            style={{
+                              width: 34,
+                              height: 34,
+                              display: 'grid',
+                              placeItems: 'center',
+                              borderRadius: 9,
+                              border: '1px solid #fee2e2',
+                              background: '#fff',
+                              color: '#ef4444',
+                              cursor: 'pointer',
+                              transition: 'background 0.15s ease',
+                            }}
+                            onMouseEnter={e => e.currentTarget.style.background = '#fef2f2'}
+                            onMouseLeave={e => e.currentTarget.style.background = '#fff'}
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </section>
         )}
@@ -1371,22 +1686,53 @@ export default function StaffPortal() {
                       <p>No messages yet</p>
                     </div>
                   )}
-                  {threadList.map(t => {
-                    const last = t.messages[t.messages.length - 1];
-                    const unread = t.messages.filter(m => m.sender === 'client' && m.recipient === 'staff' && !m.read_by_staff).length;
-                    return (
-                      <div key={t.client_id} className={`admin-msg-thread-item${activeClientId === t.client_id ? ' active' : ''}${unread > 0 ? ' has-unread' : ''}`} onClick={() => setActiveClientId(t.client_id)}>
-                        <div className="admin-msg-thread-avatar">{getInitials(t.client_name)}</div>
-                        <div className="admin-msg-thread-info">
-                          <div className="admin-msg-thread-top">
-                            <span className="admin-msg-thread-name">{t.client_name || t.client_id}</span>
-                          </div>
-                          <div className="admin-msg-thread-preview">{last?.sender !== 'client' ? 'You: ' : ''}{last?.text}</div>
-                        </div>
-                        {unread > 0 && <div className="admin-msg-thread-badge">{unread}</div>}
+                  {staffUnreadThreads.length > 0 && (
+                    <>
+                      <div style={{ padding: '8px 16px 4px', fontSize: '0.68rem', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#dc2626', display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#dc2626' }} />
+                        New / Unread Messages ({staffUnreadThreads.length})
                       </div>
-                    );
-                  })}
+                      {staffUnreadThreads.map(t => {
+                        const last = t.messages[t.messages.length - 1];
+                        const unread = t.messages.filter(m => m.sender === 'client' && m.recipient === 'staff' && !m.read_by_staff).length;
+                        return (
+                          <div key={t.client_id} className={`admin-msg-thread-item${activeClientId === t.client_id ? ' active' : ''} has-unread`} onClick={() => setActiveClientId(t.client_id)}>
+                            <div className="admin-msg-thread-avatar">{getInitials(t.client_name)}</div>
+                            <div className="admin-msg-thread-info">
+                              <div className="admin-msg-thread-top">
+                                <span className="admin-msg-thread-name" style={{ fontWeight: 800 }}>{t.client_name || t.client_id}</span>
+                                <span className="admin-msg-thread-time">{last?.time || ''}</span>
+                              </div>
+                              <div className="admin-msg-thread-preview" style={{ fontWeight: 700, color: 'var(--emerald-900)' }}>{last?.sender !== 'client' ? 'You: ' : ''}{last?.text}</div>
+                            </div>
+                            <div className="admin-msg-thread-badge">{unread}</div>
+                          </div>
+                        );
+                      })}
+                    </>
+                  )}
+                  {staffRecentThreads.length > 0 && (
+                    <>
+                      <div style={{ padding: '10px 16px 4px', fontSize: '0.68rem', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-light)' }}>
+                        Recent Conversations ({staffRecentThreads.length})
+                      </div>
+                      {staffRecentThreads.map(t => {
+                        const last = t.messages[t.messages.length - 1];
+                        return (
+                          <div key={t.client_id} className={`admin-msg-thread-item${activeClientId === t.client_id ? ' active' : ''}`} onClick={() => setActiveClientId(t.client_id)}>
+                            <div className="admin-msg-thread-avatar">{getInitials(t.client_name)}</div>
+                            <div className="admin-msg-thread-info">
+                              <div className="admin-msg-thread-top">
+                                <span className="admin-msg-thread-name">{t.client_name || t.client_id}</span>
+                                <span className="admin-msg-thread-time">{last?.time || ''}</span>
+                              </div>
+                              <div className="admin-msg-thread-preview">{last?.sender !== 'client' ? 'You: ' : ''}{last?.text}</div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -1412,6 +1758,35 @@ export default function StaffPortal() {
                         </div>
                       ))}
                       <div ref={bottomRef} />
+                    </div>
+                    {/* Suggestive Replies / FAQ Responses */}
+                    <div style={{ padding: '8px 14px 4px', borderTop: '1px solid rgba(4,106,56,0.08)', background: '#f8fafc', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      <span style={{ fontSize: '0.68rem', fontWeight: 800, color: 'var(--emerald-700)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                        Suggested Quick Replies
+                      </span>
+                      <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4 }}>
+                        {STAFF_QUICK_REPLIES.map((reply, idx) => (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => setMsgInput(reply)}
+                            style={{
+                              whiteSpace: 'nowrap',
+                              padding: '5px 11px',
+                              borderRadius: 99,
+                              border: '1px solid rgba(16, 185, 129, 0.3)',
+                              background: 'var(--emerald-50)',
+                              color: 'var(--emerald-800)',
+                              fontSize: '0.74rem',
+                              fontWeight: 600,
+                              cursor: 'pointer',
+                              flexShrink: 0,
+                            }}
+                          >
+                            {reply.length > 48 ? reply.slice(0, 48) + '…' : reply}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                     <div className="admin-msg-chat-input">
                       <input value={msgInput} onChange={e => setMsgInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSend()} placeholder="Type a reply..." className="admin-msg-input" />

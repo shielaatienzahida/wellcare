@@ -29,14 +29,35 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
   bool _historyLoading = true;
   bool _historyUnavailable = false;
 
-  int _notifBadgeCount = 1;
   bool _notificationsCleared = false;
   final Set<String> _readNotifIds = {};
   Timer? _pollTimer;
 
+  int get _unreadNotifCount {
+    if (_notificationsCleared) return 0;
+    final all = _buildNotificationsList();
+    return all.where((n) => !_readNotifIds.contains(n['id'] as String)).length;
+  }
+
   List<Map<String, dynamic>> _buildNotificationsList() {
     if (_notificationsCleared) return [];
     final list = <Map<String, dynamic>>[];
+
+    // 0. First-login / default password security alert
+    if (_client.mustChangePassword) {
+      const pwdAlertId = 'security_change_password';
+      list.add({
+        'id': pwdAlertId,
+        'icon': Icons.lock_reset_rounded,
+        'iconColor': kAmber,
+        'title': 'Security Alert: Change Password',
+        'time': 'Action Required',
+        'body': 'You are using your default password. Tap to change it now.',
+        'fullDetail': 'For your account security, please update your default initial password to a new personal password.',
+        'read': _readNotifIds.contains(pwdAlertId),
+        'isPasswordAlert': true,
+      });
+    }
 
     // 1. Dynamic notifications from attendance records
     for (final v in _visitHistory) {
@@ -95,6 +116,38 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
   late final AnimationController _fadeCtrl;
   late final Animation<double> _fadeAnim;
 
+  String get _readNotifsStorageKey => 'heiwa_read_notifs_${_client.id}';
+
+  Future<void> _loadReadNotifications() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final saved = prefs.getStringList(_readNotifsStorageKey);
+      if (saved != null && mounted) {
+        setState(() {
+          _readNotifIds.addAll(saved);
+        });
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _persistReadNotification(String notifId) async {
+    _readNotifIds.add(notifId);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList(_readNotifsStorageKey, _readNotifIds.toList());
+    } catch (_) {}
+  }
+
+  Future<void> _persistAllReadNotifications(Iterable<String> notifIds) async {
+    _readNotifIds.addAll(notifIds);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList(_readNotifsStorageKey, _readNotifIds.toList());
+    } catch (_) {}
+  }
+
+  bool _firstLoginAlertShown = false;
+
   @override
   void initState() {
     super.initState();
@@ -102,11 +155,271 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
     _fadeCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 260));
     _fadeAnim = CurvedAnimation(parent: _fadeCtrl, curve: Curves.easeOut);
     _fadeCtrl.forward();
+    _loadReadNotifications();
     _refreshData();
     _refreshVisitHistory();
     _loadProfilePhoto();
     // Start background polling — silently syncs every 10 seconds
     _pollTimer = Timer.periodic(const Duration(seconds: 10), (_) => _silentPoll());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkAndShowFirstLoginAlert();
+    });
+  }
+
+  Future<void> _checkAndShowFirstLoginAlert() async {
+    if (!mounted || _firstLoginAlertShown) return;
+    if (!_client.mustChangePassword) return;
+    final prefs = await SharedPreferences.getInstance();
+    final dismissedKey = 'heiwa_pwd_prompt_changed_${_client.id}';
+    if (prefs.getBool(dismissedKey) == true) return;
+    _firstLoginAlertShown = true;
+    _showFirstLoginChangePasswordDialog();
+  }
+
+  void _showFirstLoginChangePasswordDialog() {
+    final newPassCtrl = TextEditingController();
+    final confirmPassCtrl = TextEditingController();
+    bool obscureNew = true;
+    bool obscureConfirm = true;
+    bool saving = false;
+    String? errorMsg;
+
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          return AlertDialog(
+            backgroundColor: kDarkSurface,
+            surfaceTintColor: Colors.transparent,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppRadius.lg),
+              side: BorderSide(color: kAmber.withValues(alpha: 0.4), width: 1.3),
+            ),
+            titlePadding: const EdgeInsets.fromLTRB(22, 22, 22, 8),
+            contentPadding: const EdgeInsets.fromLTRB(22, 10, 22, 10),
+            title: Row(
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: kAmber.withValues(alpha: 0.16),
+                    borderRadius: BorderRadius.circular(AppRadius.sm),
+                    border: Border.all(color: kAmber.withValues(alpha: 0.35), width: 1.2),
+                  ),
+                  child: const Icon(Icons.lock_reset_rounded, color: kAmber, size: 22),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Change Default Password',
+                        style: TextStyle(fontSize: 16.5, fontWeight: FontWeight.w800, color: kCream),
+                      ),
+                      SizedBox(height: 2),
+                      Text(
+                        'FIRST LOGIN SECURITY ALERT',
+                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: kAmber, letterSpacing: 0.8),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: kAmber.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: kAmber.withValues(alpha: 0.25)),
+                    ),
+                    child: const Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(Icons.shield_outlined, color: kAmber, size: 18),
+                        SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'Welcome to Heiwa! For your account security, we recommend changing your default initial password to a personal password.',
+                            style: TextStyle(fontSize: 12.5, height: 1.4, color: kTextSecondary),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: newPassCtrl,
+                    obscureText: obscureNew,
+                    style: const TextStyle(color: kTextPrimary, fontSize: 14),
+                    decoration: InputDecoration(
+                      labelText: 'New Password',
+                      labelStyle: const TextStyle(color: kTextTertiary, fontSize: 13),
+                      hintText: 'At least 8 characters',
+                      hintStyle: TextStyle(color: kTextTertiary.withValues(alpha: 0.55), fontSize: 12),
+                      filled: true,
+                      fillColor: kDarkSurfaceAlt,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      prefixIcon: const Icon(Icons.lock_outline_rounded, size: 18, color: kAmber),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          obscureNew ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                          size: 18,
+                          color: kTextTertiary,
+                        ),
+                        onPressed: () => setDialogState(() => obscureNew = !obscureNew),
+                      ),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.08))),
+                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.08))),
+                      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kAmber, width: 1.5)),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: confirmPassCtrl,
+                    obscureText: obscureConfirm,
+                    style: const TextStyle(color: kTextPrimary, fontSize: 14),
+                    decoration: InputDecoration(
+                      labelText: 'Confirm New Password',
+                      labelStyle: const TextStyle(color: kTextTertiary, fontSize: 13),
+                      hintText: 'Re-enter new password',
+                      hintStyle: TextStyle(color: kTextTertiary.withValues(alpha: 0.55), fontSize: 12),
+                      filled: true,
+                      fillColor: kDarkSurfaceAlt,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      prefixIcon: const Icon(Icons.check_circle_outline_rounded, size: 18, color: kAmber),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          obscureConfirm ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                          size: 18,
+                          color: kTextTertiary,
+                        ),
+                        onPressed: () => setDialogState(() => obscureConfirm = !obscureConfirm),
+                      ),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.08))),
+                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.08))),
+                      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kAmber, width: 1.5)),
+                    ),
+                  ),
+                  if (errorMsg != null) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                      decoration: BoxDecoration(
+                        color: AppColors.dangerTint,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: AppColors.danger.withValues(alpha: 0.35)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.error_outline_rounded, color: AppColors.danger, size: 16),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              errorMsg!,
+                              style: const TextStyle(color: AppColors.danger, fontSize: 12, fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: saving ? null : () => Navigator.of(dialogCtx).pop(),
+                child: const Text('Remind me later', style: TextStyle(color: kTextTertiary, fontWeight: FontWeight.w700, fontSize: 12.5)),
+              ),
+              FilledButton.icon(
+                onPressed: saving
+                    ? null
+                    : () async {
+                        final np = newPassCtrl.text.trim();
+                        final cp = confirmPassCtrl.text.trim();
+                        if (np.length < 8) {
+                          setDialogState(() => errorMsg = 'Password must be at least 8 characters long.');
+                          return;
+                        }
+                        if (np != cp) {
+                          setDialogState(() => errorMsg = 'Passwords do not match.');
+                          return;
+                        }
+                        setDialogState(() {
+                          saving = true;
+                          errorMsg = null;
+                        });
+                        try {
+                          final res = await patchApi(
+                            '/clients/me',
+                            headers: {
+                              'Authorization': 'Bearer ${_client.token}',
+                              'Content-Type': 'application/json',
+                            },
+                            body: jsonEncode({'password': np}),
+                          );
+                          final data = jsonDecode(res.body);
+                          if (res.statusCode == 200 && data['success'] == true) {
+                            final updatedClient = _client.copyWith(mustChangePassword: false);
+                            final prefs = await SharedPreferences.getInstance();
+                            await prefs.setBool('heiwa_pwd_prompt_changed_${_client.id}', true);
+                            await prefs.setString('heiwa_session_client', jsonEncode(updatedClient.toJson()));
+                            if (mounted) {
+                              setState(() => _client = updatedClient);
+                            }
+                            if (dialogCtx.mounted) Navigator.of(dialogCtx).pop();
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Password updated successfully! Your account is now secure.'),
+                                  backgroundColor: kEmerald,
+                                ),
+                              );
+                            }
+                          } else {
+                            setDialogState(() {
+                              errorMsg = data['message'] ?? 'Failed to update password.';
+                              saving = false;
+                            });
+                          }
+                        } catch (e) {
+                          setDialogState(() {
+                            errorMsg = 'Network error. Please try again.';
+                            saving = false;
+                          });
+                        }
+                      },
+                style: FilledButton.styleFrom(
+                  backgroundColor: kAmber,
+                  foregroundColor: const Color(0xFF071F15),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.sm)),
+                ),
+                icon: saving
+                    ? const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF071F15)),
+                      )
+                    : const Icon(Icons.check_rounded, size: 16),
+                label: Text(
+                  saving ? 'Saving...' : 'Update Password',
+                  style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
   }
 
   @override
@@ -389,7 +702,6 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
               _visitHistory = history;
               _historyUnavailable = false;
               _notificationsCleared = false;
-              _notifBadgeCount++;
             });
           }
         } else {
@@ -397,7 +709,6 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
           if (mounted) {
             setState(() {
               _notificationsCleared = false;
-              _notifBadgeCount++;
             });
           }
         }
@@ -828,7 +1139,7 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
               const SizedBox(width: 6),
               _headerIcon(Icons.chat_bubble_outline_rounded, 'Messages', () => _showMessagesModal(context)),
               const SizedBox(width: 6),
-              _headerIcon(Icons.notifications_none_rounded, 'Notifications', () => _showNotificationsModal(context), badge: _notifBadgeCount),
+              _headerIcon(Icons.notifications_none_rounded, 'Notifications', () => _showNotificationsModal(context), badge: _unreadNotifCount),
               const SizedBox(width: 8),
 
               // Profile avatar — circular amber with initials or photo
@@ -1291,14 +1602,12 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                           if (notifs.isNotEmpty) ...[
                             TextButton.icon(
                               onPressed: () {
+                                final ids = notifs.map((n) => n['id'] as String).toList();
+                                _persistAllReadNotifications(ids);
                                 setModalState(() {
-                                  for (final n in notifs) {
-                                    _readNotifIds.add(n['id'] as String);
-                                  }
+                                  _readNotifIds.addAll(ids);
                                 });
-                                setState(() {
-                                  _notifBadgeCount = 0;
-                                });
+                                setState(() {});
                               },
                               style: TextButton.styleFrom(
                                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
@@ -1319,7 +1628,6 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                                 });
                                 setState(() {
                                   _notificationsCleared = true;
-                                  _notifBadgeCount = 0;
                                 });
                               },
                               style: TextButton.styleFrom(
@@ -1335,9 +1643,20 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                             ),
                             const SizedBox(width: 4),
                           ],
-                          IconButton(
-                            icon: const Icon(Icons.close_rounded, size: 20, color: kTextTertiary),
-                            onPressed: () => Navigator.pop(ctx),
+                          Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              onTap: () => Navigator.of(ctx).pop(),
+                              borderRadius: BorderRadius.circular(20),
+                              child: Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.08),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.close_rounded, size: 20, color: kCream),
+                              ),
+                            ),
                           ),
                         ],
                       ),
@@ -1372,6 +1691,7 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                           itemCount: notifs.length,
                           itemBuilder: (context, i) {
                             final n = notifs[i];
+                            final isPwdAlert = n['isPasswordAlert'] == true;
                             return _notifTile(
                               context,
                               icon: n['icon'] as IconData,
@@ -1381,13 +1701,20 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                               body: n['body'] as String,
                               fullDetail: n['fullDetail'] as String,
                               read: _readNotifIds.contains(n['id'] as String),
+                              isPasswordAlert: isPwdAlert,
                               onTap: () {
+                                final notifId = n['id'] as String;
+                                _persistReadNotification(notifId);
                                 setModalState(() {
-                                  _readNotifIds.add(n['id'] as String);
+                                  _readNotifIds.add(notifId);
                                 });
                                 setState(() {
-                                  _readNotifIds.add(n['id'] as String);
+                                  _readNotifIds.add(notifId);
                                 });
+                                if (isPwdAlert) {
+                                  Navigator.of(ctx).pop();
+                                  _showFirstLoginChangePasswordDialog();
+                                }
                               },
                             );
                           },
@@ -1410,76 +1737,196 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
     required String body,
     required String fullDetail,
     bool read = false,
+    bool isPasswordAlert = false,
     VoidCallback? onTap,
   }) {
     return GestureDetector(
       onTap: () {
         onTap?.call();
-        _showNotificationDetailModal(
-          context,
-          icon: icon,
-          iconColor: iconColor,
-          title: title,
-          time: time,
-          body: body,
-          fullDetail: fullDetail,
+        if (isPasswordAlert) return;
+        showModalBottomSheet(
+          context: context,
+          backgroundColor: Colors.transparent,
+          builder: (detailCtx) => Container(
+            padding: const EdgeInsets.all(22),
+            decoration: const BoxDecoration(
+              color: kDarkSurface,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 38,
+                    height: 4,
+                    decoration: BoxDecoration(color: const Color(0xFF1B5E5B), borderRadius: BorderRadius.circular(2)),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(children: [
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: iconColor.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(AppRadius.sm + 2),
+                    ),
+                    child: Icon(icon, color: iconColor, size: 24),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(title, style: const TextStyle(fontSize: 16.5, fontWeight: FontWeight.w800, color: kTextPrimary)),
+                        const SizedBox(height: 3),
+                        Text(time, style: const TextStyle(fontSize: 11, color: kTextTertiary)),
+                      ],
+                    ),
+                  ),
+                ]),
+                const SizedBox(height: 20),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: kDarkSurfaceAlt,
+                    borderRadius: BorderRadius.circular(AppRadius.lg),
+                    border: Border.all(color: const Color(0xFF1B5E5B)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(body, style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: kTextPrimary)),
+                      const SizedBox(height: 8),
+                      Text(
+                        fullDetail,
+                        style: const TextStyle(fontSize: 12.5, color: kTextTertiary, height: 1.45),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 22),
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.of(detailCtx).pop(),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: kTurquoise,
+                      foregroundColor: Colors.white,
+                      shape: const RoundedRectangleBorder(borderRadius: AppRadius.buttonBR),
+                    ),
+                    child: const Text('Close notification'),
+                  ),
+                ),
+              ],
+            ),
+          ),
         );
       },
       child: Container(
         margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: read ? kDarkSurfaceAlt.withValues(alpha: 0.6) : kDarkSurfaceAlt,
           borderRadius: BorderRadius.circular(AppRadius.lg),
-          border: Border.all(color: read ? const Color(0xFF1B5E5B).withValues(alpha: 0.5) : const Color(0xFF1B5E5B)),
+          border: Border.all(
+            color: const Color(0xFF1B5E5B), // Standard teal border for entire card
+            width: 1.0,
+          ),
         ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 38, height: 38,
-              decoration: BoxDecoration(
-                color: iconColor.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(AppRadius.sm),
+        clipBehavior: Clip.antiAlias,
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Vertical accent indicator strip on the left edge:
+              // Amber line indicator kapag unread, Teal naman kapag read na
+              Container(
+                width: 4,
+                color: read ? const Color(0xFF1B5E5B) : kAmber,
               ),
-              child: Icon(icon, color: iconColor, size: 18),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        child: Text(title,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                                fontSize: 13.5,
-                                fontWeight: read ? FontWeight.w600 : FontWeight.w800,
-                                color: read ? kTextSecondary : kTextPrimary)),
+                      Container(
+                        width: 38,
+                        height: 38,
+                        decoration: BoxDecoration(
+                          color: iconColor.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(AppRadius.sm),
+                          border: Border.all(
+                            color: read ? const Color(0xFF1B5E5B) : kAmber.withValues(alpha: 0.4),
+                            width: 1,
+                          ),
+                        ),
+                        child: Icon(
+                          icon,
+                          color: iconColor,
+                          size: 19,
+                        ),
                       ),
-                      const SizedBox(width: 8),
-                      Text(time,
-                          style: const TextStyle(
-                              fontSize: 10.5, color: kTextTertiary)),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    title,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 13.5,
+                                      fontWeight: read ? FontWeight.w600 : FontWeight.w800,
+                                      color: read ? kTextSecondary : kTextPrimary,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  time,
+                                  style: TextStyle(
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w600,
+                                    color: read ? kTextTertiary : kTurquoiseLight,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              body,
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: read ? FontWeight.normal : FontWeight.w500,
+                                color: read ? kTextTertiary.withValues(alpha: 0.7) : kTextSecondary,
+                                height: 1.35,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Icon(
+                        Icons.chevron_right_rounded,
+                        color: read ? const Color(0xFF1B5E5B) : kAmber,
+                        size: 18,
+                      ),
                     ],
                   ),
-                  const SizedBox(height: 4),
-                  Text(body,
-                      style: TextStyle(
-                          fontSize: 12,
-                          color: read ? kTextTertiary.withValues(alpha: 0.7) : kTextTertiary,
-                          height: 1.35)),
-                ],
+                ),
               ),
-            ),
-            const SizedBox(width: 6),
-            const Icon(Icons.chevron_right_rounded,
-                color: kTurquoise, size: 18),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -1875,7 +2322,7 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
     );
   }
 
-  /// Enrolled / not-enrolled indicator, reused on Profile and Reports tabs.
+  /// Enrolled / not-enrolled indicator with Add / Delete Fingerprint actions.
   Widget _fingerprintStatusCard() {
     final enrolled = _client.fingerprintEnrolled;
     final accent = enrolled ? const Color(0xFF10B981) : const Color(0xFFF5A623);
@@ -1885,48 +2332,467 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
         color: const Color(0xFF0C251C),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: accent.withOpacity(enrolled ? 0.3 : 0.35),
+          color: accent.withValues(alpha: enrolled ? 0.3 : 0.35),
           width: 1.2,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.2),
+            color: Colors.black.withValues(alpha: 0.2),
             blurRadius: 10,
             offset: const Offset(0, 3),
           ),
         ],
       ),
-      child: Row(children: [
-        Container(
-          width: 38,
-          height: 38,
-          decoration: BoxDecoration(
-            color: accent.withOpacity(0.12),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: accent.withOpacity(0.3), width: 1),
-          ),
-          child: Icon(Icons.fingerprint_rounded, color: accent, size: 20),
-        ),
-        const SizedBox(width: 13),
-        Expanded(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Text(
-              'Fingerprint status',
-              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF9BB3A5)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: accent.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: accent.withValues(alpha: 0.3), width: 1),
+              ),
+              child: Icon(Icons.fingerprint_rounded, color: accent, size: 20),
             ),
-            const SizedBox(height: 2),
-            Text(
-              enrolled ? 'Enrolled · Identity verified' : 'Not enrolled',
-              style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800, color: accent),
+            const SizedBox(width: 13),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                const Text(
+                  'Fingerprint status',
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF9BB3A5)),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  enrolled ? 'Enrolled · Identity verified' : 'Not enrolled',
+                  style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800, color: accent),
+                ),
+              ]),
+            ),
+            Icon(
+              enrolled ? Icons.verified_rounded : Icons.warning_amber_rounded,
+              color: accent,
+              size: 20,
             ),
           ]),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: () => _showAddFingerprintDialog(),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: enrolled ? const Color(0xFF133628) : kAmber,
+                    foregroundColor: enrolled ? kCream : const Color(0xFF071F15),
+                    padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      side: enrolled ? BorderSide(color: accent.withValues(alpha: 0.35)) : BorderSide.none,
+                    ),
+                  ),
+                  icon: Icon(
+                    enrolled ? Icons.refresh_rounded : Icons.add_rounded,
+                    size: 16,
+                  ),
+                  label: Text(
+                    enrolled ? 'Re-enroll Fingerprint' : 'Add Fingerprint',
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+                  ),
+                ),
+              ),
+              if (enrolled) ...[
+                const SizedBox(width: 10),
+                OutlinedButton.icon(
+                  onPressed: () => _confirmDeleteFingerprint(),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFFF87171),
+                    side: BorderSide(color: const Color(0xFFF87171).withValues(alpha: 0.45)),
+                    padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  icon: const Icon(Icons.delete_outline_rounded, size: 16),
+                  label: const Text(
+                    'Delete',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _confirmDeleteFingerprint() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        backgroundColor: kDarkSurface,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          side: BorderSide(color: const Color(0xFFF87171).withValues(alpha: 0.4), width: 1.2),
         ),
-        Icon(
-          enrolled ? Icons.verified_rounded : Icons.warning_amber_rounded,
-          color: accent,
-          size: 20,
+        title: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: const Color(0xFFDC2626).withValues(alpha: 0.16),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFFF87171).withValues(alpha: 0.35)),
+              ),
+              child: const Icon(Icons.delete_forever_rounded, color: Color(0xFFF87171), size: 22),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                'Delete Fingerprint?',
+                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: kCream),
+              ),
+            ),
+          ],
         ),
-      ]),
+        content: const Text(
+          'Are you sure you want to remove your enrolled fingerprint from your account? You can re-enroll anytime.',
+          style: TextStyle(fontSize: 13, height: 1.45, color: kTextSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogCtx).pop(false),
+            child: const Text('Cancel', style: TextStyle(color: kTextTertiary, fontWeight: FontWeight.w700)),
+          ),
+          FilledButton.icon(
+            onPressed: () => Navigator.of(dialogCtx).pop(true),
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFFDC2626),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.sm)),
+            ),
+            icon: const Icon(Icons.delete_outline_rounded, size: 16),
+            label: const Text('Delete', style: TextStyle(fontWeight: FontWeight.w800)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true || !mounted) return;
+
+    try {
+      final res = await deleteApi(
+        '/fingerprint/me',
+        headers: {'Authorization': 'Bearer ${_client.token}'},
+      );
+      final data = jsonDecode(res.body);
+      if (res.statusCode == 200 && data['success'] == true) {
+        final updatedClient = _client.copyWith(fingerprintEnrolled: false);
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('heiwa_session_client', jsonEncode(updatedClient.toJson()));
+        if (mounted) {
+          setState(() => _client = updatedClient);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Fingerprint removed from your account.'),
+              backgroundColor: Color(0xFFDC2626),
+            ),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(data['message'] ?? 'Failed to remove fingerprint.'),
+              backgroundColor: Colors.red.shade900,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not delete fingerprint: $e'),
+            backgroundColor: Colors.red.shade900,
+          ),
+        );
+      }
+    }
+  }
+
+  void _showAddFingerprintDialog() {
+    String status = 'idle'; // idle | waiting | captured | saving | error
+    String? sessionId;
+    int? capturedId;
+    String? errorMsg;
+    Timer? pollTimer;
+
+    void stopPolling() {
+      pollTimer?.cancel();
+      pollTimer = null;
+    }
+
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          Future<void> saveFingerprint(int? fpId) async {
+            setDialogState(() {
+              status = 'saving';
+              errorMsg = null;
+            });
+            try {
+              final res = await postApi(
+                '/fingerprint/me/enroll',
+                headers: {
+                  'Authorization': 'Bearer ${_client.token}',
+                  'Content-Type': 'application/json',
+                },
+                body: jsonEncode({
+                  if (fpId != null) 'fingerprint_id': fpId,
+                }),
+              );
+              final data = jsonDecode(res.body);
+              if (res.statusCode == 200 && data['success'] == true) {
+                stopPolling();
+                final updatedClient = _client.copyWith(fingerprintEnrolled: true);
+                final prefs = await SharedPreferences.getInstance();
+                await prefs.setString('heiwa_session_client', jsonEncode(updatedClient.toJson()));
+                if (mounted) {
+                  setState(() => _client = updatedClient);
+                }
+                if (dialogCtx.mounted) Navigator.of(dialogCtx).pop();
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Fingerprint enrolled and linked to your account!'),
+                      backgroundColor: kEmerald,
+                    ),
+                  );
+                }
+              } else {
+                setDialogState(() {
+                  status = 'error';
+                  errorMsg = data['message'] ?? 'Failed to save fingerprint.';
+                });
+              }
+            } catch (e) {
+              setDialogState(() {
+                status = 'error';
+                errorMsg = 'Network error while saving fingerprint.';
+              });
+            }
+          }
+
+          Future<void> startHardwareScan() async {
+            stopPolling();
+            setDialogState(() {
+              status = 'waiting';
+              errorMsg = null;
+            });
+            try {
+              final res = await postApi(
+                '/fingerprint/enroll/start',
+                headers: {
+                  'Authorization': 'Bearer ${_client.token}',
+                  'Content-Type': 'application/json',
+                },
+                body: jsonEncode({'client_name': _client.fullName}),
+              );
+              final data = jsonDecode(res.body);
+              if (res.statusCode == 200 && data['success'] == true) {
+                sessionId = data['session_id']?.toString();
+                pollTimer = Timer.periodic(const Duration(seconds: 2), (_) async {
+                  if (sessionId == null) return;
+                  try {
+                    final stRes = await getApi(
+                      '/fingerprint/enroll/status/$sessionId',
+                      headers: {'Authorization': 'Bearer ${_client.token}'},
+                    );
+                    final stData = jsonDecode(stRes.body);
+                    if (stData['status'] == 'captured' && stData['fingerprint_id'] != null) {
+                      stopPolling();
+                      capturedId = int.tryParse(stData['fingerprint_id'].toString());
+                      await saveFingerprint(capturedId);
+                    } else if (stData['status'] == 'expired') {
+                      stopPolling();
+                      setDialogState(() {
+                        status = 'error';
+                        errorMsg = 'Scanner session expired. Please try again.';
+                      });
+                    }
+                  } catch (_) {}
+                });
+              } else {
+                setDialogState(() {
+                  status = 'error';
+                  errorMsg = data['message'] ?? 'Could not start scanner session.';
+                });
+              }
+            } catch (e) {
+              setDialogState(() {
+                status = 'error';
+                errorMsg = 'Cannot reach server to start scanner.';
+              });
+            }
+          }
+
+          return AlertDialog(
+            backgroundColor: kDarkSurface,
+            surfaceTintColor: Colors.transparent,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppRadius.lg),
+              side: BorderSide(color: kAmber.withValues(alpha: 0.4), width: 1.2),
+            ),
+            title: Row(
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: kAmber.withValues(alpha: 0.16),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: kAmber.withValues(alpha: 0.35)),
+                  ),
+                  child: const Icon(Icons.fingerprint_rounded, color: kAmber, size: 24),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Text(
+                    'Enroll Fingerprint',
+                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: kCream),
+                  ),
+                ),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(height: 6),
+                  Container(
+                    width: 84,
+                    height: 84,
+                    decoration: BoxDecoration(
+                      color: status == 'waiting'
+                          ? const Color(0xFF10B981).withValues(alpha: 0.15)
+                          : kAmber.withValues(alpha: 0.12),
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: status == 'waiting' ? const Color(0xFF10B981) : kAmber,
+                        width: 2,
+                      ),
+                    ),
+                    child: status == 'saving'
+                        ? const Padding(
+                            padding: EdgeInsets.all(24),
+                            child: CircularProgressIndicator(strokeWidth: 2.5, color: kAmber),
+                          )
+                        : Icon(
+                            Icons.fingerprint_rounded,
+                            size: 46,
+                            color: status == 'waiting' ? const Color(0xFF10B981) : kAmber,
+                          ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    status == 'waiting'
+                        ? 'Place your finger on the scanner...'
+                        : status == 'saving'
+                            ? 'Registering fingerprint...'
+                            : 'Register your biometric fingerprint for quick check-ins at the wellness center.',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 13, height: 1.45, color: kTextSecondary),
+                  ),
+                  if (errorMsg != null) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: AppColors.dangerTint,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: AppColors.danger.withValues(alpha: 0.35)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.error_outline_rounded, color: AppColors.danger, size: 16),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              errorMsg!,
+                              style: const TextStyle(fontSize: 12, color: AppColors.danger, fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 18),
+                  if (status != 'waiting' && status != 'saving') ...[
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton.icon(
+                        onPressed: startHardwareScan,
+                        style: FilledButton.styleFrom(
+                          backgroundColor: kAmber,
+                          foregroundColor: const Color(0xFF071F15),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                        icon: const Icon(Icons.sensors_rounded, size: 18),
+                        label: const Text(
+                          'Scan via Center Hardware',
+                          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () => saveFingerprint(null),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: kTurquoiseLight,
+                          side: BorderSide(color: kTurquoiseLight.withValues(alpha: 0.45)),
+                          padding: const EdgeInsets.symmetric(vertical: 11),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                        icon: const Icon(Icons.touch_app_rounded, size: 18),
+                        label: const Text(
+                          'Quick Register on Device',
+                          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12.5),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: status == 'saving'
+                    ? null
+                    : () {
+                        stopPolling();
+                        if (sessionId != null) {
+                          postApi(
+                            '/fingerprint/enroll/cancel/$sessionId',
+                            headers: {'Authorization': 'Bearer ${_client.token}'},
+                          ).ignore();
+                        }
+                        Navigator.of(dialogCtx).pop();
+                      },
+                child: const Text('Cancel', style: TextStyle(color: kTextTertiary, fontWeight: FontWeight.w700)),
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 
@@ -1975,9 +2841,12 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
     final remainder = sessions % 10;
     final progress = remainder == 0 && sessions > 0 ? 1.0 : remainder / 10;
     final toNext = sessions == 0 ? 10 : (10 - remainder) % 10;
-    // 1 Bottle / Session logged = 500 mL = 0.5 Liters
-    final totalMl = sessions * 500;
-    final totalLiters = (sessions * 0.5).toStringAsFixed(1);
+    // 1 Bottle = 1,000 mL = 1.0 Liter
+    // Each log adds 500 mL (0.5 Bottle / 0.5 Liter):
+    // e.g. 1 log = 500 mL / 0.5 L; 2 logs = 1,000 mL / 1.0 L (1 Bottle); 3 logs = 1,500 mL / 1.5 L (1.5 Bottles)
+    final totalMl = (sessions * 500); 
+    final totalLiters = (sessions * 0.5).toStringAsFixed(1); 
+    final bottleUnits = (sessions * 0.5).toStringAsFixed(1); // explicitly shows 1.5 Bottles, 1.0 Bottle, etc.
 
     // ── Daily hydration tracker ──────────────────────────────────────────────
     // Goal: 8 glasses per day, each glass = 250 mL → 2,000 mL / day (2 Liters)
@@ -2195,7 +3064,7 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                         ),
                       ),
                       child: const Text(
-                        '0.5 L / 500 mL per log',
+                        '1 Liter / bottle',
                         style: TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.w600,
@@ -2277,7 +3146,7 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                                     color: kTextTertiary)),
                             const SizedBox(height: 4),
                             Text(
-                              '$sessions ${sessions == 1 ? 'Bottle' : 'Bottles'}',
+                              '$bottleUnits ${bottleUnits == '1' ? 'Bottle' : 'Bottles'}',
                               style: const TextStyle(
                                 fontSize: 20,
                                 fontWeight: FontWeight.w900,
@@ -2287,7 +3156,7 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                             ),
                             const SizedBox(height: 2),
                             const Text(
-                              'Standard 0.5 L (500 mL) units',
+                              'Standard 1.0 L / bottle',
                               style: TextStyle(
                                 fontSize: 10.5,
                                 fontWeight: FontWeight.w600,
@@ -2689,7 +3558,7 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                                 // Volume label
                                 if (count > 0)
                                   Text(
-                                    '${count * 500}mL',
+                                    '${(count * 500)}mL',
                                     style: TextStyle(
                                       fontSize: 8,
                                       fontWeight: FontWeight.w600,
@@ -2736,7 +3605,7 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                             color: Color(0xFF34D399), size: 16),
                         const SizedBox(width: 6),
                         Text(
-                          'Peak: $maxCount session${maxCount == 1 ? '' : 's'} (${maxCount * 500} mL) in a day',
+                          'Peak: $maxCount bottle${maxCount == 1 ? '' : 's'} (${maxCount * 1000} mL) in a day',
                           style: const TextStyle(
                             fontSize: 11.5,
                             fontWeight: FontWeight.w700,
@@ -3798,6 +4667,29 @@ class _MessagesModalContentState extends State<_MessagesModalContent> {
   bool _sending = false;
   Timer? _timer;
 
+  static const List<Map<String, String>> _faqSuggestions = [
+    {
+      'label': '🕒 Operating hours?',
+      'question': 'What are the wellness center operating hours?',
+    },
+    {
+      'label': '💧 Daily water intake?',
+      'question': 'How many glasses of alkaline water should I drink daily?',
+    },
+    {
+      'label': '👆 Enroll fingerprint?',
+      'question': 'How do I enroll or update my biometric fingerprint?',
+    },
+    {
+      'label': '✅ Check-in verification',
+      'question': 'Can I request a check-in or attendance verification?',
+    },
+    {
+      'label': '🔐 Change password?',
+      'question': 'How can I update my personal profile or password?',
+    },
+  ];
+
   @override
   void initState() {
     super.initState();
@@ -3831,8 +4723,22 @@ class _MessagesModalContentState extends State<_MessagesModalContent> {
     }
   }
 
-  Future<void> _sendMessage() async {
-    final text = _msgCtrl.text.trim();
+  Future<void> _markAllAsRead() async {
+    try {
+      await patchApi(
+        '/messages/read',
+        headers: {
+          'Authorization': 'Bearer ${widget.client.token}',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({'client_id': widget.client.id}),
+      );
+      await _fetchMessages();
+    } catch (_) {}
+  }
+
+  Future<void> _sendMessage([String? customText]) async {
+    final text = (customText ?? _msgCtrl.text).trim();
     if (text.isEmpty || _sending) return;
 
     setState(() => _sending = true);
@@ -3849,7 +4755,7 @@ class _MessagesModalContentState extends State<_MessagesModalContent> {
         }),
       );
       if (res.statusCode == 200) {
-        _msgCtrl.clear();
+        if (customText == null) _msgCtrl.clear();
         await _fetchMessages();
       }
     } catch (e) {
@@ -3865,14 +4771,31 @@ class _MessagesModalContentState extends State<_MessagesModalContent> {
 
   @override
   Widget build(BuildContext context) {
+    // Filter messages for the selected recipient channel and sort NEWEST FIRST (at TOP)
     final filtered = _messages.where((m) {
       final r = m['recipient'] ?? '';
       final s = m['sender'] ?? '';
       return r == _recipient || s == _recipient;
-    }).toList();
+    }).toList()
+      ..sort((a, b) {
+        final aId = int.tryParse((a['id'] ?? '0').toString()) ?? 0;
+        final bId = int.tryParse((b['id'] ?? '0').toString()) ?? 0;
+        return bId.compareTo(aId);
+      });
+
+    // Calculate unread counts per channel for hierarchy
+    final adminUnread = _messages.where((m) => m['sender'] == 'admin' && m['read_by_client'] != true && m['read_by_client'] != 1).length;
+    final staffUnread = _messages.where((m) => m['sender'] == 'staff' && m['read_by_client'] != true && m['read_by_client'] != 1).length;
+
+    // Sort channels so whichever has unread messages is placed first (leftmost)
+    final channels = [
+      {'key': 'admin', 'label': 'Admin Support', 'icon': Icons.admin_panel_settings_outlined, 'unread': adminUnread},
+      {'key': 'staff', 'label': 'Center Staff', 'icon': Icons.support_agent_rounded, 'unread': staffUnread},
+    ]..sort((a, b) => (b['unread'] as int).compareTo(a['unread'] as int));
 
     return Container(
-      height: MediaQuery.of(context).size.height * 0.78,
+      height: MediaQuery.of(context).size.height * 0.85,
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       decoration: const BoxDecoration(
         color: kDarkSurface,
         borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xxl)),
@@ -3885,7 +4808,7 @@ class _MessagesModalContentState extends State<_MessagesModalContent> {
             decoration: BoxDecoration(color: const Color(0xFF1B5E5B), borderRadius: BorderRadius.circular(2)),
           ),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -3900,6 +4823,7 @@ class _MessagesModalContentState extends State<_MessagesModalContent> {
                   children: [
                     TextButton.icon(
                       onPressed: () {
+                        _markAllAsRead();
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: const Text('All messages marked as read'),
@@ -3920,7 +4844,7 @@ class _MessagesModalContentState extends State<_MessagesModalContent> {
                       ),
                       icon: const Icon(Icons.done_all_rounded, size: 16, color: kTurquoise),
                       label: const Text(
-                        'Mark all as read',
+                        'Mark read',
                         style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: kTurquoise),
                       ),
                     ),
@@ -3934,6 +4858,8 @@ class _MessagesModalContentState extends State<_MessagesModalContent> {
               ],
             ),
           ),
+
+          // ── Channel Hierarchy Switcher (Unread channels promoted first) ──
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
             child: Container(
@@ -3944,56 +4870,184 @@ class _MessagesModalContentState extends State<_MessagesModalContent> {
                 border: Border.all(color: const Color(0xFF1B5E5B)),
               ),
               child: Row(
-                children: [
-                  Expanded(
+                children: channels.map((ch) {
+                  final key = ch['key'] as String;
+                  final label = ch['label'] as String;
+                  final icon = ch['icon'] as IconData;
+                  final unread = ch['unread'] as int;
+                  final active = _recipient == key;
+                  return Expanded(
                     child: GestureDetector(
-                      onTap: () => setState(() => _recipient = 'admin'),
+                      onTap: () => setState(() => _recipient = key),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 9),
+                        padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 8),
                         decoration: BoxDecoration(
-                          color: _recipient == 'admin' ? kTurquoise : Colors.transparent,
+                          color: active ? kTurquoise : Colors.transparent,
                           borderRadius: BorderRadius.circular(AppRadius.xs + 2),
                         ),
-                        child: Center(
-                          child: Text(
-                            'Admin Support',
-                            style: TextStyle(
-                              fontSize: 12.5,
-                              fontWeight: FontWeight.w800,
-                              color: _recipient == 'admin' ? Colors.white : kTextTertiary,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(icon, size: 15, color: active ? Colors.white : kTextTertiary),
+                            const SizedBox(width: 6),
+                            Flexible(
+                              child: Text(
+                                label,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w800,
+                                  color: active ? Colors.white : kTextTertiary,
+                                ),
+                              ),
                             ),
-                          ),
+                            if (unread > 0) ...[
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: kAmber,
+                                  borderRadius: BorderRadius.circular(99),
+                                ),
+                                child: Text(
+                                  '$unread',
+                                  style: const TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w900,
+                                    color: Color(0xFF071F15),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
                       ),
                     ),
-                  ),
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () => setState(() => _recipient = 'staff'),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 9),
-                        decoration: BoxDecoration(
-                          color: _recipient == 'staff' ? kTurquoise : Colors.transparent,
-                          borderRadius: BorderRadius.circular(AppRadius.xs + 2),
-                        ),
-                        child: Center(
-                          child: Text(
-                            'Staff',
-                            style: TextStyle(
-                              fontSize: 12.5,
-                              fontWeight: FontWeight.w800,
-                              color: _recipient == 'staff' ? Colors.white : kTextTertiary,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+                  );
+                }).toList(),
               ),
             ),
           ),
-          const Divider(height: 1, color: Color(0xFF1B5E5B)),
+
+          // ── Suggestive Messages / Frequently Asked Questions (FAQs) ──
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 10),
+            decoration: const BoxDecoration(
+              border: Border(bottom: BorderSide(color: Color(0xFF1B5E5B))),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Row(
+                  children: [
+                    Icon(Icons.auto_awesome_rounded, size: 13, color: kAmber),
+                    SizedBox(width: 5),
+                    Text(
+                      'FREQUENTLY ASKED QUESTIONS (TAP TO SEND)',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.8,
+                        color: kAmber,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: _faqSuggestions.map((faq) {
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: InkWell(
+                          onTap: _sending ? null : () => _sendMessage(faq['question']),
+                          borderRadius: BorderRadius.circular(99),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF133628),
+                              borderRadius: BorderRadius.circular(99),
+                              border: Border.all(color: kAmber.withValues(alpha: 0.35)),
+                            ),
+                            child: Text(
+                              faq['label']!,
+                              style: const TextStyle(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w700,
+                                color: kCream,
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // ── Compose Input Box at TOP right above the newest message feed ──
+          Container(
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+            decoration: const BoxDecoration(
+              color: kDarkSurface,
+              border: Border(bottom: BorderSide(color: Color(0xFF1B5E5B))),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _msgCtrl,
+                    minLines: 1,
+                    maxLines: 3,
+                    textInputAction: TextInputAction.send,
+                    onSubmitted: (_) => _sendMessage(),
+                    style: const TextStyle(color: Colors.white, fontSize: 13.5),
+                    decoration: InputDecoration(
+                      hintText: 'Ask or message ${_recipient == 'admin' ? 'Admin' : 'Staff'}...',
+                      hintStyle: const TextStyle(color: kTextTertiary, fontSize: 12.5),
+                      filled: true,
+                      fillColor: kDarkSurfaceAlt,
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(AppRadius.pill),
+                          borderSide: const BorderSide(color: Color(0xFF1B5E5B))),
+                      enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(AppRadius.pill),
+                          borderSide: const BorderSide(color: Color(0xFF1B5E5B))),
+                      focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(AppRadius.pill),
+                          borderSide: const BorderSide(color: kTurquoise, width: 1.5)),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 9),
+                GestureDetector(
+                  onTap: () => _sendMessage(),
+                  child: Container(
+                    width: 42, height: 42,
+                    decoration: const BoxDecoration(
+                      color: kTurquoise,
+                      shape: BoxShape.circle,
+                    ),
+                    child: _sending
+                        ? const Padding(
+                            padding: EdgeInsets.all(11),
+                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                          )
+                        : const Icon(Icons.send_rounded, color: Colors.white, size: 18),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // ── Messages List (Hierarchy: Newest Chat at the TOP) ──
           Expanded(
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
@@ -4003,41 +5057,65 @@ class _MessagesModalContentState extends State<_MessagesModalContent> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Container(
-                              width: 60, height: 60,
+                              width: 56, height: 56,
                               decoration: BoxDecoration(
                                   color: kTurquoise.withValues(alpha: 0.15), shape: BoxShape.circle),
                               child: const Icon(Icons.chat_bubble_outline_rounded,
-                                  color: kTurquoise, size: 26),
+                                  color: kTurquoise, size: 24),
                             ),
-                            const SizedBox(height: 14),
+                            const SizedBox(height: 12),
                             Text(
                               'No messages with ${_recipient == 'admin' ? 'Admin' : 'Staff'} yet',
                               style: const TextStyle(
-                                  fontSize: 14,
+                                  fontSize: 13.5,
                                   fontWeight: FontWeight.w700,
                                   color: kTextPrimary),
                             ),
                             const SizedBox(height: 4),
-                            const Text('Type below to start the conversation.',
+                            const Text('Tap an FAQ chip above or type a message.',
                                 style: TextStyle(fontSize: 12, color: kTextTertiary)),
                           ],
                         ),
                       )
                     : ListView.builder(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: filtered.length,
+                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 18),
+                        itemCount: filtered.length + 1,
                         itemBuilder: (ctx, i) {
-                          final msg = filtered[i];
+                          if (i == 0) {
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 10),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.vertical_align_top_rounded, size: 13, color: kTurquoiseLight),
+                                  const SizedBox(width: 5),
+                                  Text(
+                                    'LATEST MESSAGES FIRST (${filtered.length})',
+                                    style: const TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: 0.9,
+                                      color: kTurquoiseLight,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }
+                          final idx = i - 1;
+                          final msg = filtered[idx];
                           final isMe = msg['sender'] == 'client';
+                          final isLatest = idx == 0;
                           return Align(
                             alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
                             child: Container(
                               margin: const EdgeInsets.only(bottom: 10),
                               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-                              constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.72),
+                              constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.76),
                               decoration: BoxDecoration(
                                 color: isMe ? kTurquoise : kDarkSurfaceAlt,
-                                border: isMe ? null : Border.all(color: const Color(0xFF1B5E5B)),
+                                border: isLatest
+                                    ? Border.all(color: kAmber.withValues(alpha: 0.7), width: 1.3)
+                                    : (isMe ? null : Border.all(color: const Color(0xFF1B5E5B))),
                                 borderRadius: BorderRadius.only(
                                   topLeft: const Radius.circular(AppRadius.md),
                                   topRight: const Radius.circular(AppRadius.md),
@@ -4048,6 +5126,39 @@ class _MessagesModalContentState extends State<_MessagesModalContent> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        isMe ? 'YOU' : (_recipient == 'admin' ? 'ADMIN SUPPORT' : 'CENTER STAFF'),
+                                        style: TextStyle(
+                                          fontSize: 9.5,
+                                          fontWeight: FontWeight.w900,
+                                          letterSpacing: 0.6,
+                                          color: isMe ? Colors.white.withValues(alpha: 0.85) : kAmber,
+                                        ),
+                                      ),
+                                      if (isLatest) ...[
+                                        const SizedBox(width: 8),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                                          decoration: BoxDecoration(
+                                            color: isMe ? Colors.black.withValues(alpha: 0.25) : kAmber.withValues(alpha: 0.2),
+                                            borderRadius: BorderRadius.circular(99),
+                                          ),
+                                          child: Text(
+                                            'NEWEST',
+                                            style: TextStyle(
+                                              fontSize: 8.5,
+                                              fontWeight: FontWeight.w900,
+                                              color: isMe ? Colors.white : kAmber,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                  const SizedBox(height: 4),
                                   Text(
                                     msg['text'] ?? '',
                                     style: const TextStyle(
@@ -4073,61 +5184,6 @@ class _MessagesModalContentState extends State<_MessagesModalContent> {
                         },
                       ),
           ),
-          Container(
-            padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
-            decoration: const BoxDecoration(
-              color: kDarkSurface,
-              border: Border(top: BorderSide(color: Color(0xFF1B5E5B))),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _msgCtrl,
-                    minLines: 1,
-                    maxLines: 4,
-                    textInputAction: TextInputAction.send,
-                    onSubmitted: (_) => _sendMessage(),
-                    style: const TextStyle(color: Colors.white, fontSize: 13.5),
-                    decoration: InputDecoration(
-                      hintText: 'Message ${_recipient == 'admin' ? 'Admin' : 'Staff'}...',
-                      hintStyle: const TextStyle(color: kTextTertiary, fontSize: 13),
-                      filled: true,
-                      fillColor: kDarkSurfaceAlt,
-                      isDense: true,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(AppRadius.pill),
-                          borderSide: const BorderSide(color: Color(0xFF1B5E5B))),
-                      enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(AppRadius.pill),
-                          borderSide: const BorderSide(color: Color(0xFF1B5E5B))),
-                      focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(AppRadius.pill),
-                          borderSide: const BorderSide(color: kTurquoise, width: 1.5)),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 9),
-                GestureDetector(
-                  onTap: _sendMessage,
-                  child: Container(
-                    width: 44, height: 44,
-                    decoration: const BoxDecoration(
-                      color: kTurquoise,
-                      shape: BoxShape.circle,
-                    ),
-                    child: _sending
-                        ? const Padding(
-                            padding: EdgeInsets.all(12),
-                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                          )
-                        : const Icon(Icons.send_rounded, color: Colors.white, size: 19),
-                  ),
-                ),
-              ],
-            ),
-          ),
         ],
       ),
     );
@@ -4142,6 +5198,38 @@ const Map<String, List<String>> kCalabarzonPlaces = {
   'Quezon': ['Agdangan','Alabat','Atimonan','Buenavista','Burdeos','Calauag','Candelaria','Catanauan','Dolores','General Luna','General Nakar','Guinayangan','Gumaca','Infanta','Jomalig','Lopez','Lucban','Lucena City','Macalelon','Mauban','Mulanay','Padre Burgos','Pagbilao','Panukulan','Patnanungan','Perez','Pitogo','Plaridel','Polillo','Quezon','Real','Sampaloc','San Andres','San Antonio','San Francisco','San Narciso','Sariaya','Tagkawayan','Tayabas City','Tiaong','Unisan'],
   'Rizal': ['Angono','Antipolo City','Baras','Binangonan','Cainta','Cardona','Jalajala','Morong','Pililla','Rodriguez','San Mateo','Tanay','Taytay','Teresa'],
 };
+
+class _TitleCaseTextInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    if (newValue.text.isEmpty) return newValue;
+    final text = newValue.text;
+    final buffer = StringBuffer();
+    bool capitalizeNext = true;
+
+    for (int i = 0; i < text.length; i++) {
+      final char = text[i];
+      if (char == ' ' || char == '-' || char == '.') {
+        buffer.write(char);
+        capitalizeNext = true;
+      } else if (capitalizeNext) {
+        buffer.write(char.toUpperCase());
+        capitalizeNext = false;
+      } else {
+        buffer.write(char);
+      }
+    }
+
+    final formatted = buffer.toString();
+    return TextEditingValue(
+      text: formatted,
+      selection: newValue.selection,
+    );
+  }
+}
 
 // ─── Edit Profile Modal Content ───────────────────────────────────────────────
 class _EditProfileModalContent extends StatefulWidget {
@@ -4271,8 +5359,31 @@ class _EditProfileModalContentState extends State<_EditProfileModalContent> {
   String? get _emailError {
     final v = _emailCtrl.text.trim();
     if (v.isEmpty) return null; // optional
-    if (!RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(v)) {
-      return 'Enter a valid email address (e.g. name@domain.com).';
+    final emailRegex = RegExp(r'^(?!.*\.\.)[a-zA-Z0-9._%+-]+@([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})$');
+    final match = emailRegex.firstMatch(v);
+    if (match == null) {
+      return 'Enter a valid email address with a recognized domain (e.g. name@gmail.com).';
+    }
+    final domain = match.group(1)?.toLowerCase() ?? '';
+    final domainParts = domain.split('.');
+    const disallowed = {'example', 'test', 'invalid', 'localhost', 'sample', 'fake', 'mailinator', 'tempmail', '10minutemail', 'throwaway'};
+    if (domainParts.any((p) => disallowed.contains(p))) {
+      return 'Temporary or example email domains are not allowed.';
+    }
+    const validCommonDomains = {
+      'gmail.com', 'yahoo.com', 'yahoo.com.ph', 'outlook.com', 'hotmail.com',
+      'live.com', 'icloud.com', 'aol.com', 'zoho.com', 'proton.me', 'protonmail.com'
+    };
+    const standardTlds = {
+      'com', 'net', 'org', 'edu', 'gov', 'mil', 'ph', 'com.ph', 'edu.ph', 'gov.ph',
+      'io', 'co', 'me', 'info', 'biz', 'app', 'dev', 'tech', 'center', 'health'
+    };
+    final tld = domainParts.last;
+    final isCommon = validCommonDomains.contains(domain);
+    final hasValidTld = standardTlds.contains(tld) ||
+        (domainParts.length >= 2 && standardTlds.contains('${domainParts[domainParts.length - 2]}.$tld'));
+    if (!isCommon && !hasValidTld) {
+      return 'Please enter an email with a valid domain (e.g. gmail.com, yahoo.com).';
     }
     return null;
   }
@@ -4600,6 +5711,8 @@ class _EditProfileModalContentState extends State<_EditProfileModalContent> {
                     label: 'First Name',
                     icon: Icons.person_rounded,
                     textCapitalization: TextCapitalization.words,
+                    inputFormatters: [_TitleCaseTextInputFormatter(), LengthLimitingTextInputFormatter(20)],
+                    maxLength: 20,
                     errorText: _firstNameError,
                     onChanged: (_) => setState(() {}),
                   ),
@@ -4608,6 +5721,8 @@ class _EditProfileModalContentState extends State<_EditProfileModalContent> {
                     label: 'Middle Name (Optional)',
                     icon: Icons.person_outline_rounded,
                     textCapitalization: TextCapitalization.words,
+                    inputFormatters: [_TitleCaseTextInputFormatter(), LengthLimitingTextInputFormatter(20)],
+                    maxLength: 20,
                     errorText: _middleNameError,
                     onChanged: (_) => setState(() {}),
                   ),
@@ -4616,6 +5731,8 @@ class _EditProfileModalContentState extends State<_EditProfileModalContent> {
                     label: 'Last Name',
                     icon: Icons.person_rounded,
                     textCapitalization: TextCapitalization.words,
+                    inputFormatters: [_TitleCaseTextInputFormatter(), LengthLimitingTextInputFormatter(20)],
+                    maxLength: 20,
                     errorText: _lastNameError,
                     onChanged: (_) => setState(() {}),
                   ),
@@ -4732,6 +5849,8 @@ class _EditProfileModalContentState extends State<_EditProfileModalContent> {
                     label: 'Emergency Contact First Name',
                     icon: Icons.person_rounded,
                     textCapitalization: TextCapitalization.words,
+                    inputFormatters: [_TitleCaseTextInputFormatter(), LengthLimitingTextInputFormatter(20)],
+                    maxLength: 20,
                     errorText: _emergencyFirstNameError,
                     onChanged: (_) => setState(() {}),
                   ),
@@ -4740,6 +5859,8 @@ class _EditProfileModalContentState extends State<_EditProfileModalContent> {
                     label: 'Emergency Contact Middle Name (Optional)',
                     icon: Icons.person_outline_rounded,
                     textCapitalization: TextCapitalization.words,
+                    inputFormatters: [_TitleCaseTextInputFormatter(), LengthLimitingTextInputFormatter(20)],
+                    maxLength: 20,
                     errorText: _emergencyMiddleNameError,
                     onChanged: (_) => setState(() {}),
                   ),
@@ -4748,6 +5869,8 @@ class _EditProfileModalContentState extends State<_EditProfileModalContent> {
                     label: 'Emergency Contact Last Name',
                     icon: Icons.person_rounded,
                     textCapitalization: TextCapitalization.words,
+                    inputFormatters: [_TitleCaseTextInputFormatter(), LengthLimitingTextInputFormatter(20)],
+                    maxLength: 20,
                     errorText: _emergencyLastNameError,
                     onChanged: (_) => setState(() {}),
                   ),

@@ -162,6 +162,9 @@ async function migrate(db) {
   if (!clientColumns.some(column => (column.column_name || column.name) === 'profile_photo')) {
     await db.execute('ALTER TABLE clients ADD COLUMN profile_photo TEXT');
   }
+  if (!clientColumns.some(column => (column.column_name || column.name) === 'must_change_password')) {
+    await db.execute('ALTER TABLE clients ADD COLUMN must_change_password BOOLEAN DEFAULT TRUE');
+  }
 
   // 4. Archived Clients
   await db.execute(`

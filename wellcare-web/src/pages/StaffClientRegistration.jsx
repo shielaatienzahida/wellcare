@@ -126,13 +126,56 @@ export default function StaffClientRegistration({ onRegistered, onBack }) {
     };
   }, [enrollSessionId, fpStatus]);
 
+  const validateSingleField = (name, value) => {
+    switch (name) {
+      case 'first_name':
+        return value.trim() ? validateName(value, 'First name') : 'First name is required.';
+      case 'last_name':
+        return value.trim() ? validateName(value, 'Last name') : 'Last name is required.';
+      case 'middle_name':
+        return value.trim() ? validateName(value, 'Middle name') : '';
+      case 'emergency_contact':
+        return value.trim() ? validateName(value, 'Emergency contact name') : '';
+      case 'birthdate':
+        return value ? validateDateOfBirth(value, 3) : 'Birthdate is required.';
+      case 'gender':
+        return value ? '' : 'Gender is required.';
+      case 'contact_number':
+        return validateRequired(value, 'Contact number') || validateContactNumber(value);
+      case 'email':
+        return value.trim() ? validateEmail(value) : '';
+      case 'emergency_number':
+        return value.trim() && !/^09\d{9}$/.test(value.trim())
+          ? 'Emergency contact number must be exactly 11 digits and start with 09.'
+          : '';
+      default:
+        return '';
+    }
+  };
+
   const handleChange = event => {
     const { name, value } = event.target;
-    const nextValue = ['first_name', 'last_name', 'middle_name', 'emergency_contact'].includes(name)
+    let nextValue = ['first_name', 'last_name', 'middle_name', 'emergency_contact'].includes(name)
       ? formatPersonName(value)
       : value;
+    if (['contact_number', 'emergency_number'].includes(name)) {
+      nextValue = nextValue.replace(/\D/g, '').slice(0, 11);
+    }
     setForm(current => ({ ...current, [name]: nextValue }));
-    setErrors(current => ({ ...current, [name]: '' }));
+    const fieldError = validateSingleField(name, nextValue);
+    setErrors(current => ({ ...current, [name]: fieldError }));
+  };
+
+  const handleAddressChange = (values) => {
+    const nextForm = { ...form, ...values };
+    setForm(nextForm);
+    const addrError = validateAddressSelection(nextForm);
+    const bgyError = nextForm.barangay?.trim() ? '' : (values.barangay !== undefined ? 'Barangay is required.' : '');
+    setErrors(current => ({
+      ...current,
+      address: addrError,
+      barangay: bgyError,
+    }));
   };
 
   const goToFingerprint = () => {
@@ -263,7 +306,7 @@ export default function StaffClientRegistration({ onRegistered, onBack }) {
               <CalabarzonAddressFields
                 {...form}
                 barangay={form.barangay}
-                onChange={values => { setForm(current => ({ ...current, ...values })); setErrors(current => ({ ...current, address: '', barangay: '' })); }}
+                onChange={handleAddressChange}
                 error={errors.address}
                 barangayError={errors.barangay}
               />

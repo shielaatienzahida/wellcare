@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Eye, EyeOff, Lock, User, ArrowLeft } from 'lucide-react';
+import { Eye, EyeOff, Lock, User, ArrowLeft, KeyRound, Mail, X, ShieldCheck, CheckCircle2 } from 'lucide-react';
 import { api } from '../api';
+import { validateEmail, validatePassword } from '../formValidation';
 import logoImg from '../assets/logo.jpg';
 
 // Decode JWT and check expiry (no library needed)
@@ -28,11 +29,47 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [showPasswordHelp, setShowPasswordHelp] = useState(false);
   const [resetForm, setResetForm] = useState({ email: '', newPassword: '', confirmPassword: '', otp: '' });
+  const [resetFieldErrors, setResetFieldErrors] = useState({ email: '', newPassword: '', confirmPassword: '', otp: '' });
   const [resetKey, setResetKey] = useState('');
   const [resetError, setResetError] = useState('');
   const [resetMessage, setResetMessage] = useState('');
   const [resetLoading, setResetLoading] = useState(false);
   const [resetComplete, setResetComplete] = useState(false);
+
+  const handleResetChange = (field, value) => {
+    setResetForm(prev => {
+      const updated = { ...prev, [field]: value };
+
+      // Real-time validation
+      let error = '';
+      if (field === 'email') {
+        error = validateEmail(value);
+      } else if (field === 'newPassword') {
+        error = validatePassword(value);
+      } else if (field === 'confirmPassword') {
+        if (!value) {
+          error = '';
+        } else if (value !== updated.newPassword) {
+          error = 'Passwords do not match.';
+        }
+      } else if (field === 'otp') {
+        if (value && value.length !== 6) {
+          error = 'OTP must be exactly 6 digits.';
+        }
+      }
+
+      setResetFieldErrors(errs => {
+        const next = { ...errs, [field]: error };
+        // If changing newPassword, also re-validate confirmPassword if already typed
+        if (field === 'newPassword' && updated.confirmPassword) {
+          next.confirmPassword = updated.confirmPassword !== value ? 'Passwords do not match.' : '';
+        }
+        return next;
+      });
+
+      return updated;
+    });
+  };
 
   // Session guard — only redirect if the stored token is still valid
   useEffect(() => {
@@ -77,21 +114,42 @@ export default function LoginPage() {
   const requestResetCode = async event => {
     event.preventDefault(); setResetError('');
     if (!form.username.trim()) { setResetError('Enter your username in the login form first.'); return; }
+
+    const emailErr = validateEmail(resetForm.email);
+    const passErr = validatePassword(resetForm.newPassword);
+    const confirmErr = resetForm.confirmPassword !== resetForm.newPassword ? 'Passwords do not match.' : '';
+
+    if (emailErr || passErr || confirmErr) {
+      setResetFieldErrors({
+        email: emailErr,
+        newPassword: passErr,
+        confirmPassword: confirmErr,
+        otp: ''
+      });
+      return;
+    }
+
     setResetLoading(true);
     try {
-      const result = await api.requestPasswordReset({ username: form.username.trim(), email: resetForm.email, newPassword: resetForm.newPassword, confirmPassword: resetForm.confirmPassword });
+      const result = await api.requestPasswordReset({ username: form.username.trim(), email: resetForm.email.trim(), newPassword: resetForm.newPassword, confirmPassword: resetForm.confirmPassword });
       setResetKey(result.resetKey); setResetMessage('OTP sent. It expires in 3 minutes.');
     } catch (err) { setResetError(err.message || 'Could not send OTP.'); }
     finally { setResetLoading(false); }
   };
 
   const verifyResetCode = async event => {
-    event.preventDefault(); setResetError(''); setResetLoading(true);
+    event.preventDefault(); setResetError('');
+    if (!resetForm.otp || resetForm.otp.length !== 6) {
+      setResetFieldErrors(prev => ({ ...prev, otp: 'OTP must be exactly 6 digits.' }));
+      return;
+    }
+    setResetLoading(true);
     try {
       await api.verifyPasswordReset(resetKey, resetForm.otp);
       setResetKey(''); setResetMessage('Password updated. You can now sign in.');
       setResetComplete(true);
       setResetForm({ email: '', newPassword: '', confirmPassword: '', otp: '' });
+      setResetFieldErrors({ email: '', newPassword: '', confirmPassword: '', otp: '' });
     } catch (err) { setResetError(err.message || 'Could not verify OTP.'); }
     finally { setResetLoading(false); }
   };
@@ -197,7 +255,7 @@ export default function LoginPage() {
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
-            <button type="button" onClick={() => { setResetComplete(false); setResetKey(''); setResetError(''); setResetMessage(''); setShowPasswordHelp(true); }} style={{ alignSelf: 'flex-end', padding: '2px 0', border: 0, background: 'none', color: 'var(--emerald-700)', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer' }}>
+            <button type="button" onClick={() => { setResetComplete(false); setResetKey(''); setResetError(''); setResetMessage(''); setResetFieldErrors({ email: '', newPassword: '', confirmPassword: '', otp: '' }); setShowPasswordHelp(true); }} style={{ alignSelf: 'flex-end', padding: '2px 0', border: 0, background: 'none', color: 'var(--emerald-700)', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer' }}>
               Forgot password?
             </button>
           </div>
@@ -214,23 +272,260 @@ export default function LoginPage() {
         </p>
       </div>
       {showPasswordHelp && (
-        <div role="presentation" onClick={() => setShowPasswordHelp(false)} style={{ position: 'fixed', inset: 0, zIndex: 30, display: 'grid', placeItems: 'center', padding: 20, background: 'rgba(6, 35, 22, 0.48)' }}>
-          <section role="dialog" aria-modal="true" aria-labelledby="password-help-title" onClick={event => event.stopPropagation()} style={{ width: 'min(100%, 420px)', maxHeight: '90vh', overflowY: 'auto', padding: 24, borderRadius: 18, background: '#fff', boxShadow: '0 20px 60px rgba(0,0,0,.2)' }}>
-            <h3 id="password-help-title" style={{ color: 'var(--emerald-950)', fontSize: '1.15rem', fontWeight: 800 }}>Reset your password</h3>
-            <p style={{ marginTop: 10, marginBottom: 16, color: resetComplete ? 'var(--emerald-700)' : 'var(--text-muted)', fontSize: '0.9rem', lineHeight: 1.6 }}>{resetComplete ? resetMessage : resetKey ? 'Enter the 6-digit OTP sent to your account email. It expires in 3 minutes.' : `We will send an OTP to the email saved for ${form.username.trim() || 'your account'}.`}</p>
-            {resetComplete ? <button type="button" className="btn-primary" onClick={() => { setShowPasswordHelp(false); setResetComplete(false); }} style={{ display: 'block', marginLeft: 'auto' }}>Back to sign in</button> : resetKey ? <form onSubmit={verifyResetCode}>
-              <label className="login-label" htmlFor="reset-otp">Email OTP</label>
-              <input id="reset-otp" className="login-input" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={resetForm.otp} onChange={event => setResetForm(current => ({ ...current, otp: event.target.value.replace(/\D/g, '') }))} required />
-              {resetError && <div className="login-error" style={{ marginTop: 12 }}>{resetError}</div>}
-              {resetMessage.startsWith('Password updated') && <p role="status" style={{ marginTop: 10, color: 'var(--emerald-700)' }}>{resetMessage}</p>}
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 18 }}><button type="button" className="btn-logout" onClick={() => { setResetKey(''); setResetError(''); }}>Back</button><button type="submit" className="btn-primary" disabled={resetLoading}>{resetLoading ? 'Verifying...' : 'Verify and Save'}</button></div>
-            </form> : <form onSubmit={requestResetCode} style={{ display: 'grid', gap: 10 }}>
-              <input className="login-input" type="email" placeholder="Email saved for this account" autoComplete="email" value={resetForm.email} onChange={event => setResetForm(current => ({ ...current, email: event.target.value }))} required />
-              <input className="login-input" type="password" placeholder="New password (at least 8 characters)" autoComplete="new-password" minLength={8} value={resetForm.newPassword} onChange={event => setResetForm(current => ({ ...current, newPassword: event.target.value }))} required />
-              <input className="login-input" type="password" placeholder="Confirm new password" autoComplete="new-password" minLength={8} value={resetForm.confirmPassword} onChange={event => setResetForm(current => ({ ...current, confirmPassword: event.target.value }))} required />
-              {resetError && <div className="login-error">{resetError}</div>}
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 6 }}><button type="button" className="btn-logout" onClick={() => setShowPasswordHelp(false)}>Cancel</button><button type="submit" className="btn-primary" disabled={resetLoading}>{resetLoading ? 'Sending OTP...' : 'Save and send OTP'}</button></div>
-            </form>}
+        <div
+          role="presentation"
+          onClick={() => setShowPasswordHelp(false)}
+          className="modal-overlay"
+          style={{ zIndex: 100 }}
+        >
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="password-help-title"
+            onClick={event => event.stopPropagation()}
+            className="modal-card"
+            style={{
+              maxWidth: '460px',
+              padding: '28px',
+              borderRadius: '24px',
+              boxShadow: '0 25px 60px -15px rgba(2, 44, 34, 0.35), 0 0 0 1px rgba(16, 185, 129, 0.15)',
+              position: 'relative'
+            }}
+          >
+            {/* Close button */}
+            <button
+              type="button"
+              onClick={() => setShowPasswordHelp(false)}
+              style={{
+                position: 'absolute',
+                top: 20,
+                right: 20,
+                background: 'var(--emerald-50)',
+                border: '1px solid rgba(16, 185, 129, 0.2)',
+                borderRadius: '50%',
+                width: 32,
+                height: 32,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'var(--emerald-800)',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+              aria-label="Close"
+            >
+              <X size={18} />
+            </button>
+
+            {/* Header Icon + Title */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 12 }}>
+              <div
+                style={{
+                  width: 46,
+                  height: 46,
+                  borderRadius: 14,
+                  background: 'linear-gradient(135deg, var(--emerald-50) 0%, var(--emerald-100) 100%)',
+                  border: '1px solid rgba(16, 185, 129, 0.25)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'var(--emerald-700)',
+                  boxShadow: '0 4px 12px rgba(4, 106, 56, 0.1)'
+                }}
+              >
+                {resetComplete ? <CheckCircle2 size={24} color="var(--emerald-600)" /> : resetKey ? <ShieldCheck size={24} /> : <KeyRound size={24} />}
+              </div>
+              <div>
+                <h3 id="password-help-title" className="modal-title" style={{ fontSize: '1.25rem', marginBottom: 2 }}>
+                  {resetComplete ? 'Password Updated!' : resetKey ? 'Verify Email OTP' : 'Reset your password'}
+                </h3>
+                <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--emerald-600)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  {resetComplete ? 'Success' : resetKey ? 'Step 2 of 2' : 'Step 1 of 2'}
+                </span>
+              </div>
+            </div>
+
+            <p style={{
+              marginTop: 4,
+              marginBottom: 20,
+              color: resetComplete ? 'var(--emerald-700)' : 'var(--text-muted)',
+              fontSize: '0.9rem',
+              lineHeight: 1.5,
+              background: resetComplete ? 'var(--emerald-50)' : '#f8fafc',
+              padding: '10px 14px',
+              borderRadius: '12px',
+              border: resetComplete ? '1px solid rgba(16, 185, 129, 0.2)' : '1px solid #e2e8f0'
+            }}>
+              {resetComplete
+                ? resetMessage
+                : resetKey
+                ? 'Enter the 6-digit OTP code sent to your account email. It will expire in 3 minutes.'
+                : `We'll send a one-time verification code (OTP) to the email associated with ${form.username.trim() || 'your account'}.`}
+            </p>
+
+            {resetComplete ? (
+              <button
+                type="button"
+                className="btn-primary btn-full"
+                onClick={() => { setShowPasswordHelp(false); setResetComplete(false); }}
+                style={{ marginTop: 8 }}
+              >
+                Back to Sign In
+              </button>
+            ) : resetKey ? (
+              <form onSubmit={verifyResetCode} style={{ display: 'grid', gap: 14 }}>
+                <div style={{ display: 'grid', gap: 6 }}>
+                  <label className="login-label" htmlFor="reset-otp" style={{ fontSize: '0.84rem' }}>
+                    Enter 6-digit OTP
+                  </label>
+                  <div style={{ position: 'relative' }}>
+                    <ShieldCheck
+                      size={18}
+                      style={{
+                        position: 'absolute',
+                        left: '14px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        color: 'var(--emerald-600)',
+                        opacity: 0.7
+                      }}
+                    />
+                    <input
+                      id="reset-otp"
+                      className={`login-input ${resetFieldErrors.otp ? 'reg-input-error' : ''}`}
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      maxLength={6}
+                      placeholder="000000"
+                      style={{ paddingLeft: '42px', letterSpacing: '4px', fontWeight: 700, fontSize: '1.1rem' }}
+                      value={resetForm.otp}
+                      onChange={event => handleResetChange('otp', event.target.value.replace(/\D/g, ''))}
+                      required
+                    />
+                  </div>
+                  {resetFieldErrors.otp && <span className="reg-error-msg">{resetFieldErrors.otp}</span>}
+                </div>
+
+                {resetError && <div className="login-error" style={{ margin: 0 }}>{resetError}</div>}
+                {resetMessage.startsWith('Password updated') && (
+                  <p role="status" style={{ margin: 0, color: 'var(--emerald-700)', fontSize: '0.88rem', fontWeight: 600 }}>
+                    {resetMessage}
+                  </p>
+                )}
+
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={() => { setResetKey(''); setResetError(''); setResetFieldErrors(prev => ({ ...prev, otp: '' })); }}
+                  >
+                    Back
+                  </button>
+                  <button type="submit" className="btn-primary" disabled={resetLoading}>
+                    {resetLoading ? 'Verifying...' : 'Verify & Save Password'}
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <form onSubmit={requestResetCode} style={{ display: 'grid', gap: 14 }}>
+                <div style={{ display: 'grid', gap: 5 }}>
+                  <label className="login-label" style={{ fontSize: '0.84rem' }}>Account Email</label>
+                  <div style={{ position: 'relative' }}>
+                    <Mail
+                      size={18}
+                      style={{
+                        position: 'absolute',
+                        left: '14px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        color: 'var(--emerald-600)',
+                        opacity: 0.7
+                      }}
+                    />
+                    <input
+                      className={`login-input ${resetFieldErrors.email ? 'reg-input-error' : ''}`}
+                      type="email"
+                      placeholder="e.g. name@gmail.com"
+                      autoComplete="email"
+                      style={{ paddingLeft: '42px' }}
+                      value={resetForm.email}
+                      onChange={event => handleResetChange('email', event.target.value)}
+                      required
+                    />
+                  </div>
+                  {resetFieldErrors.email && <span className="reg-error-msg">{resetFieldErrors.email}</span>}
+                </div>
+
+                <div style={{ display: 'grid', gap: 5 }}>
+                  <label className="login-label" style={{ fontSize: '0.84rem' }}>New Password</label>
+                  <div style={{ position: 'relative' }}>
+                    <Lock
+                      size={18}
+                      style={{
+                        position: 'absolute',
+                        left: '14px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        color: 'var(--emerald-600)',
+                        opacity: 0.7
+                      }}
+                    />
+                    <input
+                      className={`login-input ${resetFieldErrors.newPassword ? 'reg-input-error' : ''}`}
+                      type="password"
+                      placeholder="At least 8 characters"
+                      autoComplete="new-password"
+                      minLength={8}
+                      style={{ paddingLeft: '42px' }}
+                      value={resetForm.newPassword}
+                      onChange={event => handleResetChange('newPassword', event.target.value)}
+                      required
+                    />
+                  </div>
+                  {resetFieldErrors.newPassword && <span className="reg-error-msg">{resetFieldErrors.newPassword}</span>}
+                </div>
+
+                <div style={{ display: 'grid', gap: 5 }}>
+                  <label className="login-label" style={{ fontSize: '0.84rem' }}>Confirm New Password</label>
+                  <div style={{ position: 'relative' }}>
+                    <Lock
+                      size={18}
+                      style={{
+                        position: 'absolute',
+                        left: '14px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        color: 'var(--emerald-600)',
+                        opacity: 0.7
+                      }}
+                    />
+                    <input
+                      className={`login-input ${resetFieldErrors.confirmPassword ? 'reg-input-error' : ''}`}
+                      type="password"
+                      placeholder="Re-type new password"
+                      autoComplete="new-password"
+                      minLength={8}
+                      style={{ paddingLeft: '42px' }}
+                      value={resetForm.confirmPassword}
+                      onChange={event => handleResetChange('confirmPassword', event.target.value)}
+                      required
+                    />
+                  </div>
+                  {resetFieldErrors.confirmPassword && <span className="reg-error-msg">{resetFieldErrors.confirmPassword}</span>}
+                </div>
+
+                {resetError && <div className="login-error" style={{ margin: 0 }}>{resetError}</div>}
+
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
+                  <button type="button" className="btn-secondary" onClick={() => setShowPasswordHelp(false)}>
+                    Cancel
+                  </button>
+                  <button type="submit" className="btn-primary" disabled={resetLoading}>
+                    {resetLoading ? 'Sending OTP...' : 'Save & Send OTP'}
+                  </button>
+                </div>
+              </form>
+            )}
           </section>
         </div>
       )}

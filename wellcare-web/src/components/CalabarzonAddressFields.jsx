@@ -67,7 +67,7 @@ export default function CalabarzonAddressFields({ region, province, city_municip
         )}
         {barangayError && <span className="reg-error-msg">{barangayError}</span>}
       </div>
-      {error && <span className="reg-error-msg">{error}</span>}
+      {error && !barangayError && <span className="reg-error-msg">{error}</span>}
     </div>
   );
 }

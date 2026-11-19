@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import AdminLayout from '../components/AdminLayout';
+import { validateEmail } from '../formValidation';
 import { 
   Lock, 
   Eye, 
@@ -92,6 +93,14 @@ export default function AdminProfile() {
     e.preventDefault();
     setBusinessError('');
     setBusinessSuccess('');
+
+    if (email.trim()) {
+      const emailErr = validateEmail(email.trim());
+      if (emailErr) {
+        setBusinessError(emailErr);
+        return;
+      }
+    }
 
     if (isEmailModified && !currentPassword) {
       setBusinessError('Please enter your current password to authorize changing your email address.');
@@ -471,147 +480,7 @@ export default function AdminProfile() {
           </form>
         </div>
 
-        {/* ── 3. Landing Page Hero Image Customizer ── */}
-        <div className="bg-white/70 backdrop-blur-xl border border-white/60 shadow-glass rounded-2xl p-6 sm:p-7 relative">
-          <div className="flex items-center justify-between pb-4 border-b border-emerald-900/10 mb-6">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-emerald-100/70 text-emerald-800 flex items-center justify-center shadow-sm">
-                <Image size={20} />
-              </div>
-              <div>
-                <h2 className="text-lg font-bold text-wellcare-deep">Landing Page Hero Banner</h2>
-                <p className="text-xs text-wellcare-dark/60 font-medium">
-                  Customize the front homepage illustration (e.g., Holiday Specials, Christmas, Anniversary banners)
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {heroImageError && (
-            <div className="mb-5 p-3.5 bg-red-50 border border-red-200 rounded-xl text-red-700 text-xs font-bold flex items-center gap-2">
-              <AlertCircle size={16} />
-              <span>{heroImageError}</span>
-            </div>
-          )}
-
-          {heroImageSuccess && (
-            <div className="mb-5 p-3.5 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-xs font-bold flex items-center gap-2">
-              <CheckCircle2 size={16} className="text-emerald-600" />
-              <span>{heroImageSuccess}</span>
-            </div>
-          )}
-
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
-            {/* Live Preview Box */}
-            <div className="md:col-span-5 flex flex-col items-center">
-              <label className="block text-xs font-bold uppercase tracking-wider text-wellcare-dark/80 mb-2 self-start">
-                Live Preview
-              </label>
-              <div className="w-full max-w-[280px] aspect-[4/3] rounded-2xl overflow-hidden border-2 border-emerald-900/15 bg-emerald-50/50 shadow-md relative group flex items-center justify-center">
-                {heroImageUrl ? (
-                  <img
-                    src={heroImageUrl}
-                    alt="Custom Landing Hero"
-                    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                  />
-                ) : (
-                  <div className="p-4 text-center text-xs font-semibold text-emerald-800/70 flex flex-col items-center gap-2">
-                    <Sparkles size={24} className="text-emerald-600" />
-                    <span>Default Wellness & Therapy Illustration</span>
-                  </div>
-                )}
-                <div className="absolute bottom-2 left-2 right-2 bg-black/60 backdrop-blur-md rounded-lg py-1 px-2.5 text-center text-[11px] font-bold text-white truncate shadow">
-                  {heroBadgeText || 'Wellness & Therapy Verified'}
-                </div>
-              </div>
-            </div>
-
-            {/* Controls Box */}
-            <div className="md:col-span-7 flex flex-col gap-4">
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-wellcare-dark/80 mb-1.5">
-                  Holiday / Promotion Badge Text
-                </label>
-                <input
-                  type="text"
-                  value={heroBadgeText}
-                  onChange={(e) => setHeroBadgeText(e.target.value)}
-                  placeholder="e.g. 🎄 Christmas Holiday Special! or 5th Anniversary Promo"
-                  maxLength={60}
-                  className="w-full bg-white/90 border border-emerald-950/15 rounded-xl px-3.5 py-2.5 text-sm font-medium text-wellcare-deep placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-600/30 focus:border-emerald-600 transition-all shadow-sm"
-                />
-                <p className="text-[11px] text-wellcare-dark/50 mt-1">
-                  Text displayed on the floating tag beneath the banner illustration.
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-wellcare-dark/80 mb-1.5">
-                  Banner Image Source
-                </label>
-                <div className="flex flex-col sm:flex-row gap-2.5">
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    onChange={handleImageFileChange}
-                    accept="image/*"
-                    className="hidden"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100/70 text-emerald-900 border border-emerald-300 font-bold text-xs shadow-sm transition-all active:scale-95"
-                  >
-                    <Upload size={15} />
-                    <span>Upload Image File</span>
-                  </button>
-
-                  {heroImageUrl && (
-                    <button
-                      type="button"
-                      onClick={handleResetToDefaultHero}
-                      disabled={heroImageSaving}
-                      className="inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-300 font-bold text-xs shadow-sm transition-all"
-                    >
-                      <RotateCcw size={14} />
-                      <span>Revert to Default</span>
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-wellcare-dark/80 mb-1.5">
-                  Or Paste Direct Image URL
-                </label>
-                <input
-                  type="url"
-                  value={heroImageUrl.startsWith('data:') ? '' : heroImageUrl}
-                  onChange={(e) => setHeroImageUrl(e.target.value)}
-                  placeholder="https://example.com/holiday-banner.png"
-                  className="w-full bg-white/90 border border-emerald-950/15 rounded-xl px-3.5 py-2.5 text-sm font-medium text-wellcare-deep placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-600/30 focus:border-emerald-600 transition-all shadow-sm"
-                />
-                <p className="text-[11px] text-wellcare-dark/50 mt-1">
-                  You can also paste any web link (HTTPS) of an image or flyer.
-                </p>
-              </div>
-
-              <div className="flex justify-end pt-2">
-                <button
-                  type="button"
-                  onClick={handleSaveHeroImage}
-                  disabled={heroImageSaving}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-wellcare-primary to-emerald-700 text-white font-bold text-sm shadow-md hover:shadow-lg hover:brightness-105 active:scale-95 transition-all disabled:opacity-50"
-                >
-                  <Save size={16} />
-                  <span>{heroImageSaving ? 'Publishing...' : 'Publish to Landing Page'}</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* ── 4. Change Password Card ── */}
+        {/* ── 3. Change Password Card ── */}
         <div className="bg-white/70 backdrop-blur-xl border border-white/60 shadow-glass rounded-2xl p-6 sm:p-7 relative">
           <div className="flex items-center justify-between pb-4 border-b border-emerald-900/10 mb-6">
             <div className="flex items-center gap-3">
@@ -749,6 +618,146 @@ export default function AdminProfile() {
               </button>
             </div>
           </form>
+        </div>
+
+        {/* ── 4. Landing Page Hero Image Customizer ── */}
+        <div className="bg-white/70 backdrop-blur-xl border border-white/60 shadow-glass rounded-2xl p-6 sm:p-7 relative">
+          <div className="flex items-center justify-between pb-4 border-b border-emerald-900/10 mb-6">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-100/70 text-emerald-800 flex items-center justify-center shadow-sm">
+                <Image size={20} />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-wellcare-deep">Landing Page Hero Banner</h2>
+                <p className="text-xs text-wellcare-dark/60 font-medium">
+                  Customize the front homepage illustration (e.g., Holiday Specials, Christmas, Anniversary banners)
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {heroImageError && (
+            <div className="mb-5 p-3.5 bg-red-50 border border-red-200 rounded-xl text-red-700 text-xs font-bold flex items-center gap-2">
+              <AlertCircle size={16} />
+              <span>{heroImageError}</span>
+            </div>
+          )}
+
+          {heroImageSuccess && (
+            <div className="mb-5 p-3.5 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-xs font-bold flex items-center gap-2">
+              <CheckCircle2 size={16} className="text-emerald-600" />
+              <span>{heroImageSuccess}</span>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
+            {/* Live Preview Box */}
+            <div className="md:col-span-5 flex flex-col items-center">
+              <label className="block text-xs font-bold uppercase tracking-wider text-wellcare-dark/80 mb-2 self-start">
+                Live Preview
+              </label>
+              <div className="w-full max-w-[280px] aspect-[4/3] rounded-2xl overflow-hidden border-2 border-emerald-900/15 bg-emerald-50/50 shadow-md relative group flex items-center justify-center">
+                {heroImageUrl ? (
+                  <img
+                    src={heroImageUrl}
+                    alt="Custom Landing Hero"
+                    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                  />
+                ) : (
+                  <div className="p-4 text-center text-xs font-semibold text-emerald-800/70 flex flex-col items-center gap-2">
+                    <Sparkles size={24} className="text-emerald-600" />
+                    <span>Default Wellness & Therapy Illustration</span>
+                  </div>
+                )}
+                <div className="absolute bottom-2 left-2 right-2 bg-black/60 backdrop-blur-md rounded-lg py-1 px-2.5 text-center text-[11px] font-bold text-white truncate shadow">
+                  {heroBadgeText || 'Wellness & Therapy Verified'}
+                </div>
+              </div>
+            </div>
+
+            {/* Controls Box */}
+            <div className="md:col-span-7 flex flex-col gap-4">
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-wellcare-dark/80 mb-1.5">
+                  Holiday / Promotion Badge Text
+                </label>
+                <input
+                  type="text"
+                  value={heroBadgeText}
+                  onChange={(e) => setHeroBadgeText(e.target.value)}
+                  placeholder="e.g. 🎄 Christmas Holiday Special! or 5th Anniversary Promo"
+                  maxLength={60}
+                  className="w-full bg-white/90 border border-emerald-950/15 rounded-xl px-3.5 py-2.5 text-sm font-medium text-wellcare-deep placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-600/30 focus:border-emerald-600 transition-all shadow-sm"
+                />
+                <p className="text-[11px] text-wellcare-dark/50 mt-1">
+                  Text displayed on the floating tag beneath the banner illustration.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-wellcare-dark/80 mb-1.5">
+                  Banner Image Source
+                </label>
+                <div className="flex flex-col sm:flex-row gap-2.5">
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleImageFileChange}
+                    accept="image/*"
+                    className="hidden"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100/70 text-emerald-900 border border-emerald-300 font-bold text-xs shadow-sm transition-all active:scale-95"
+                  >
+                    <Upload size={15} />
+                    <span>Upload Image File</span>
+                  </button>
+
+                  {heroImageUrl && (
+                    <button
+                      type="button"
+                      onClick={handleResetToDefaultHero}
+                      disabled={heroImageSaving}
+                      className="inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-300 font-bold text-xs shadow-sm transition-all"
+                    >
+                      <RotateCcw size={14} />
+                      <span>Revert to Default</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-wellcare-dark/80 mb-1.5">
+                  Or Paste Direct Image URL
+                </label>
+                <input
+                  type="url"
+                  value={heroImageUrl.startsWith('data:') ? '' : heroImageUrl}
+                  onChange={(e) => setHeroImageUrl(e.target.value)}
+                  placeholder="https://example.com/holiday-banner.png"
+                  className="w-full bg-white/90 border border-emerald-950/15 rounded-xl px-3.5 py-2.5 text-sm font-medium text-wellcare-deep placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-600/30 focus:border-emerald-600 transition-all shadow-sm"
+                />
+                <p className="text-[11px] text-wellcare-dark/50 mt-1">
+                  You can also paste any web link (HTTPS) of an image or flyer.
+                </p>
+              </div>
+
+              <div className="flex justify-end pt-2">
+                <button
+                  type="button"
+                  onClick={handleSaveHeroImage}
+                  disabled={heroImageSaving}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-wellcare-primary to-emerald-700 text-white font-bold text-sm shadow-md hover:shadow-lg hover:brightness-105 active:scale-95 transition-all disabled:opacity-50"
+                >
+                  <Save size={16} />
+                  <span>{heroImageSaving ? 'Publishing...' : 'Publish to Landing Page'}</span>
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
 
       </div>

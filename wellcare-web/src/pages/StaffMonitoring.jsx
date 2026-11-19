@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { RefreshCw, UserRound, CheckCircle2, CalendarX2, Pencil, Trash2, X, UserPlus, Fingerprint } from 'lucide-react';
 import { api } from '../api';
 import AdminLayout from '../components/AdminLayout';
+import CalabarzonAddressFields from '../components/CalabarzonAddressFields';
 import calabarzonPlaces from '../calabarzonPlaces.json';
 import calabarzonBarangays from '../calabarzonBarangays.json';
 import { hasFieldErrors, validateAddressSelection, validateContactNumber, validateEmail, validateFullName, validateName, validateRequired, validateRequiredDateOfBirth } from '../formValidation';
@@ -338,13 +339,63 @@ emergency_contact: member.emergency_contact || '', emergency_number: member.emer
                     </label>
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14 }}>
-                    <label className="reg-field"><span className="reg-label">Date of Birth <span className="req">*</span></span><input className={`reg-input ${staffValidationErrors.birthdate ? 'reg-input-error' : ''}`} type="date" max={localDateString()} value={newStaff.birthdate} onChange={event => { setNewStaff(form => ({ ...form, birthdate: event.target.value })); setAddStaffError(''); setStaffValidationErrors(errors => ({ ...errors, birthdate: '' })); }} />{staffValidationErrors.birthdate && <span className="reg-error-msg">{staffValidationErrors.birthdate}</span>}</label>
+                    <label className="reg-field">
+                      <span className="reg-label">Date of Birth <span className="req">*</span></span>
+                      <input
+                        className={`reg-input ${staffValidationErrors.birthdate ? 'reg-input-error' : ''}`}
+                        type="date"
+                        max={localDateString()}
+                        value={newStaff.birthdate}
+                        onChange={event => {
+                          const val = event.target.value;
+                          setNewStaff(form => ({ ...form, birthdate: val }));
+                          setAddStaffError('');
+                          setStaffValidationErrors(errors => ({
+                            ...errors,
+                            birthdate: val ? validateRequiredDateOfBirth(val) : 'Date of birth is required.'
+                          }));
+                        }}
+                      />
+                      {staffValidationErrors.birthdate && <span className="reg-error-msg">{staffValidationErrors.birthdate}</span>}
+                    </label>
                     <label className="reg-field"><span className="reg-label">Age</span><input className="reg-input" value={getAge(newStaff.birthdate)} readOnly placeholder="Calculated from date of birth" /></label>
                   </div>
                   <label className="reg-field"><span className="reg-label">Region</span><select className="reg-input" value={newStaff.region} disabled><option value="CALABARZON">Region IV-A (CALABARZON)</option></select></label>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14 }}>
-                    <label className="reg-field"><span className="reg-label">Province <span className="req">*</span></span><select className={`reg-input ${staffValidationErrors.address ? 'reg-input-error' : ''}`} value={newStaff.province} onChange={event => { setNewStaff(form => ({ ...form, province: event.target.value, city_municipality: '', barangay: '' })); setAddStaffError(''); setStaffValidationErrors(errors => ({ ...errors, address: '', barangay: '' })); }}><option value="">Select province</option>{Object.keys(calabarzonPlaces).map(province => <option key={province} value={province}>{province}</option>)}</select></label>
-                    <label className="reg-field"><span className="reg-label">City / Municipality <span className="req">*</span></span><select className={`reg-input ${staffValidationErrors.address ? 'reg-input-error' : ''}`} value={newStaff.city_municipality} disabled={!newStaff.province} onChange={event => { setNewStaff(form => ({ ...form, city_municipality: event.target.value, barangay: '' })); setAddStaffError(''); setStaffValidationErrors(errors => ({ ...errors, address: '', barangay: '' })); }}><option value="">Select city / municipality</option>{(calabarzonPlaces[newStaff.province] || []).map(place => <option key={place} value={place}>{place}</option>)}</select>{staffValidationErrors.address && <span className="reg-error-msg">{staffValidationErrors.address}</span>}</label>
+                    <label className="reg-field">
+                      <span className="reg-label">Province <span className="req">*</span></span>
+                      <select
+                        className={`reg-input ${staffValidationErrors.address ? 'reg-input-error' : ''}`}
+                        value={newStaff.province}
+                        onChange={event => {
+                          const next = { ...newStaff, province: event.target.value, city_municipality: '', barangay: '' };
+                          setNewStaff(next);
+                          setAddStaffError('');
+                          setStaffValidationErrors(errors => ({ ...errors, address: validateAddressSelection(next), barangay: '' }));
+                        }}
+                      >
+                        <option value="">Select province</option>
+                        {Object.keys(calabarzonPlaces).map(province => <option key={province} value={province}>{province}</option>)}
+                      </select>
+                    </label>
+                    <label className="reg-field">
+                      <span className="reg-label">City / Municipality <span className="req">*</span></span>
+                      <select
+                        className={`reg-input ${staffValidationErrors.address ? 'reg-input-error' : ''}`}
+                        value={newStaff.city_municipality}
+                        disabled={!newStaff.province}
+                        onChange={event => {
+                          const next = { ...newStaff, city_municipality: event.target.value, barangay: '' };
+                          setNewStaff(next);
+                          setAddStaffError('');
+                          setStaffValidationErrors(errors => ({ ...errors, address: validateAddressSelection(next), barangay: '' }));
+                        }}
+                      >
+                        <option value="">Select city / municipality</option>
+                        {(calabarzonPlaces[newStaff.province] || []).map(place => <option key={place} value={place}>{place}</option>)}
+                      </select>
+                      {staffValidationErrors.address && <span className="reg-error-msg">{staffValidationErrors.address}</span>}
+                    </label>
                   </div>
                   <label className="reg-field">
                     <span className="reg-label">Barangay <span className="req">*</span></span>
@@ -354,9 +405,10 @@ emergency_contact: member.emergency_contact || '', emergency_number: member.emer
                         value={newStaff.barangay || ''}
                         disabled={!newStaff.city_municipality}
                         onChange={event => {
-                          setNewStaff(form => ({ ...form, barangay: event.target.value }));
+                          const val = event.target.value;
+                          setNewStaff(form => ({ ...form, barangay: val }));
                           setAddStaffError('');
-                          setStaffValidationErrors(errors => ({ ...errors, barangay: '' }));
+                          setStaffValidationErrors(errors => ({ ...errors, barangay: val.trim() ? '' : 'Barangay is required.' }));
                         }}
                       >
                         <option value="">{newStaff.city_municipality ? 'Select barangay' : 'Select city first'}</option>
@@ -371,17 +423,56 @@ emergency_contact: member.emergency_contact || '', emergency_number: member.emer
                         value={newStaff.barangay || ''}
                         disabled={!newStaff.city_municipality}
                         onChange={event => {
-                          setNewStaff(form => ({ ...form, barangay: event.target.value }));
+                          const val = event.target.value;
+                          setNewStaff(form => ({ ...form, barangay: val }));
                           setAddStaffError('');
-                          setStaffValidationErrors(errors => ({ ...errors, barangay: '' }));
+                          setStaffValidationErrors(errors => ({ ...errors, barangay: val.trim() ? '' : 'Barangay is required.' }));
                         }}
                       />
                     )}
                     {staffValidationErrors.barangay && <span className="reg-error-msg">{staffValidationErrors.barangay}</span>}
                   </label>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14 }}>
-                    <label className="reg-field"><span className="reg-label">Email <span className="req">*</span></span><input className={`reg-input ${staffValidationErrors.email ? 'reg-input-error' : ''}`} type="email" autoComplete="email" placeholder="name@example.com" value={newStaff.email} onChange={event => { setNewStaff(form => ({ ...form, email: event.target.value })); setAddStaffError(''); setStaffValidationErrors(errors => ({ ...errors, email: '' })); }} />{staffValidationErrors.email && <span className="reg-error-msg">{staffValidationErrors.email}</span>}</label>
-                    <label className="reg-field"><span className="reg-label">Contact Number <span className="req">*</span></span><input className={`reg-input ${staffValidationErrors.contact_number ? 'reg-input-error' : ''}`} type="tel" autoComplete="tel" inputMode="numeric" maxLength={11} value={newStaff.contact_number} onChange={event => { setNewStaff(form => ({ ...form, contact_number: event.target.value })); setStaffValidationErrors(errors => ({ ...errors, contact_number: '' })); }} />{staffValidationErrors.contact_number && <span className="reg-error-msg">{staffValidationErrors.contact_number}</span>}</label>
+                    <label className="reg-field">
+                      <span className="reg-label">Email <span className="req">*</span></span>
+                      <input
+                        className={`reg-input ${staffValidationErrors.email ? 'reg-input-error' : ''}`}
+                        type="email"
+                        autoComplete="email"
+                        placeholder="name@example.com"
+                        value={newStaff.email}
+                        onChange={event => {
+                          const val = event.target.value;
+                          setNewStaff(form => ({ ...form, email: val }));
+                          setAddStaffError('');
+                          setStaffValidationErrors(errors => ({
+                            ...errors,
+                            email: val.trim() ? validateEmail(val) : 'Email is required.'
+                          }));
+                        }}
+                      />
+                      {staffValidationErrors.email && <span className="reg-error-msg">{staffValidationErrors.email}</span>}
+                    </label>
+                    <label className="reg-field">
+                      <span className="reg-label">Contact Number <span className="req">*</span></span>
+                      <input
+                        className={`reg-input ${staffValidationErrors.contact_number ? 'reg-input-error' : ''}`}
+                        type="tel"
+                        autoComplete="tel"
+                        inputMode="numeric"
+                        maxLength={11}
+                        value={newStaff.contact_number}
+                        onChange={event => {
+                          const val = event.target.value.replace(/\D/g, '').slice(0, 11);
+                          setNewStaff(form => ({ ...form, contact_number: val }));
+                          setStaffValidationErrors(errors => ({
+                            ...errors,
+                            contact_number: validateRequired(val, 'Contact number') || validateContactNumber(val)
+                          }));
+                        }}
+                      />
+                      {staffValidationErrors.contact_number && <span className="reg-error-msg">{staffValidationErrors.contact_number}</span>}
+                    </label>
                   </div>
                   {addStaffError && <div className="login-error" role="alert">{addStaffError}</div>}
                   <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 5 }}>
@@ -501,7 +592,18 @@ const fieldErrors = {
                 <label className="reg-field"><span className="reg-label">Gender</span><select className="reg-input" value={editForm.gender} onChange={event => updateEditForm('gender', event.target.value)}><option value="">Select gender</option><option value="Male">Male</option><option value="Female">Female</option><option value="Other">Other</option></select></label>
               </div>
               <label className="reg-field"><span className="reg-label">Contact Number</span><input className={`reg-input ${editErrors.contact_number ? 'reg-input-error' : ''}`} type="tel" inputMode="numeric" maxLength={11} value={editForm.contact_number} onChange={event => updateEditForm('contact_number', event.target.value)} />{editErrors.contact_number && <span className="reg-error-msg">{editErrors.contact_number}</span>}</label>
-              <CalabarzonAddressFields {...editForm} onChange={values => { setEditForm(form => ({ ...form, ...values })); clearEditFieldError('address'); }} error={editErrors.address} />
+              <CalabarzonAddressFields
+                {...editForm}
+                onChange={values => {
+                  const next = { ...editForm, ...values };
+                  setEditForm(next);
+                  setEditErrors(errors => ({
+                    ...errors,
+                    address: validateAddressSelection(next),
+                  }));
+                }}
+                error={editErrors.address}
+              />
               <div className="reg-grid-2">
                 <label className="reg-field"><span className="reg-label">Emergency Contact</span><input className={`reg-input ${editErrors.emergency_contact ? 'reg-input-error' : ''}`} maxLength={20} value={editForm.emergency_contact} onChange={event => updateEditForm('emergency_contact', formatPersonName(event.target.value))} />{editErrors.emergency_contact && <span className="reg-error-msg">{editErrors.emergency_contact}</span>}</label>
                 <label className="reg-field"><span className="reg-label">Emergency Number</span><input className="reg-input" type="tel" maxLength={11} value={editForm.emergency_number} onChange={event => updateEditForm('emergency_number', event.target.value)} /></label>

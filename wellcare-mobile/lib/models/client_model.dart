@@ -14,6 +14,7 @@ class ClientModel {
   final String emergencyContact;
   final String emergencyNumber;
   final bool fingerprintEnrolled;
+  final bool mustChangePassword;
   final int alkalineSessions;
   final int checkins;
   final int absences;
@@ -35,6 +36,7 @@ class ClientModel {
     this.emergencyContact = '',
     this.emergencyNumber = '',
     this.fingerprintEnrolled = false,
+    this.mustChangePassword = false,
     this.alkalineSessions = 0,
     this.checkins = 0,
     this.absences = 0,
@@ -87,6 +89,9 @@ class ClientModel {
       emergencyContact: (json['emergencyContact'] ?? json['emergency_contact'] ?? '').toString(),
       emergencyNumber: (json['emergencyNumber'] ?? json['emergency_number'] ?? '').toString(),
       fingerprintEnrolled: _parseBool(json['fingerprintEnrolled'] ?? json['fingerprint_enrolled']),
+      mustChangePassword: json.containsKey('mustChangePassword') || json.containsKey('must_change_password')
+          ? _parseBool(json['mustChangePassword'] ?? json['must_change_password'])
+          : false,
       alkalineSessions: _parseInt(json['alkalineSessions'] ?? json['alkaline_sessions'] ?? json['total_bottles']),
       checkins: _parseInt(json['checkins'] ?? json['total_checkins']),
       absences: _parseInt(json['absences']),
@@ -110,6 +115,8 @@ class ClientModel {
     'emergencyContact': emergencyContact,
     'emergencyNumber': emergencyNumber,
     'fingerprintEnrolled': fingerprintEnrolled,
+    'mustChangePassword': mustChangePassword,
+    'must_change_password': mustChangePassword,
     'alkalineSessions': alkalineSessions,
     'checkins': checkins,
     'absences': absences,
@@ -133,6 +140,7 @@ class ClientModel {
     String? emergencyContact,
     String? emergencyNumber,
     bool? fingerprintEnrolled,
+    bool? mustChangePassword,
     int? alkalineSessions,
     int? checkins,
     int? absences,
@@ -154,6 +162,7 @@ class ClientModel {
       emergencyContact: emergencyContact ?? this.emergencyContact,
       emergencyNumber: emergencyNumber ?? this.emergencyNumber,
       fingerprintEnrolled: fingerprintEnrolled ?? this.fingerprintEnrolled,
+      mustChangePassword: mustChangePassword ?? this.mustChangePassword,
       alkalineSessions: alkalineSessions ?? this.alkalineSessions,
       checkins: checkins ?? this.checkins,
       absences: absences ?? this.absences,

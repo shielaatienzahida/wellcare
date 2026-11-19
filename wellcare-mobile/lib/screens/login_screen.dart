@@ -53,9 +53,21 @@ class _LoginScreenState extends State<LoginScreen> {
         if (data['role'] == 'client') {
           final clientData = Map<String, dynamic>.from(data['client']);
           clientData['token'] = data['token'];
+
+          // Detect if logging in with the default birthdate password (YYYYMMDD)
+          final rawBdate = (clientData['birthdate'] ?? '').toString().split('T').first.replaceAll('-', '').trim();
+          final isUsingDefaultPassword = rawBdate.isNotEmpty && password == rawBdate;
+          if (isUsingDefaultPassword || clientData['must_change_password'] == true) {
+            clientData['must_change_password'] = true;
+            clientData['mustChangePassword'] = true;
+          }
+
           final client = ClientModel.fromJson(clientData);
 
           final prefs = await SharedPreferences.getInstance();
+          if (client.mustChangePassword) {
+            await prefs.remove('heiwa_pwd_prompt_changed_${client.id}');
+          }
           await prefs.setString('heiwa_session_client', jsonEncode(client.toJson()));
 
           if (!mounted) return;
@@ -645,15 +657,17 @@ class _PasswordResetDialogState extends State<_PasswordResetDialog> {
     if (_busy) return;
 
     if (_resetKey.isEmpty) {
-      if (widget.username.isEmpty) {
-        _setMessage('Enter your username on the login screen first.');
+      final email = _emailCtrl.text.trim();
+      if (email.isEmpty) {
+        _setMessage('Please enter your account recovery email.');
         return;
       }
-      if (_passwordCtrl.text.length < 6 ||
-          _passwordCtrl.text != _confirmCtrl.text) {
-        _setMessage(_passwordCtrl.text.length < 6
-            ? 'Password must be at least 6 characters.'
-            : 'Passwords do not match.');
+      if (_passwordCtrl.text.length < 8) {
+        _setMessage('Password must be at least 8 characters.');
+        return;
+      }
+      if (_passwordCtrl.text != _confirmCtrl.text) {
+        _setMessage('Passwords do not match.');
         return;
       }
 
@@ -667,7 +681,7 @@ class _PasswordResetDialogState extends State<_PasswordResetDialog> {
           headers: {'Content-Type': 'application/json'},
           body: jsonEncode({
             'username': widget.username,
-            'email': _emailCtrl.text.trim(),
+            'email': email,
             'newPassword': _passwordCtrl.text,
             'confirmPassword': _confirmCtrl.text,
           }),
@@ -1106,10 +1120,9 @@ class _PasswordResetDialogState extends State<_PasswordResetDialog> {
                 ),
               ],
             ] else if (_resetKey.isEmpty && _selectedTab == 0) ...{
-              Text(
-                'We will send an OTP to the email saved for '
-                '${widget.username.isEmpty ? 'your account' : widget.username}.',
-                style: const TextStyle(
+              const Text(
+                'Enter your registered email address to receive a one-time verification code (OTP).',
+                style: TextStyle(
                     fontSize: 13, height: 1.45, color: kTextSecondary),
               ),
               const SizedBox(height: 16),

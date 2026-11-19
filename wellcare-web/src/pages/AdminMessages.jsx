@@ -64,15 +64,35 @@ export default function AdminMessages() {
     if (m.client_name) threads[m.client_id].client_name = m.client_name;
   });
 
+  // Sort threads with Hierarchy:
+  // 1. Unread messages from clients always appear at the very top
+  // 2. Most recent message (by created_at or id) appears next
   const threadList = Object.values(threads).sort((a, b) => {
+    const aUnread = a.messages.filter(m => m.sender === 'client' && !m.read_by_admin).length;
+    const bUnread = b.messages.filter(m => m.sender === 'client' && !m.read_by_admin).length;
+    if (aUnread > 0 && bUnread === 0) return -1;
+    if (bUnread > 0 && aUnread === 0) return 1;
+
     const aLast = a.messages[a.messages.length - 1];
     const bLast = b.messages[b.messages.length - 1];
-    return new Date(bLast.timestamp) - new Date(aLast.timestamp);
+    const aTime = new Date(aLast?.created_at || aLast?.timestamp || 0).getTime() || (aLast?.id || 0);
+    const bTime = new Date(bLast?.created_at || bLast?.timestamp || 0).getTime() || (bLast?.id || 0);
+    return bTime - aTime;
   });
 
   const filteredThreads = threadList.filter(t =>
     (t.client_name || String(t.client_id) || '').toLowerCase().includes(search.toLowerCase())
   );
+  const unreadThreads = filteredThreads.filter(t => t.messages.some(m => m.sender === 'client' && !m.read_by_admin));
+  const recentThreads = filteredThreads.filter(t => !t.messages.some(m => m.sender === 'client' && !m.read_by_admin));
+
+  const ADMIN_QUICK_REPLIES = [
+    'Hello! Our wellness center is open Monday to Saturday, 8:00 AM – 5:00 PM.',
+    'Please visit the center reception desk so we can assist you with your biometric fingerprint.',
+    'Stay hydrated! Remember to log your daily 8 glasses (2.0 L) of alkaline water.',
+    'Your request has been noted and verified by the Admin team.',
+    'Thank you for reaching out to Heiwa WellCare Center! How can we help you today?'
+  ];
 
   const totalUnread = allMessages.filter(m => m.sender === 'client' && !m.read_by_admin && (m.recipient === 'admin' || !m.recipient)).length;
 
@@ -148,34 +168,71 @@ export default function AdminMessages() {
                   <p style={{ fontSize: '0.75rem', color: 'rgba(4,106,56,0.35)' }}>Client messages will appear here</p>
                 </div>
               )}
-              {filteredThreads.map(t => {
-                const last = t.messages[t.messages.length - 1];
-                const unread = t.messages.filter(m => m.sender === 'client' && !m.read_by_admin).length;
-                const isActive = activeClientId === t.client_id;
-                return (
-                  <div
-                    key={t.client_id}
-                    className={`admin-msg-thread-item ${isActive ? 'active' : ''} ${unread > 0 ? 'has-unread' : ''}`}
-                    onClick={() => setActiveClientId(t.client_id)}
-                  >
-                    <div className="admin-msg-thread-avatar">
-                      {getInitials(t.client_name)}
-                    </div>
-                    <div className="admin-msg-thread-info">
-                      <div className="admin-msg-thread-top">
-                        <span className="admin-msg-thread-name">{t.client_name || t.client_id}</span>
-                        <span className="admin-msg-thread-time">{formatDate(last?.timestamp)}</span>
-                      </div>
-                      <div className="admin-msg-thread-preview">
-                        {last?.sender === 'admin' ? 'You: ' : ''}{last?.text}
-                      </div>
-                    </div>
-                    {unread > 0 && (
-                      <div className="admin-msg-thread-badge">{unread}</div>
-                    )}
+              {unreadThreads.length > 0 && (
+                <>
+                  <div style={{ padding: '8px 16px 4px', fontSize: '0.68rem', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#dc2626', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#dc2626' }} />
+                    New / Unread Messages ({unreadThreads.length})
                   </div>
-                );
-              })}
+                  {unreadThreads.map(t => {
+                    const last = t.messages[t.messages.length - 1];
+                    const unread = t.messages.filter(m => m.sender === 'client' && !m.read_by_admin).length;
+                    const isActive = activeClientId === t.client_id;
+                    return (
+                      <div
+                        key={t.client_id}
+                        className={`admin-msg-thread-item ${isActive ? 'active' : ''} has-unread`}
+                        onClick={() => setActiveClientId(t.client_id)}
+                      >
+                        <div className="admin-msg-thread-avatar">
+                          {getInitials(t.client_name)}
+                        </div>
+                        <div className="admin-msg-thread-info">
+                          <div className="admin-msg-thread-top">
+                            <span className="admin-msg-thread-name" style={{ fontWeight: 800 }}>{t.client_name || t.client_id}</span>
+                            <span className="admin-msg-thread-time">{last?.time || formatDate(last?.created_at || last?.timestamp)}</span>
+                          </div>
+                          <div className="admin-msg-thread-preview" style={{ fontWeight: 700, color: 'var(--emerald-900)' }}>
+                            {last?.sender === 'admin' ? 'You: ' : ''}{last?.text}
+                          </div>
+                        </div>
+                        <div className="admin-msg-thread-badge">{unread}</div>
+                      </div>
+                    );
+                  })}
+                </>
+              )}
+              {recentThreads.length > 0 && (
+                <>
+                  <div style={{ padding: '10px 16px 4px', fontSize: '0.68rem', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-light)' }}>
+                    Recent Conversations ({recentThreads.length})
+                  </div>
+                  {recentThreads.map(t => {
+                    const last = t.messages[t.messages.length - 1];
+                    const isActive = activeClientId === t.client_id;
+                    return (
+                      <div
+                        key={t.client_id}
+                        className={`admin-msg-thread-item ${isActive ? 'active' : ''}`}
+                        onClick={() => setActiveClientId(t.client_id)}
+                      >
+                        <div className="admin-msg-thread-avatar">
+                          {getInitials(t.client_name)}
+                        </div>
+                        <div className="admin-msg-thread-info">
+                          <div className="admin-msg-thread-top">
+                            <span className="admin-msg-thread-name">{t.client_name || t.client_id}</span>
+                            <span className="admin-msg-thread-time">{last?.time || formatDate(last?.created_at || last?.timestamp)}</span>
+                          </div>
+                          <div className="admin-msg-thread-preview">
+                            {last?.sender === 'admin' ? 'You: ' : ''}{last?.text}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </>
+              )}
             </div>
           </div>
 
@@ -203,11 +260,41 @@ export default function AdminMessages() {
                     <div key={m.id} className={`admin-msg-bubble-row ${m.sender === 'admin' ? 'sent' : 'received'}`}>
                       <div className={`admin-msg-bubble ${m.sender === 'admin' ? 'sent' : 'received'}`}>
                         <div>{m.text}</div>
-                        <div className="admin-msg-bubble-time">{formatDate(m.timestamp)}</div>
+                        <div className="admin-msg-bubble-time">{m.time || formatDate(m.created_at || m.timestamp)}</div>
                       </div>
                     </div>
                   ))}
                   <div ref={bottomRef} />
+                </div>
+
+                {/* Suggestive Replies / FAQ Responses */}
+                <div style={{ padding: '8px 14px 4px', borderTop: '1px solid rgba(4,106,56,0.08)', background: '#f8fafc', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <span style={{ fontSize: '0.68rem', fontWeight: 800, color: 'var(--emerald-700)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                    Suggested Quick Replies
+                  </span>
+                  <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4 }}>
+                    {ADMIN_QUICK_REPLIES.map((reply, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => setMsgInput(reply)}
+                        style={{
+                          whiteSpace: 'nowrap',
+                          padding: '5px 11px',
+                          borderRadius: 99,
+                          border: '1px solid rgba(16, 185, 129, 0.3)',
+                          background: 'var(--emerald-50)',
+                          color: 'var(--emerald-800)',
+                          fontSize: '0.74rem',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          flexShrink: 0,
+                        }}
+                      >
+                        {reply.length > 48 ? reply.slice(0, 48) + '…' : reply}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
                 {/* Input */}

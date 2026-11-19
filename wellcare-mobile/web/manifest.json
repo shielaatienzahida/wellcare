@@ -1,11 +1,11 @@
 {
-    "name": "wellcare_mobile",
-    "short_name": "wellcare_mobile",
+    "name": "Heiwa",
+    "short_name": "Heiwa",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#062319",
+    "theme_color": "#062319",
+    "description": "Heiwa Health & Life Client Portal",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

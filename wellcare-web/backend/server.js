@@ -137,10 +137,50 @@ function dateOfBirthValidation(value, minAge = 18) {
   return '';
 }
 
+const DISALLOWED_DOMAIN_LABELS = new Set([
+  'example', 'test', 'invalid', 'localhost', 'sample', 'fake', 'mailinator', 'tempmail', '10minutemail', 'throwaway'
+]);
+
 function emailValidationError(value) {
   const email = String(value || '').trim();
-  return /^(?!.*\.\.)[^\s@]+@(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$/.test(email)
-    ? '' : 'Enter a valid email address with one @ and a domain extension.';
+  if (!email) return '';
+
+  const emailRegex = /^(?!.*\.\.)[a-zA-Z0-9._%+-]+@([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})$/;
+  const match = email.match(emailRegex);
+  if (!match) {
+    return 'Enter a valid email address with a recognized domain (e.g. name@gmail.com, name@yahoo.com, name@outlook.com).';
+  }
+
+  const domain = match[1].toLowerCase();
+  const domainParts = domain.split('.');
+  const tld = domainParts[domainParts.length - 1];
+
+  if (domainParts.some(part => DISALLOWED_DOMAIN_LABELS.has(part))) {
+    return 'Temporary or example email domains are not allowed.';
+  }
+
+  const validCommonDomains = [
+    'gmail.com', 'yahoo.com', 'yahoo.com.ph', 'outlook.com', 'hotmail.com',
+    'live.com', 'icloud.com', 'aol.com', 'zoho.com', 'proton.me', 'protonmail.com'
+  ];
+
+  const standardTlds = [
+    'com', 'net', 'org', 'edu', 'gov', 'mil', 'ph', 'com.ph', 'edu.ph', 'gov.ph',
+    'io', 'co', 'me', 'info', 'biz', 'app', 'dev', 'tech', 'center', 'health'
+  ];
+
+  const isCommonProvider = validCommonDomains.includes(domain);
+  const hasValidTld = standardTlds.includes(tld) || (domainParts.length >= 2 && standardTlds.includes(`${domainParts[domainParts.length - 2]}.${tld}`));
+
+  if (!isCommonProvider && !hasValidTld) {
+    return 'Please enter an email with a valid domain (e.g. gmail.com, yahoo.com, outlook.com).';
+  }
+
+  if (tld.length < 2 || tld.length > 24) {
+    return 'Email domain extension is invalid.';
+  }
+
+  return '';
 }
 
 function contactValidationError(value) {
@@ -165,18 +205,20 @@ function addressValidationError({ region, province, city_municipality } = {}) {
 function createMailTransport() {
   if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS) return null;
   if (!smtpTransport) {
+    const port = Number(process.env.SMTP_PORT || 465);
+    const isSecure = process.env.SMTP_SECURE === 'true' || port === 465;
+
     smtpTransport = nodemailer.createTransport({
+      service: process.env.SMTP_HOST.includes('gmail') ? 'gmail' : undefined,
       host: process.env.SMTP_HOST,
-      port: Number(process.env.SMTP_PORT || 587),
-      secure: process.env.SMTP_SECURE === 'true',
+      port: port,
+      secure: isSecure,
       auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
-      connectionTimeout: 8000,
-      dnsTimeout: 5000,
-      greetingTimeout: 8000,
-      socketTimeout: 15000,
-      pool: true,
-      maxConnections: 2,
-      maxMessages: 100,
+      connectionTimeout: 15000,
+      dnsTimeout: 10000,
+      greetingTimeout: 15000,
+      socketTimeout: 20000,
+      pool: false,
     });
   }
   return smtpTransport;
@@ -226,23 +268,33 @@ app.post('/api/v1/password-reset/request', passwordResetLimiter, async (req, res
   const { username, email, newPassword, confirmPassword } = req.body;
   const accountName = String(username || '').trim();
   const submittedEmail = String(email || '').trim().toLowerCase();
-  if (!accountName || !submittedEmail || !newPassword || !confirmPassword) return res.status(400).json({ success: false, message: 'Complete all fields.' });
+  if (!submittedEmail || !newPassword || !confirmPassword) return res.status(400).json({ success: false, message: 'Complete all fields.' });
   if (emailValidationError(submittedEmail)) return res.status(400).json({ success: false, message: emailValidationError(submittedEmail) });
   if (newPassword.length < 8) return res.status(400).json({ success: false, message: 'Password must be at least 8 characters.' });
   if (newPassword !== confirmPassword) return res.status(400).json({ success: false, message: 'Passwords do not match.' });
   const transport = createMailTransport();
   if (!transport) return res.status(503).json({ success: false, message: 'Email service is not configured. Contact the system administrator.' });
-  const cooldownKey = `${accountName.toLowerCase()}:${submittedEmail}`;
+  const cooldownKey = accountName ? `${accountName.toLowerCase()}:${submittedEmail}` : submittedEmail;
   const lastRequest = passwordResetCooldowns.get(cooldownKey) || 0;
   if (Date.now() - lastRequest < 60000) return res.status(429).json({ success: false, message: 'Please wait one minute before requesting another OTP.' });
   try {
     let account = null;
     for (const table of ['admins', 'staff', 'clients']) {
       const activeClause = table === 'staff' ? ' AND is_archived = FALSE' : '';
-      const [rows] = await db.execute(`SELECT id, email FROM ${table} WHERE LOWER(username) = LOWER(?) AND LOWER(email) = LOWER(?)${activeClause}`, [accountName, submittedEmail]);
-      if (rows.length) { account = { table, id: rows[0].id, email: String(rows[0].email || '').trim().toLowerCase() }; break; }
+      let rows = [];
+      if (accountName) {
+        const [resRows] = await db.execute(`SELECT id, username, email FROM ${table} WHERE LOWER(username) = LOWER(?) AND LOWER(email) = LOWER(?)${activeClause}`, [accountName, submittedEmail]);
+        rows = resRows;
+      } else {
+        const [resRows] = await db.execute(`SELECT id, username, email FROM ${table} WHERE LOWER(email) = LOWER(?)${activeClause}`, [submittedEmail]);
+        rows = resRows;
+      }
+      if (rows.length) {
+        account = { table, id: rows[0].id, username: rows[0].username, email: String(rows[0].email || '').trim().toLowerCase() };
+        break;
+      }
     }
-    if (!account) return res.status(404).json({ success: false, message: 'Username and email did not match this account.' });
+    if (!account) return res.status(404).json({ success: false, message: accountName ? 'Username and email did not match any account.' : 'No account found with that email address.' });
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(account.email)) return res.status(400).json({ success: false, message: 'No recovery email is saved for this account. Ask staff or your administrator to add one.' });
     const otp = String(crypto.randomInt(0, 1000000)).padStart(6, '0');
     const resetKey = crypto.randomBytes(24).toString('hex');
@@ -281,7 +333,11 @@ app.post('/api/v1/password-reset/verify', otpVerifyLimiter, async (req, res) => 
   const submittedHash = crypto.createHash('sha256').update(`${resetKey}:${submittedOtp}`).digest('hex');
   if (!/^[0-9]{6}$/.test(submittedOtp) || !crypto.timingSafeEqual(Buffer.from(submittedHash), Buffer.from(reset.hashedOtp))) return res.status(400).json({ success: false, message: 'Incorrect OTP.' });
   try {
-    await db.execute(`UPDATE ${reset.table} SET password = ? WHERE id = ?`, [reset.passwordHash, reset.id]);
+    if (reset.table === 'clients') {
+      await db.execute('UPDATE clients SET password = ?, must_change_password = FALSE WHERE id = ?', [reset.passwordHash, reset.id]);
+    } else {
+      await db.execute(`UPDATE ${reset.table} SET password = ? WHERE id = ?`, [reset.passwordHash, reset.id]);
+    }
     pendingPasswordResets.delete(resetKey);
     res.json({ success: true, message: 'Password updated. You can now sign in.' });
   } catch (err) {
@@ -411,7 +467,7 @@ app.post('/api/v1/password-reset/admin-request/complete', async (req, res) => {
 
     // Hash new password and update client
     const hashed = await bcrypt.hash(newPassword.trim(), 10);
-    await db.execute('UPDATE clients SET password = ? WHERE id = ?', [hashed, reqData.client_id]);
+    await db.execute('UPDATE clients SET password = ?, must_change_password = FALSE WHERE id = ?', [hashed, reqData.client_id]);
 
     // Mark request as completed
     await db.execute("UPDATE admin_reset_requests SET status = 'completed' WHERE id = ?", [requestId]);
@@ -472,7 +528,7 @@ app.post('/api/v1/login', authLimiter, async (req, res) => {
     if (admins.length > 0) {
       const valid = await bcrypt.compare(password, admins[0].password);
       if (!valid) return res.status(401).json({ success: false, message: 'Invalid credentials' });
-      const token = jwt.sign({ id: admins[0].id, role: 'admin', username }, JWT_SECRET, { expiresIn: '10m' });
+      const token = jwt.sign({ id: admins[0].id, role: 'admin', username }, JWT_SECRET, { expiresIn: '7d' });
       return res.json({ success: true, token, role: 'admin' });
     }
 
@@ -481,7 +537,7 @@ app.post('/api/v1/login', authLimiter, async (req, res) => {
     if (staffRows.length > 0) {
       const valid = await bcrypt.compare(password, staffRows[0].password);
       if (!valid) return res.status(401).json({ success: false, message: 'Invalid credentials' });
-      const token = jwt.sign({ id: staffRows[0].id, role: 'staff', username, name: staffRows[0].name }, JWT_SECRET, { expiresIn: '10m' });
+      const token = jwt.sign({ id: staffRows[0].id, role: 'staff', username, name: staffRows[0].name }, JWT_SECRET, { expiresIn: '7d' });
       return res.json({ success: true, token, role: 'staff', staff: { id: staffRows[0].id, name: staffRows[0].name, username: staffRows[0].username } });
     }
 
@@ -491,7 +547,7 @@ app.post('/api/v1/login', authLimiter, async (req, res) => {
     const client = clients[0];
     const valid = await bcrypt.compare(password, client.password);
     if (!valid) return res.status(401).json({ success: false, message: 'Invalid credentials' });
-    const token = jwt.sign({ id: client.id, role: 'client', username: client.username }, JWT_SECRET, { expiresIn: '10m' });
+    const token = jwt.sign({ id: client.id, role: 'client', username: client.username }, JWT_SECRET, { expiresIn: '30d' });
     return res.json({ success: true, token, role: 'client', client: formatClient(client) });
   } catch (err) {
     console.error(err);
@@ -700,6 +756,7 @@ function formatClient(c) {
     email: c.email || null,
     emergency_number: c.emergency_number,
     fingerprint_enrolled: !!c.fingerprint_enrolled,
+    must_change_password: c.must_change_password === undefined || c.must_change_password === null ? true : !!c.must_change_password,
     total_checkins: c.total_checkins || 0,
     total_bottles: c.total_bottles || 0,
     absences: c.absences || 0,
@@ -940,15 +997,17 @@ app.patch('/api/v1/clients/me', auth, async (req, res) => {
     const recoveryEmail = email !== undefined ? email.trim().toLowerCase() : c.email;
 
     let pwdHash = c.password;
+    let mustChangePwd = c.must_change_password === undefined || c.must_change_password === null ? 1 : (c.must_change_password ? 1 : 0);
     if (password && password.trim().length > 0) {
       pwdHash = await bcrypt.hash(password.trim(), 10);
+      mustChangePwd = 0;
     }
 
     const photoToSave = profile_photo !== undefined ? profile_photo : c.profile_photo;
 
     await db.execute(
-      'UPDATE clients SET first_name=?, last_name=?, middle_name=?, full_name=?, username=?, password=?, birthdate=?, contact_number=?, email=?, address=?, emergency_contact=?, emergency_number=?, profile_photo=? WHERE id=?',
-      [fn, ln, mn || null, full_name, un, pwdHash, bdate || null, phone || null, recoveryEmail || null, addr || null, eContact || null, ePhone || null, photoToSave || null, req.user.id]
+      'UPDATE clients SET first_name=?, last_name=?, middle_name=?, full_name=?, username=?, password=?, birthdate=?, contact_number=?, email=?, address=?, emergency_contact=?, emergency_number=?, profile_photo=?, must_change_password=? WHERE id=?',
+      [fn, ln, mn || null, full_name, un, pwdHash, bdate || null, phone || null, recoveryEmail || null, addr || null, eContact || null, ePhone || null, photoToSave || null, mustChangePwd, req.user.id]
     );
 
     const [updated] = await db.execute('SELECT * FROM clients WHERE id = ?', [req.user.id]);
@@ -1091,7 +1150,7 @@ app.post('/api/v1/fingerprint/test-heartbeat', (req, res) => {
   res.json({ success: true, message: 'Simulated heartbeat triggered. Hardware will show online for 30 seconds.', timestamp: lastDeviceHeartbeat });
 });
 
-app.post('/api/v1/fingerprint/enroll/start', auth, isAdminOrStaff, (req, res) => {
+app.post('/api/v1/fingerprint/enroll/start', auth, (req, res) => {
   const { client_name } = req.body;
   // Clear any stale waiting sessions older than 2 minutes to allow plenty of time for physical scanning
   for (const [id, s] of pendingEnrollments) {
@@ -1101,22 +1160,22 @@ app.post('/api/v1/fingerprint/enroll/start', auth, isAdminOrStaff, (req, res) =>
   }
   const session_id = 'enroll_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
   pendingEnrollments.set(session_id, {
-    clientName: client_name || 'Unknown',
+    clientName: client_name || req.user.username || 'Client',
     status: 'waiting',
     fingerprint_id: null,
     created_at: new Date().toISOString()
   });
   setTimeout(() => pendingEnrollments.delete(session_id), 180000);
-  console.log(`🔵 Enrollment session started: ${session_id} for ${client_name}`);
+  console.log(`🔵 Enrollment session started: ${session_id} for ${client_name || req.user.username}`);
   res.json({ success: true, session_id });
 });
 
-app.post('/api/v1/fingerprint/enroll/cancel/:session_id', auth, isAdminOrStaff, (req, res) => {
+app.post('/api/v1/fingerprint/enroll/cancel/:session_id', auth, (req, res) => {
   pendingEnrollments.delete(req.params.session_id);
   res.json({ success: true, message: 'Enrollment cancelled' });
 });
 
-app.get('/api/v1/fingerprint/enroll/status/:session_id', auth, isAdminOrStaff, (req, res) => {
+app.get('/api/v1/fingerprint/enroll/status/:session_id', auth, (req, res) => {
   const session = pendingEnrollments.get(req.params.session_id);
   if (!session) return res.json({ success: true, status: 'expired' });
   res.json({ success: true, status: session.status, fingerprint_id: session.fingerprint_id });
@@ -1297,7 +1356,50 @@ app.get('/api/v1/fingerprint', auth, isAdmin, async (req, res) => {
   res.json({ success: true, fingerprints: rows });
 });
 
-app.delete('/api/v1/fingerprint/:client_id', auth, isAdmin, async (req, res) => {
+app.delete('/api/v1/fingerprint/me', auth, async (req, res) => {
+  if (req.user.role !== 'client') return res.status(403).json({ success: false, message: 'Forbidden: Client access required' });
+  try {
+    await db.execute('DELETE FROM fingerprints WHERE client_id = ?', [req.user.id]);
+    await db.execute('UPDATE clients SET fingerprint_enrolled = FALSE WHERE id = ?', [req.user.id]);
+    const [updated] = await db.execute('SELECT * FROM clients WHERE id = ?', [req.user.id]);
+    res.json({ success: true, message: 'Fingerprint removed successfully.', client: updated.length ? formatClient(updated[0]) : null });
+  } catch (err) {
+    console.error('Failed to delete client fingerprint:', err);
+    res.status(500).json({ success: false, message: 'Failed to delete fingerprint' });
+  }
+});
+
+app.post('/api/v1/fingerprint/me/enroll', auth, async (req, res) => {
+  if (req.user.role !== 'client') return res.status(403).json({ success: false, message: 'Forbidden: Client access required' });
+  const { fingerprint_id } = req.body;
+  try {
+    let parsedId = fingerprint_id !== undefined && fingerprint_id !== null ? Number(fingerprint_id) : null;
+    if (parsedId === null || isNaN(parsedId)) {
+      // Auto-assign next available slot if enrolled via phone/mobile prompt
+      const [maxRows] = await db.execute('SELECT MAX(fingerprint_id) as max_id FROM fingerprints');
+      parsedId = ((maxRows[0]?.max_id || 0) + 1);
+    }
+    const [existingClient] = await db.execute('SELECT id FROM fingerprints WHERE fingerprint_id = ? AND client_id != ?', [parsedId, req.user.id]);
+    const [existingStaff] = await db.execute('SELECT id FROM staff_fingerprints WHERE fingerprint_id = ?', [parsedId]);
+    if (existingClient.length || existingStaff.length) {
+      return res.status(409).json({ success: false, message: 'Fingerprint ID is already assigned to another account' });
+    }
+
+    await db.execute(
+      'INSERT INTO fingerprints (client_id, fingerprint_id) VALUES (?, ?) ON CONFLICT (client_id) DO UPDATE SET fingerprint_id = EXCLUDED.fingerprint_id',
+      [req.user.id, parsedId]
+    );
+    await db.execute('UPDATE clients SET fingerprint_enrolled = TRUE WHERE id = ?', [req.user.id]);
+    const [updated] = await db.execute('SELECT * FROM clients WHERE id = ?', [req.user.id]);
+    res.json({ success: true, message: 'Fingerprint enrolled successfully.', fingerprint_id: parsedId, client: updated.length ? formatClient(updated[0]) : null });
+  } catch (err) {
+    if (err.code === 'ER_DUP_ENTRY') return res.status(409).json({ success: false, message: 'Fingerprint ID already assigned to another client' });
+    console.error('Failed to enroll client fingerprint:', err);
+    res.status(500).json({ success: false, message: 'Failed to enroll fingerprint' });
+  }
+});
+
+app.delete('/api/v1/fingerprint/:client_id', auth, isAdminOrStaff, async (req, res) => {
   await db.execute('DELETE FROM fingerprints WHERE client_id = ?', [req.params.client_id]);
   await db.execute('UPDATE clients SET fingerprint_enrolled = FALSE WHERE id = ?', [req.params.client_id]);
   res.json({ success: true });

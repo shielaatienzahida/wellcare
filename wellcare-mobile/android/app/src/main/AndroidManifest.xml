@@ -2,7 +2,7 @@
     <!-- Required for the app to reach the WellCare backend API over USB/Wi-Fi -->
     <uses-permission android:name="android.permission.INTERNET"/>
     <application
-        android:label="wellcare_mobile"
+        android:label="Heiwa"
         android:usesCleartextTraffic="true"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">

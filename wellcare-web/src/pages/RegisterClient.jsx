@@ -164,17 +164,17 @@ export default function RegisterClient() {
   const validateSingleField = (name, value) => {
     switch (name) {
       case 'first_name':
-        return value.trim() ? validateName(value, 'First name') : 'Required';
+        return value.trim() ? validateName(value, 'First name') : 'First name is required.';
       case 'last_name':
-        return value.trim() ? validateName(value, 'Last name') : 'Required';
+        return value.trim() ? validateName(value, 'Last name') : 'Last name is required.';
       case 'middle_name':
         return value.trim() ? validateName(value, 'Middle name') : '';
       case 'emergency_contact':
         return value.trim() ? validateName(value, 'Emergency contact name') : '';
       case 'birthdate':
-        return value ? validateDateOfBirth(value, 3) : 'Required';
+        return value ? validateDateOfBirth(value, 3) : 'Birthdate is required.';
       case 'gender':
-        return value ? '' : 'Required';
+        return value ? '' : 'Gender is required.';
       case 'contact_number':
         return validateRequired(value, 'Contact number') || validateContactNumber(value);
       case 'email':
@@ -203,17 +203,29 @@ export default function RegisterClient() {
     setErrors(prev => ({ ...prev, [name]: fieldError }));
   };
 
+  const handleAddressChange = (values) => {
+    const nextForm = { ...form, ...values };
+    setForm(nextForm);
+    const addrError = validateAddressSelection(nextForm);
+    const bgyError = nextForm.barangay?.trim() ? '' : (values.barangay !== undefined ? 'Barangay is required.' : '');
+    setErrors(current => ({
+      ...current,
+      address: addrError,
+      barangay: bgyError,
+    }));
+  };
+
   const validateStep1 = () => {
     const e = {};
-    if (!form.first_name.trim()) e.first_name = 'Required';
+    if (!form.first_name.trim()) e.first_name = 'First name is required.';
     else e.first_name = validateName(form.first_name, 'First name');
-    if (!form.last_name.trim()) e.last_name = 'Required';
+    if (!form.last_name.trim()) e.last_name = 'Last name is required.';
     else e.last_name = validateName(form.last_name, 'Last name');
     if (form.middle_name.trim()) e.middle_name = validateName(form.middle_name, 'Middle name');
     if (form.emergency_contact.trim()) e.emergency_contact = validateName(form.emergency_contact, 'Emergency contact name');
-    if (!form.birthdate) e.birthdate = 'Required';
+    if (!form.birthdate) e.birthdate = 'Birthdate is required.';
     else e.birthdate = validateDateOfBirth(form.birthdate, 3);
-    if (!form.gender) e.gender = 'Required';
+    if (!form.gender) e.gender = 'Gender is required.';
     const addressError = validateAddressSelection(form);
     if (addressError) e.address = addressError;
     if (!form.barangay?.trim()) e.barangay = 'Barangay is required.';
@@ -337,7 +349,7 @@ export default function RegisterClient() {
             <CalabarzonAddressFields
               {...form}
               barangay={form.barangay}
-              onChange={values => { setForm(current => ({ ...current, ...values })); setErrors(current => ({ ...current, address: '', barangay: '' })); }}
+              onChange={handleAddressChange}
               error={errors.address}
               barangayError={errors.barangay}
             />

@@ -484,7 +484,7 @@ Future<http.Response> getApi(String endpoint, {Map<String, String>? headers, Dur
   throw lastError ?? Exception('Cannot connect to server');
 }
 
-Future<http.Response> patchApi(String endpoint, {Map<String, String>? headers, Object? body}) async {
+Future<http.Response> patchApi(String endpoint, {Map<String, String>? headers, Object? body, Duration timeout = const Duration(seconds: 15)}) async {
   final urls = [
     if (_activeBackendUrl != null) _activeBackendUrl!,
     ...candidateBackendUrls.where((u) => u != _activeBackendUrl),
@@ -497,7 +497,30 @@ Future<http.Response> patchApi(String endpoint, {Map<String, String>? headers, O
         Uri.parse('$base$endpoint'),
         headers: headers,
         body: body,
-      ).timeout(const Duration(seconds: 3));
+      ).timeout(timeout);
+      _activeBackendUrl = base;
+      return res;
+    } catch (e) {
+      lastError = e;
+    }
+  }
+  throw lastError ?? Exception('Cannot connect to server');
+}
+
+Future<http.Response> deleteApi(String endpoint, {Map<String, String>? headers, Object? body, Duration timeout = const Duration(seconds: 15)}) async {
+  final urls = [
+    if (_activeBackendUrl != null) _activeBackendUrl!,
+    ...candidateBackendUrls.where((u) => u != _activeBackendUrl),
+  ];
+
+  dynamic lastError;
+  for (final base in urls) {
+    try {
+      final res = await http.delete(
+        Uri.parse('$base$endpoint'),
+        headers: headers,
+        body: body,
+      ).timeout(timeout);
       _activeBackendUrl = base;
       return res;
     } catch (e) {

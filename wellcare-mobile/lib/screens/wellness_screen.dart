@@ -548,7 +548,8 @@ class _WellnessScreenState extends State<WellnessScreen> {
         backgroundColor: Colors.transparent,
         insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
         child: Container(
-          constraints: const BoxConstraints(maxWidth: 420),
+          width: 440,
+          constraints: const BoxConstraints(maxWidth: 440),
           decoration: BoxDecoration(
             color: _cardDark,
             borderRadius: BorderRadius.circular(20),
@@ -562,7 +563,7 @@ class _WellnessScreenState extends State<WellnessScreen> {
             ],
           ),
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(22),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -571,8 +572,8 @@ class _WellnessScreenState extends State<WellnessScreen> {
                 Row(
                   children: [
                     Container(
-                      width: 44,
-                      height: 44,
+                      width: 46,
+                      height: 46,
                       decoration: BoxDecoration(
                         color: isAlkaline
                             ? _amber.withValues(alpha: 0.18)
@@ -604,13 +605,22 @@ class _WellnessScreenState extends State<WellnessScreen> {
                               color: Colors.white,
                             ),
                           ),
-                          const SizedBox(height: 2),
-                          Text(
-                            type,
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              color: isAlkaline ? _amber : const Color(0xFF34D399),
+                          const SizedBox(height: 3),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: isAlkaline
+                                  ? _amber.withValues(alpha: 0.18)
+                                  : const Color(0xFF10B981).withValues(alpha: 0.18),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              type,
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                color: isAlkaline ? _amber : const Color(0xFF34D399),
+                              ),
                             ),
                           ),
                         ],
@@ -623,7 +633,7 @@ class _WellnessScreenState extends State<WellnessScreen> {
                 // Content Details Container
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.all(14),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                   decoration: BoxDecoration(
                     color: _bgDark,
                     borderRadius: BorderRadius.circular(14),
@@ -631,25 +641,25 @@ class _WellnessScreenState extends State<WellnessScreen> {
                   ),
                   child: Column(
                     children: [
-                      _infoRow('Date & Time', displayDate, Icons.calendar_today_rounded),
+                      _infoRow('Date & Time', displayDate, Icons.access_time_rounded),
                       const Divider(color: _cardBorder, height: 16),
-                      _infoRow('Status', 'Recorded & Verified', Icons.verified_rounded, valueColor: const Color(0xFF34D399)),
+                      _infoRow('Status', 'Recorded & Verified', Icons.check_circle_rounded, valueColor: const Color(0xFF34D399)),
                       const Divider(color: _cardBorder, height: 16),
-                      _infoRow('Session Type', type, Icons.category_rounded),
+                      _infoRow('Session Type', type, Icons.label_rounded),
                       const Divider(color: _cardBorder, height: 16),
                       _infoRow(
                         'Logged By',
                         '${loggedBy[0].toUpperCase()}${loggedBy.substring(1)}${staffId != null ? ' (Staff #$staffId)' : ''}',
-                        Icons.person_pin_rounded,
+                        Icons.person_rounded,
                       ),
                       if (id != null) ...[
                         const Divider(color: _cardBorder, height: 16),
-                        _infoRow('Record ID', '#$id', Icons.tag_rounded),
+                        _infoRow('Record ID', '#$id', Icons.fingerprint_rounded),
                       ],
                     ],
                   ),
                 ),
-                const SizedBox(height: 18),
+                const SizedBox(height: 20),
 
                 // Close Button
                 SizedBox(
@@ -659,12 +669,12 @@ class _WellnessScreenState extends State<WellnessScreen> {
                     style: FilledButton.styleFrom(
                       backgroundColor: _amber,
                       foregroundColor: _darkInk,
-                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     ),
                     child: const Text(
                       'Close',
-                      style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5),
+                      style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
                     ),
                   ),
                 ),
@@ -677,27 +687,39 @@ class _WellnessScreenState extends State<WellnessScreen> {
   }
 
   Widget _infoRow(String label, String value, IconData icon, {Color? valueColor}) {
-    return Row(
-      children: [
-        Icon(icon, size: 16, color: _amber),
-        const SizedBox(width: 8),
-        Text(
-          label,
-          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: _creamMuted),
-        ),
-        const Spacer(),
-        Flexible(
-          child: Text(
-            value,
-            textAlign: TextAlign.end,
-            style: TextStyle(
-              fontSize: 12.5,
-              fontWeight: FontWeight.w800,
-              color: valueColor ?? Colors.white,
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Container(
+            width: 28,
+            height: 28,
+            decoration: BoxDecoration(
+              color: _amber.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Icon(icon, size: 16, color: _amber),
+          ),
+          const SizedBox(width: 10),
+          Text(
+            label,
+            style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: _creamMuted),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              value,
+              textAlign: TextAlign.end,
+              style: TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w800,
+                color: valueColor ?? Colors.white,
+              ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 

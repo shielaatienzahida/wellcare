@@ -25,11 +25,56 @@ export function validateDateOfBirth(value, minAge = 18) {
   return '';
 }
 
+// Recognized and trusted top-level domains & common mail providers
+const DISALLOWED_DOMAIN_LABELS = new Set([
+  'example', 'test', 'invalid', 'localhost', 'sample', 'fake', 'mailinator', 'tempmail', '10minutemail', 'throwaway'
+]);
+
 export function validateEmail(value) {
   const email = String(value || '').trim();
-  return /^(?!.*\.\.)[^\s@]+@(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$/.test(email)
-    ? ''
-    : 'Enter a valid email address with one @ and a domain extension (for example, name@gmail.com).';
+  if (!email) return '';
+
+  // Basic email structure: user@domain.tld
+  const emailRegex = /^(?!.*\.\.)[a-zA-Z0-9._%+-]+@([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})$/;
+  const match = email.match(emailRegex);
+  if (!match) {
+    return 'Enter a valid email address with a recognized domain (e.g. name@gmail.com, name@yahoo.com, name@outlook.com).';
+  }
+
+  const domain = match[1].toLowerCase();
+  const domainParts = domain.split('.');
+  const tld = domainParts[domainParts.length - 1];
+  const sld = domainParts[domainParts.length - 2];
+
+  // Disallow temporary or dummy domains
+  if (domainParts.some(part => DISALLOWED_DOMAIN_LABELS.has(part))) {
+    return 'Temporary or example email domains are not allowed.';
+  }
+
+  // Common valid public providers or valid TLDs
+  const validCommonDomains = [
+    'gmail.com', 'yahoo.com', 'yahoo.com.ph', 'outlook.com', 'hotmail.com',
+    'live.com', 'icloud.com', 'aol.com', 'zoho.com', 'proton.me', 'protonmail.com'
+  ];
+
+  const standardTlds = [
+    'com', 'net', 'org', 'edu', 'gov', 'mil', 'ph', 'com.ph', 'edu.ph', 'gov.ph',
+    'io', 'co', 'me', 'info', 'biz', 'app', 'dev', 'tech', 'center', 'health'
+  ];
+
+  const isCommonProvider = validCommonDomains.includes(domain);
+  const hasValidTld = standardTlds.includes(tld) || (domainParts.length >= 2 && standardTlds.includes(`${domainParts[domainParts.length - 2]}.${tld}`));
+
+  if (!isCommonProvider && !hasValidTld) {
+    return 'Please enter an email with a valid domain (e.g. gmail.com, yahoo.com, outlook.com).';
+  }
+
+  // TLD length validation
+  if (tld.length < 2 || tld.length > 24) {
+    return 'Email domain extension is invalid.';
+  }
+
+  return '';
 }
 
 export function validateContactNumber(value) {
