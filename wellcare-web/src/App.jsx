@@ -15,6 +15,7 @@ import Reports from './pages/Reports';
 import NotFound from './pages/NotFound';
 import StaffMonitoring from './pages/StaffMonitoring';
 import AdminProfile from './pages/AdminProfile';
+import AdminInventory from './pages/AdminInventory';
 
 function isTokenValid(token) {
   if (!token || typeof token !== 'string') return false;
@@ -92,6 +93,7 @@ export default function App() {
         <Route path="/dashboard" element={<AdminOnly><Dashboard /></AdminOnly>} />
         <Route path="/users" element={<Navigate to="/staff-monitoring" replace />} />
         <Route path="/staff-monitoring" element={<AdminOnly><StaffMonitoring /></AdminOnly>} />
+        <Route path="/inventory" element={<AdminOnly><AdminInventory /></AdminOnly>} />
         <Route path="/admin-profile" element={<AdminOnly><AdminProfile /></AdminOnly>} />
         <Route path="/clients" element={<Navigate to="/staff-monitoring" replace />} />
         <Route path="/register-client" element={<Navigate to="/staff-monitoring" replace />} />
