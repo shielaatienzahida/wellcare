@@ -4,10 +4,9 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import AdminLayout from '../components/AdminLayout';
 import { jsPDF } from 'jspdf';
-import html2canvas from 'html2canvas';
 import {
   Users, CheckCircle, Droplets, TrendingUp, TrendingDown, SlidersHorizontal,
-  Calendar, BarChart2, Download, FileText, Lightbulb, Target, AlertTriangle
+  Calendar, BarChart2, Download, FileText, Lightbulb, Target, AlertTriangle, X
 } from 'lucide-react';
 
 /* ── tiny bar chart component ── */
@@ -52,6 +51,17 @@ export default function Reports() {
   const [loading, setLoading] = useState(true);
   const [unreadMsgCount, setUnreadMsgCount] = useState(0);
   const [isExporting, setIsExporting] = useState(false);
+
+  // Export Date Range Modal state
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportStartDate, setExportStartDate] = useState(() => {
+    const d = new Date();
+    d.setDate(1);
+    return d.toISOString().slice(0, 10);
+  });
+  const [exportEndDate, setExportEndDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [exportScope, setExportScope] = useState('clients'); // 'clients' | 'staff' | 'all'
+  const [exportError, setExportError] = useState('');
 
   // Filter: 'clients' | 'staff'
   const [reportFilter, setReportFilter] = useState('clients');
@@ -283,256 +293,308 @@ export default function Reports() {
     { label: 'Avg Check-ins/Client', value: avgCheckins,  icon: BarChart2,   color: '#8b5cf6',        bg: 'rgba(139,92,246,0.08)' },
   ];
 
-  /* ── Direct PDF Export with Visual Graphs, KPI Cards & Table ── */
+  /* ── Clean Native Vector PDF Export with Structured Tables & Date Range ── */
   const handleExport = async () => {
     if (isExporting) return;
-    setIsExporting(true);
+    setExportError('');
 
+    if (exportStartDate && exportEndDate && exportStartDate > exportEndDate) {
+      setExportError('Start date cannot be later than end date.');
+      return;
+    }
+
+    setIsExporting(true);
     try {
-      const isClients = reportFilter === 'clients';
+      // Fetch date-filtered attendance & alkaline session logs from backend
+      const summaryRes = await api.getAttendanceSummary({
+        startDate: exportStartDate || undefined,
+        endDate: exportEndDate || undefined,
+      }).catch(() => ({ summary: null, history: [] }));
+
+      const rangedHistory = summaryRes?.history || [];
+      const rangedSummary = summaryRes?.summary || null;
+
       const reportDate = new Date().toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' });
       const reportTime = new Date().toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' });
+      const dateRangeLabel = exportStartDate && exportEndDate
+        ? `${exportStartDate} to ${exportEndDate}`
+        : exportStartDate
+          ? `From ${exportStartDate}`
+          : exportEndDate
+            ? `Up to ${exportEndDate}`
+            : 'All Time';
+
       const dateStamp = new Date().toISOString().slice(0, 10);
-      const filename = isClients
-        ? `WellCare_Executive_Analytics_Report_${dateStamp}.pdf`
-        : `WellCare_Staff_Report_${dateStamp}.pdf`;
+      const scopeSlug = exportScope === 'clients' ? 'Clients' : exportScope === 'staff' ? 'Staff' : 'Full_System';
+      const filename = `WellCare_${scopeSlug}_Report_${exportStartDate || 'all'}_to_${exportEndDate || dateStamp}.pdf`;
 
-      const enrolledPct = clients.length > 0 ? Math.round((enrolled / clients.length) * 100) : 0;
-      const gaugeRadius = 50;
-      const gaugeCircumference = 2 * Math.PI * gaugeRadius;
-      const gaugeOffset = gaugeCircumference * (1 - (clients.length > 0 ? enrolled / clients.length : 0));
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const margin = 14;
+      const contentWidth = pageWidth - margin * 2;
+      let y = margin;
 
-      const maxVal = chartData.maxVal || 1;
-      const svgWidth = 630;
-      const numItems = Math.max(1, chartData.items.length);
-      const barGroupWidth = (svgWidth - 40) / numItems;
-      const yBase = 125;
+      const drawPageFooter = (pageNum, totalPages) => {
+        pdf.setDrawColor(215, 226, 220);
+        pdf.setLineWidth(0.3);
+        pdf.line(margin, pageHeight - 12, pageWidth - margin, pageHeight - 12);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(8);
+        pdf.setTextColor(100, 116, 139);
+        pdf.text('WELLCARE HEALTHCARE SYSTEM · Official Tabular System Report', margin, pageHeight - 7.5);
+        pdf.text(`Page ${pageNum} of ${totalPages}`, pageWidth - margin, pageHeight - 7.5, { align: 'right' });
+      };
 
-      const svgBars = chartData.items.map((item, idx) => {
-        const groupX = 22 + idx * barGroupWidth;
-        const hCheck = Math.max(Math.round((item.checkins / maxVal) * 95), 3);
-        const hAlk = Math.max(Math.round((item.alkaline / maxVal) * 95), 3);
-        const hAbs = Math.max(Math.round((item.absences / maxVal) * 95), 3);
+      const ensureSpace = (neededHeight) => {
+        if (y + neededHeight > pageHeight - 18) {
+          pdf.addPage();
+          y = margin;
+        }
+      };
 
-        return `
-          <g>
-            <rect x="${groupX}" y="${yBase - hCheck}" width="9" height="${hCheck}" rx="2" fill="#047857" />
-            <rect x="${groupX + 11}" y="${yBase - hAlk}" width="9" height="${hAlk}" rx="2" fill="#0ea5e9" />
-            <rect x="${groupX + 22}" y="${yBase - hAbs}" width="9" height="${hAbs}" rx="2" fill="#f59e0b" />
-            <text x="${groupX + 16}" y="142" font-size="8.5" font-weight="700" fill="#475569" text-anchor="middle" font-family="sans-serif">${item.label}</text>
-          </g>
-        `;
-      }).join('');
+      const drawSectionTitle = (title, subtitle = '') => {
+        ensureSpace(16);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(11);
+        pdf.setTextColor(4, 106, 56);
+        pdf.text(title, margin, y);
+        if (subtitle) {
+          pdf.setFont('helvetica', 'normal');
+          pdf.setFontSize(8.5);
+          pdf.setTextColor(100, 116, 139);
+          pdf.text(subtitle, pageWidth - margin, y, { align: 'right' });
+        }
+        y += 2.2;
+        pdf.setDrawColor(4, 106, 56);
+        pdf.setLineWidth(0.5);
+        pdf.line(margin, y, pageWidth - margin, y);
+        y += 4.5;
+      };
 
-      // Create an off-screen container for rendering the executive summary
-      const exportMount = document.createElement('div');
-      exportMount.id = 'report-export-mount';
-      exportMount.style.position = 'fixed';
-      exportMount.style.top = '0';
-      exportMount.style.left = '0';
-      exportMount.style.width = '1120px';
-      exportMount.style.zIndex = '-9999';
-      exportMount.style.opacity = '1';
-      exportMount.style.pointerEvents = 'none';
-      exportMount.style.background = '#ffffff';
+      // Native Vector Table Drawer with automatic page breaks & repeating headers
+      const drawTable = (columns, rows, emptyText = 'No records found for this date range.') => {
+        const headerHeight = 8;
+        const rowHeight = 7;
 
-      // ── Executive Analytics & Visualization Dashboard ──
-      const page1 = document.createElement('div');
-      page1.id = 'pdf-page-dashboard';
-      page1.style.width = '1120px';
-      page1.style.height = '780px';
-      page1.style.padding = '24px 28px';
-      page1.style.boxSizing = 'border-box';
-      page1.style.background = '#ffffff';
-      page1.style.fontFamily = 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif';
-      page1.style.overflow = 'hidden';
+        const drawHeader = () => {
+          ensureSpace(headerHeight + rowHeight);
+          pdf.setFillColor(4, 106, 56);
+          pdf.rect(margin, y, contentWidth, headerHeight, 'F');
+          pdf.setFont('helvetica', 'bold');
+          pdf.setFontSize(8.2);
+          pdf.setTextColor(255, 255, 255);
+          let x = margin;
+          columns.forEach((col) => {
+            const align = col.align || 'left';
+            const textX = align === 'right' ? x + col.width - 2 : align === 'center' ? x + col.width / 2 : x + 2;
+            pdf.text(col.label, textX, y + 5.3, { align });
+            x += col.width;
+          });
+          y += headerHeight;
+        };
 
-      page1.innerHTML = `
-        <!-- Top Header -->
-        <div style="border-bottom: 2px solid #047857; padding-bottom: 10px; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: flex-end;">
-          <div>
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <span style="font-size: 21px; font-weight: 900; color: #064e3b; letter-spacing: -0.5px;">WELLCARE HEALTHCARE SYSTEM</span>
-              <span style="padding: 2px 7px; border-radius: 6px; background: #ecfdf5; border: 1px solid #a7f3d0; font-size: 9px; font-weight: 800; color: #047857; text-transform: uppercase;">Executive Analytics Report</span>
-            </div>
-            <div style="font-size: 11px; font-weight: 700; color: #047857; margin-top: 2px;">Visual Intelligence, Performance Analytics & System Summary</div>
-          </div>
-          <div style="text-align: right; font-size: 9.5px; color: #64748b; line-height: 1.4;">
-            <div><strong>Filter Period:</strong> <span style="color: #047857; font-weight: 800;">${chartData.monthName}</span></div>
-            <div><strong>Generated:</strong> ${reportDate} &bull; ${reportTime}</div>
-            <div><strong>Scope:</strong> ${isClients ? 'Clients Registry & Health Analytics' : 'Staff Operations & Monitoring'}</div>
-          </div>
-        </div>
+        drawHeader();
 
-        <!-- 6 KPI Metric Cards Grid -->
-        <div style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin-bottom: 14px;">
-          <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 9px; padding: 10px 6px; text-align: center;">
-            <div style="font-size: 8.5px; font-weight: 800; text-transform: uppercase; color: #047857; letter-spacing: 0.5px;">Total Clients</div>
-            <div style="font-size: 20px; font-weight: 900; color: #064e3b; margin-top: 2px;">${clients.length}</div>
-          </div>
-          <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 9px; padding: 10px 6px; text-align: center;">
-            <div style="font-size: 8.5px; font-weight: 800; text-transform: uppercase; color: #047857; letter-spacing: 0.5px;">Total Check-ins</div>
-            <div style="font-size: 20px; font-weight: 900; color: #064e3b; margin-top: 2px;">${totalCheckins}</div>
-          </div>
-          <div style="background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 9px; padding: 10px 6px; text-align: center;">
-            <div style="font-size: 8.5px; font-weight: 800; text-transform: uppercase; color: #0284c7; letter-spacing: 0.5px;">Alkaline Sessions</div>
-            <div style="font-size: 20px; font-weight: 900; color: #0369a1; margin-top: 2px;">${totalAlkaline}</div>
-          </div>
-          <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 9px; padding: 10px 6px; text-align: center;">
-            <div style="font-size: 8.5px; font-weight: 800; text-transform: uppercase; color: #b45309; letter-spacing: 0.5px;">Total Absences</div>
-            <div style="font-size: 20px; font-weight: 900; color: #b45309; margin-top: 2px;">${totalAbsences}</div>
-          </div>
-          <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 9px; padding: 10px 6px; text-align: center;">
-            <div style="font-size: 8.5px; font-weight: 800; text-transform: uppercase; color: #047857; letter-spacing: 0.5px;">Attendance Rate</div>
-            <div style="font-size: 20px; font-weight: 900; color: #064e3b; margin-top: 2px;">${attendanceRate}%</div>
-          </div>
-          <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 9px; padding: 10px 6px; text-align: center;">
-            <div style="font-size: 8.5px; font-weight: 800; text-transform: uppercase; color: #047857; letter-spacing: 0.5px;">Biometric Enrolled</div>
-            <div style="font-size: 20px; font-weight: 900; color: #064e3b; margin-top: 2px;">${enrolled} <span style="font-size: 11px; font-weight: 700; color: #047857;">(${enrolledPct}%)</span></div>
-          </div>
-        </div>
+        if (rows.length === 0) {
+          pdf.setFillColor(248, 250, 252);
+          pdf.rect(margin, y, contentWidth, 9, 'F');
+          pdf.setDrawColor(226, 232, 240);
+          pdf.setLineWidth(0.2);
+          pdf.rect(margin, y, contentWidth, 9, 'S');
+          pdf.setFont('helvetica', 'italic');
+          pdf.setFontSize(8.5);
+          pdf.setTextColor(100, 116, 139);
+          pdf.text(emptyText, pageWidth / 2, y + 5.8, { align: 'center' });
+          y += 13;
+          return;
+        }
 
-        <!-- Visual Analytics Row (Trend Bar Chart + Biometric Gauge) -->
-        <div style="display: flex; gap: 14px; margin-bottom: 14px;">
-          <!-- Activity Trend Bar Chart -->
-          <div style="flex: 1.85; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px 16px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-              <div>
-                <div style="font-size: 8.5px; font-weight: 800; text-transform: uppercase; color: #64748b; letter-spacing: 0.5px;">Activity Breakdown</div>
-                <div style="font-size: 13px; font-weight: 900; color: #0f172a;">${chartData.title}</div>
-              </div>
-              <div style="display: flex; gap: 10px; font-size: 9.5px; font-weight: 700;">
-                <span style="display: flex; align-items: center; gap: 4px;"><span style="width: 9px; height: 9px; border-radius: 2px; background: #047857; display: inline-block;"></span>Check-ins</span>
-                <span style="display: flex; align-items: center; gap: 4px;"><span style="width: 9px; height: 9px; border-radius: 2px; background: #0ea5e9; display: inline-block;"></span>Alkaline</span>
-                <span style="display: flex; align-items: center; gap: 4px;"><span style="width: 9px; height: 9px; border-radius: 2px; background: #f59e0b; display: inline-block;"></span>Absences</span>
-              </div>
-            </div>
-            <div style="width: 100%;">
-              <svg viewBox="0 0 630 150" style="width: 100%; height: 148px;">
-                <line x1="10" y1="20" x2="620" y2="20" stroke="#e2e8f0" stroke-dasharray="3 3" />
-                <line x1="10" y1="55" x2="620" y2="55" stroke="#e2e8f0" stroke-dasharray="3 3" />
-                <line x1="10" y1="90" x2="620" y2="90" stroke="#e2e8f0" stroke-dasharray="3 3" />
-                <line x1="10" y1="125" x2="620" y2="125" stroke="#cbd5e1" stroke-width="1.5" />
-                ${svgBars}
-              </svg>
-            </div>
-          </div>
+        rows.forEach((row, rIdx) => {
+          if (y + rowHeight > pageHeight - 18) {
+            pdf.addPage();
+            y = margin;
+            drawHeader();
+          }
+          if (rIdx % 2 === 1) {
+            pdf.setFillColor(244, 251, 247);
+            pdf.rect(margin, y, contentWidth, rowHeight, 'F');
+          }
+          pdf.setDrawColor(226, 232, 240);
+          pdf.setLineWidth(0.18);
+          pdf.line(margin, y + rowHeight, pageWidth - margin, y + rowHeight);
 
-          <!-- Biometric Gauge & Verification -->
-          <div style="flex: 1; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px 16px; display: flex; flex-direction: column; justify-content: space-between;">
-            <div>
-              <div style="font-size: 8.5px; font-weight: 800; text-transform: uppercase; color: #64748b; letter-spacing: 0.5px;">Verification & Attendance</div>
-              <div style="font-size: 13px; font-weight: 900; color: #0f172a;">Biometric Enrollment & Overall Rate</div>
-            </div>
-            <div style="display: flex; align-items: center; justify-content: space-around; gap: 10px; margin-top: 6px;">
-              <svg width="105" height="105" viewBox="0 0 130 130">
-                <circle cx="65" cy="65" r="50" fill="none" stroke="#e2e8f0" stroke-width="13" />
-                <circle cx="65" cy="65" r="50" fill="none" stroke="#10b981" stroke-width="13" stroke-dasharray="${gaugeCircumference}" stroke-dashoffset="${gaugeOffset}" stroke-linecap="round" transform="rotate(-90 65 65)" />
-                <text x="65" y="62" text-anchor="middle" fill="#047857" font-size="22" font-weight="900" font-family="sans-serif">${enrolledPct}%</text>
-                <text x="65" y="78" text-anchor="middle" fill="#64748b" font-size="9" font-weight="800" font-family="sans-serif">Enrolled</text>
-              </svg>
-              <div style="display: flex; flex-direction: column; gap: 8px; flex: 1;">
-                <div style="padding: 8px 10px; background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 8px;">
-                  <div style="font-size: 8.5px; font-weight: 800; color: #047857;">Attendance Rate</div>
-                  <div style="font-size: 16px; font-weight: 900; color: #064e3b;">${attendanceRate}%</div>
-                </div>
-                <div style="padding: 8px 10px; background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px;">
-                  <div style="font-size: 8.5px; font-weight: 800; color: #0284c7;">Biometric Verified</div>
-                  <div style="font-size: 16px; font-weight: 900; color: #0369a1;">${enrolled} <span style="font-size: 9.5px; font-weight: 600; color: #64748b;">/ ${clients.length}</span></div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+          pdf.setFont('helvetica', 'normal');
+          pdf.setFontSize(8);
+          pdf.setTextColor(15, 23, 42);
 
-        <!-- Predictive & Prescriptive Analytics Row -->
-        <div style="display: flex; gap: 14px; margin-bottom: 12px;">
-          <!-- Predictive Projections -->
-          <div style="flex: 1; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px 14px;">
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
-              <div style="font-size: 11px; font-weight: 900; color: #064e3b; text-transform: uppercase; letter-spacing: 0.5px;">📈 Predictive Analytics (Future Projections)</div>
-              <span style="font-size: 8.5px; font-weight: 700; color: #10b981; background: #ecfdf5; padding: 2px 6px; border-radius: 4px;">Forecasting</span>
-            </div>
-            <div style="display: flex; flex-direction: column; gap: 6px;">
-              <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 9px; background: #f8fafc; border-radius: 7px; border: 1px solid #f1f5f9;">
-                <span style="font-size: 9.5px; font-weight: 700; color: #334155;">Projected Next Month Check-ins:</span>
-                <span style="font-size: 12px; font-weight: 900; color: #047857;">~${forecastedCheckins} <span style="font-size: 9.5px; color: #10b981; font-weight: 700;">(+10%)</span></span>
-              </div>
-              <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 9px; background: #f8fafc; border-radius: 7px; border: 1px solid #f1f5f9;">
-                <span style="font-size: 9.5px; font-weight: 700; color: #334155;">Forecasted Alkaline Sessions:</span>
-                <span style="font-size: 12px; font-weight: 900; color: #0284c7;">~${forecastedAlkaline} <span style="font-size: 9.5px; color: #0ea5e9; font-weight: 700;">(+15%)</span></span>
-              </div>
-              <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 9px; background: #fffbeb; border-radius: 7px; border: 1px solid #fde68a;">
-                <span style="font-size: 9.5px; font-weight: 700; color: #92400e;">High Churn Risk Clients (>3 absences):</span>
-                <span style="font-size: 12px; font-weight: 900; color: #b45309;">${churnRiskClients} <span style="font-size: 9.5px; color: #d97706; font-weight: 700;">Action Needed</span></span>
-              </div>
-            </div>
-          </div>
+          let x = margin;
+          columns.forEach((col) => {
+            const rawVal = row[col.key] !== undefined && row[col.key] !== null ? String(row[col.key]) : '—';
+            const maxChars = Math.max(4, Math.floor(col.width * 0.52));
+            const cellText = rawVal.length > maxChars ? `${rawVal.slice(0, maxChars - 1)}…` : rawVal;
+            const align = col.align || 'left';
+            const textX = align === 'right' ? x + col.width - 2 : align === 'center' ? x + col.width / 2 : x + 2;
+            pdf.text(cellText, textX, y + 4.8, { align });
+            x += col.width;
+          });
+          y += rowHeight;
+        });
 
-          <!-- Prescriptive Recommendations -->
-          <div style="flex: 1.25; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px 14px;">
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
-              <div style="font-size: 11px; font-weight: 900; color: #064e3b; text-transform: uppercase; letter-spacing: 0.5px;">💡 Prescriptive Analytics (AI Recommendations)</div>
-              <span style="font-size: 8.5px; font-weight: 700; color: #0284c7; background: #f0f9ff; padding: 2px 6px; border-radius: 4px;">Smart Insights</span>
-            </div>
-            <div style="display: flex; flex-direction: column; gap: 6px;">
-              ${recommendations.slice(0, 3).map(rec => `
-                <div style="display: flex; align-items: flex-start; gap: 8px; padding: 6px 9px; background: #f8fafc; border-radius: 7px; border: 1px solid #f1f5f9;">
-                  <span style="display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #047857; margin-top: 4px; flex-shrink: 0;"></span>
-                  <div>
-                    <div style="font-size: 9.5px; font-weight: 800; color: #0f172a;">${rec.title}</div>
-                    <div style="font-size: 8.5px; color: #475569; line-height: 1.3;">${rec.desc}</div>
-                  </div>
-                </div>
-              `).join('')}
-            </div>
-          </div>
-        </div>
+        // Outer border for table bottom
+        pdf.setDrawColor(203, 213, 225);
+        pdf.setLineWidth(0.25);
+        pdf.line(margin, y, pageWidth - margin, y);
+        y += 7;
+      };
 
-        <!-- Page Footer -->
-        <div style="border-top: 1px solid #e2e8f0; padding-top: 8px; display: flex; justify-content: space-between; align-items: center; font-size: 8.5px; color: #94a3b8;">
-          <span>WELLCARE HEALTHCARE SYSTEM &bull; Official Generated Executive Intelligence Report</span>
-          <span>Executive Visual Analytics & Summary &bull; End of Report</span>
-        </div>
-      `;
+      // ── Document Header Banner ──
+      pdf.setFillColor(4, 106, 56);
+      pdf.roundedRect(margin, y, contentWidth, 24, 2.5, 2.5, 'F');
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(15);
+      pdf.setTextColor(255, 255, 255);
+      pdf.text('WELLCARE HEALTHCARE SYSTEM', margin + 5, y + 9.5);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(9);
+      pdf.setTextColor(209, 250, 229);
+      pdf.text('Official Tabular Attendance, Alkaline Therapy & User Report', margin + 5, y + 15.5);
 
-      exportMount.appendChild(page1);
-      document.body.appendChild(exportMount);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(8.5);
+      pdf.setTextColor(255, 255, 255);
+      pdf.text(`Date Range: ${dateRangeLabel}`, pageWidth - margin - 5, y + 9.5, { align: 'right' });
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(8);
+      pdf.setTextColor(209, 250, 229);
+      pdf.text(`Generated: ${reportDate} · ${reportTime}`, pageWidth - margin - 5, y + 15.5, { align: 'right' });
+      pdf.text(`Report Scope: ${exportScope === 'all' ? 'Clients, Staff & Activity Logs' : exportScope === 'clients' ? 'Clients & Activity Logs' : 'Staff Directory'}`, pageWidth - margin - 5, y + 20.5, { align: 'right' });
+      y += 30;
 
-      // Brief pause to ensure all DOM elements and SVG layouts are fully computed
-      await new Promise(resolve => setTimeout(resolve, 80));
+      // ── 1. Summary Metrics Table ──
+      const periodCheckins = rangedSummary ? rangedSummary.checkins : totalCheckins;
+      const periodAbsences = rangedSummary ? rangedSummary.absences : totalAbsences;
+      const periodAlkaline = rangedSummary ? rangedSummary.alkaline : totalAlkaline;
+      const periodRate = rangedSummary ? rangedSummary.attendanceRate : attendanceRate;
 
-      // Initialize landscape jsPDF
-      const pdf = new jsPDF({
-        orientation: 'landscape',
-        unit: 'mm',
-        format: 'a4',
-        compress: true,
-      });
+      drawSectionTitle('1. Executive Summary', `Period: ${dateRangeLabel}`);
+      drawTable(
+        [
+          { key: 'metric', label: 'Metric', width: 82 },
+          { key: 'value', label: 'Value', width: 40, align: 'right' },
+          { key: 'notes', label: 'Details', width: 60 },
+        ],
+        [
+          { metric: 'Total Registered Clients', value: String(clients.length), notes: `${enrolled} biometric enrolled` },
+          { metric: 'Total Active Staff', value: String(staffList.length), notes: 'System operators' },
+          { metric: 'Check-ins (Selected Range)', value: String(periodCheckins), notes: `${dateRangeLabel}` },
+          { metric: 'Alkaline Water Bottles Used', value: String(periodAlkaline), notes: `${(periodAlkaline * 0.5).toFixed(1)} Liters dispensed` },
+          { metric: 'Absences (Selected Range)', value: String(periodAbsences), notes: `Attendance Rate: ${periodRate}%` },
+        ]
+      );
 
-      // Render Executive Dashboard Canvas
-      const canvas1 = await html2canvas(page1, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        backgroundColor: '#ffffff',
-        width: 1120,
-        height: 780,
-        windowWidth: 1120,
-        windowHeight: 780,
-      });
+      // ── 2. Date-Range Activity & Alkaline Logs Table ──
+      if (exportScope === 'clients' || exportScope === 'all') {
+        drawSectionTitle('2. Activity & Alkaline Session Logs', `${rangedHistory.length} records in range`);
+        drawTable(
+          [
+            { key: 'id', label: 'ID', width: 14 },
+            { key: 'client', label: 'Client Name', width: 48 },
+            { key: 'clientId', label: 'Client ID', width: 24 },
+            { key: 'type', label: 'Activity Type', width: 34 },
+            { key: 'by', label: 'Logged By', width: 22 },
+            { key: 'date', label: 'Date & Time', width: 40 },
+          ],
+          rangedHistory.map((h) => ({
+            id: `#${h.id ?? ''}`,
+            client: h.full_name || `Client #${h.client_id}`,
+            clientId: h.client_id_number || 'N/A',
+            type: h.type || 'Session',
+            by: h.logged_by || 'staff',
+            date: h.date || (h.created_at ? String(h.created_at).slice(0, 16).replace('T', ' ') : '—'),
+          })),
+          'No attendance or alkaline session logs found in the selected date range.'
+        );
 
-      const imgData1 = canvas1.toDataURL('image/jpeg', 0.98);
-      pdf.addImage(imgData1, 'JPEG', 8, 8, 281, 194);
+        // ── 3. Client Summary Table ──
+        // Build per-client totals within selected date range (or overall if no logs)
+        const perClientRange = {};
+        rangedHistory.forEach((h) => {
+          if (!perClientRange[h.client_id]) {
+            perClientRange[h.client_id] = { checkins: 0, absences: 0, alkaline: 0 };
+          }
+          if (h.type === 'Check-in') perClientRange[h.client_id].checkins += 1;
+          else if (h.type === 'Absence') perClientRange[h.client_id].absences += 1;
+          else if (h.type === 'Alkaline Session') perClientRange[h.client_id].alkaline += 1;
+        });
 
-      // Save the generated PDF
+        drawSectionTitle('3. Client Attendance & Alkaline Summary Table', `${filteredClients.length} clients`);
+        drawTable(
+          [
+            { key: 'cid', label: 'Client ID', width: 22 },
+            { key: 'name', label: 'Full Name', width: 48 },
+            { key: 'checkins', label: 'Check-ins', width: 20, align: 'center' },
+            { key: 'absences', label: 'Absences', width: 20, align: 'center' },
+            { key: 'alkaline', label: 'Bottles', width: 18, align: 'center' },
+            { key: 'rate', label: 'Rate', width: 18, align: 'center' },
+            { key: 'fp', label: 'Biometric', width: 36, align: 'center' },
+          ],
+          filteredClients.map((c) => {
+            const ranged = perClientRange[c.id];
+            const ci = exportStartDate || exportEndDate ? (ranged?.checkins ?? 0) : (c.total_checkins ?? 0);
+            const ab = exportStartDate || exportEndDate ? (ranged?.absences ?? 0) : (c.absences ?? 0);
+            const alk = exportStartDate || exportEndDate ? (ranged?.alkaline ?? 0) : (c.total_bottles ?? 0);
+            const tot = ci + ab;
+            const rate = tot > 0 ? `${Math.round((ci / tot) * 100)}%` : '—';
+            return {
+              cid: c.client_id_number || 'N/A',
+              name: c.full_name || '—',
+              checkins: String(ci),
+              absences: String(ab),
+              alkaline: String(alk),
+              rate,
+              fp: c.fingerprint_enrolled ? 'Enrolled' : 'Not Enrolled',
+            };
+          }),
+          'No clients registered.'
+        );
+      }
+
+      // ── 4. Staff Directory Table ──
+      if (exportScope === 'staff' || exportScope === 'all') {
+        const secNum = exportScope === 'staff' ? '2' : '4';
+        drawSectionTitle(`${secNum}. Staff Directory Table`, `${filteredStaff.length} staff members`);
+        drawTable(
+          [
+            { key: 'num', label: '#', width: 14, align: 'center' },
+            { key: 'name', label: 'Full Name', width: 58 },
+            { key: 'username', label: 'Username', width: 42 },
+            { key: 'email', label: 'Email', width: 46 },
+            { key: 'status', label: 'Status', width: 22, align: 'center' },
+          ],
+          filteredStaff.map((s, idx) => ({
+            num: String(idx + 1),
+            name: s.name || '—',
+            username: s.username || '—',
+            email: s.email || '—',
+            status: s.archived_at ? 'Archived' : 'Active',
+          })),
+          'No staff members found.'
+        );
+      }
+
+      // Stamp page numbers on every page
+      const totalPages = pdf.getNumberOfPages();
+      for (let p = 1; p <= totalPages; p++) {
+        pdf.setPage(p);
+        drawPageFooter(p, totalPages);
+      }
+
       pdf.save(filename);
-
-      // Clean up the offscreen container
-      document.body.removeChild(exportMount);
+      setShowExportModal(false);
     } catch (err) {
       console.error('Export PDF error:', err);
-      alert('Failed to generate PDF. Please try again.');
+      setExportError('Failed to generate PDF report. Please try again.');
     } finally {
       setIsExporting(false);
     }
@@ -550,7 +612,11 @@ export default function Reports() {
             <p className="page-sub">Attendance, alkaline therapy, and client statistics overview</p>
           </div>
           <button
-            onClick={handleExport}
+            onClick={() => {
+              setExportScope(reportFilter);
+              setExportError('');
+              setShowExportModal(true);
+            }}
             disabled={loading || isExporting}
             style={{
               display: 'flex', alignItems: 'center', gap: '8px',
@@ -564,7 +630,7 @@ export default function Reports() {
             }}
           >
             <Download size={16} />
-            {isExporting ? 'Generating PDF...' : 'Export PDF'}
+            {isExporting ? 'Generating PDF...' : 'Export PDF Report'}
           </button>
         </div>
 
@@ -1100,6 +1166,154 @@ export default function Reports() {
           Report generated on {new Date().toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })} · WELLCARE System
         </div>
       </main>
+
+      {/* ── Export PDF Date Range Modal ── */}
+      {showExportModal && (
+        <div
+          role="presentation"
+          onClick={() => !isExporting && setShowExportModal(false)}
+          className="modal-overlay"
+          style={{ zIndex: 120 }}
+        >
+          <section
+            role="dialog"
+            aria-modal="true"
+            onClick={(e) => e.stopPropagation()}
+            className="modal-card"
+            style={{ maxWidth: '460px', padding: '26px', borderRadius: '22px' }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ width: 40, height: 40, borderRadius: 12, background: 'var(--emerald-50)', border: '1px solid rgba(16,185,129,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--emerald-700)' }}>
+                  <FileText size={20} />
+                </div>
+                <div>
+                  <h3 className="modal-title" style={{ fontSize: '1.15rem', marginBottom: 2 }}>Export Tabular PDF Report</h3>
+                  <p style={{ fontSize: '0.76rem', color: 'var(--text-muted)', margin: 0 }}>Select date range and tables to include</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => !isExporting && setShowExportModal(false)}
+                style={{ background: 'var(--emerald-50)', border: 'none', borderRadius: '50%', width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--emerald-800)' }}
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div style={{ display: 'grid', gap: '14px' }}>
+              {/* Quick Presets */}
+              <div>
+                <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--emerald-800)', marginBottom: '6px' }}>
+                  Quick Date Presets
+                </label>
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                  {[
+                    { label: 'Today', fn: () => { const t = new Date().toISOString().slice(0, 10); setExportStartDate(t); setExportEndDate(t); } },
+                    { label: 'Last 7 Days', fn: () => { const e = new Date(); const s = new Date(); s.setDate(e.getDate() - 6); setExportStartDate(s.toISOString().slice(0, 10)); setExportEndDate(e.toISOString().slice(0, 10)); } },
+                    { label: 'This Month', fn: () => { const e = new Date(); const s = new Date(e.getFullYear(), e.getMonth(), 1); setExportStartDate(s.toISOString().slice(0, 10)); setExportEndDate(e.toISOString().slice(0, 10)); } },
+                    { label: 'All Time', fn: () => { setExportStartDate(''); setExportEndDate(''); } },
+                  ].map((preset) => (
+                    <button
+                      key={preset.label}
+                      type="button"
+                      onClick={preset.fn}
+                      style={{
+                        padding: '5px 11px', borderRadius: '99px', fontSize: '0.74rem', fontWeight: 700,
+                        border: '1px solid rgba(4,106,56,0.2)', background: 'var(--emerald-50)',
+                        color: 'var(--emerald-800)', cursor: 'pointer'
+                      }}
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Date Range Inputs */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--emerald-800)', marginBottom: '5px' }}>
+                    Start Date
+                  </label>
+                  <input
+                    type="date"
+                    value={exportStartDate}
+                    onChange={(e) => setExportStartDate(e.target.value)}
+                    className="login-input"
+                    style={{ padding: '9px 12px', fontSize: '0.84rem' }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--emerald-800)', marginBottom: '5px' }}>
+                    End Date
+                  </label>
+                  <input
+                    type="date"
+                    value={exportEndDate}
+                    onChange={(e) => setExportEndDate(e.target.value)}
+                    className="login-input"
+                    style={{ padding: '9px 12px', fontSize: '0.84rem' }}
+                  />
+                </div>
+              </div>
+
+              {/* Report Scope */}
+              <div>
+                <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--emerald-800)', marginBottom: '6px' }}>
+                  Tables to Include
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+                  {[
+                    { key: 'clients', label: 'Clients & Logs' },
+                    { key: 'staff', label: 'Staff Only' },
+                    { key: 'all', label: 'Full Report' },
+                  ].map((opt) => (
+                    <button
+                      key={opt.key}
+                      type="button"
+                      onClick={() => setExportScope(opt.key)}
+                      style={{
+                        padding: '8px 10px', borderRadius: '10px', fontSize: '0.78rem', fontWeight: 700,
+                        border: exportScope === opt.key ? '1.5px solid var(--emerald)' : '1px solid rgba(4,106,56,0.18)',
+                        background: exportScope === opt.key ? 'var(--emerald)' : '#fff',
+                        color: exportScope === opt.key ? '#fff' : 'var(--emerald-900)',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {exportError && (
+                <div className="login-error" style={{ margin: 0 }}>{exportError}</div>
+              )}
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '6px' }}>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  disabled={isExporting}
+                  onClick={() => setShowExportModal(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="btn-primary"
+                  disabled={isExporting}
+                  onClick={handleExport}
+                >
+                  <Download size={15} />
+                  {isExporting ? 'Generating PDF...' : 'Download PDF'}
+                </button>
+              </div>
+            </div>
+          </section>
+        </div>
+      )}
     </AdminLayout>
   );
 }
