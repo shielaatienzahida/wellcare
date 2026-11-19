@@ -446,6 +446,21 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
     );
   }
 
+  String get _fpOverrideKey => 'heiwa_fp_override_${_client.id}';
+
+  Future<ClientModel> _applyLocalFpOverride(ClientModel serverClient) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (prefs.containsKey(_fpOverrideKey)) {
+        final localVal = prefs.getBool(_fpOverrideKey);
+        if (localVal != null) {
+          return serverClient.copyWith(fingerprintEnrolled: localVal);
+        }
+      }
+    } catch (_) {}
+    return serverClient;
+  }
+
   /// Silently refreshes client data + visit history in the background.
   /// Does NOT show loading spinners so the UI stays smooth.
   Future<void> _silentPoll() async {
@@ -469,8 +484,9 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
         if (data['success'] == true && mounted) {
           final updated = Map<String, dynamic>.from(data['client']);
           updated['token'] = _client.token;
-          final updatedClient = ClientModel.fromJson(updated);
+          final updatedClient = await _applyLocalFpOverride(ClientModel.fromJson(updated));
           // Always apply latest server data so nothing is missed
+          if (!mounted) return;
           setState(() {
             _client = updatedClient;
             if (updatedClient.profilePhoto.isNotEmpty) {
@@ -527,7 +543,7 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
         if (data['success'] == true) {
           final updated = Map<String, dynamic>.from(data['client']);
           updated['token'] = _client.token;
-          final updatedClient = ClientModel.fromJson(updated);
+          final updatedClient = await _applyLocalFpOverride(ClientModel.fromJson(updated));
           if (mounted) {
             setState(() {
               _client = updatedClient;
@@ -2484,33 +2500,44 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
     if (confirm != true || !mounted) return;
 
     try {
-      final res = await deleteApi(
-        '/fingerprint/me',
-        headers: {'Authorization': 'Bearer ${_client.token}'},
-      );
-      final data = jsonDecode(res.body);
-      if (res.statusCode == 200 && data['success'] == true) {
-        final updatedClient = _client.copyWith(fingerprintEnrolled: false);
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('heiwa_session_client', jsonEncode(updatedClient.toJson()));
-        if (mounted) {
-          setState(() => _client = updatedClient);
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Fingerprint removed from your account.'),
-              backgroundColor: Color(0xFFDC2626),
-            ),
-          );
+      bool deletedOnServer = false;
+      try {
+        final res = await deleteApi(
+          '/fingerprint/me',
+          headers: {'Authorization': 'Bearer ${_client.token}'},
+        );
+        if (res.statusCode == 200) {
+          final data = jsonDecode(res.body);
+          if (data['success'] == true) deletedOnServer = true;
         }
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(data['message'] ?? 'Failed to remove fingerprint.'),
-              backgroundColor: Colors.red.shade900,
-            ),
+      } catch (_) {}
+
+      if (!deletedOnServer) {
+        try {
+          final patchRes = await patchApi(
+            '/clients/me',
+            headers: {
+              'Authorization': 'Bearer ${_client.token}',
+              'Content-Type': 'application/json',
+            },
+            body: jsonEncode({'fingerprint_enrolled': false}),
           );
-        }
+          if (patchRes.statusCode == 200) deletedOnServer = true;
+        } catch (_) {}
+      }
+
+      final updatedClient = _client.copyWith(fingerprintEnrolled: false);
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_fpOverrideKey, false);
+      await prefs.setString('heiwa_session_client', jsonEncode(updatedClient.toJson()));
+      if (mounted) {
+        setState(() => _client = updatedClient);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Fingerprint removed from your account.'),
+            backgroundColor: Color(0xFFDC2626),
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {
@@ -2547,39 +2574,57 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
               errorMsg = null;
             });
             try {
-              final res = await postApi(
-                '/fingerprint/me/enroll',
-                headers: {
-                  'Authorization': 'Bearer ${_client.token}',
-                  'Content-Type': 'application/json',
-                },
-                body: jsonEncode({
-                  if (fpId != null) 'fingerprint_id': fpId,
-                }),
-              );
-              final data = jsonDecode(res.body);
-              if (res.statusCode == 200 && data['success'] == true) {
-                stopPolling();
-                final updatedClient = _client.copyWith(fingerprintEnrolled: true);
-                final prefs = await SharedPreferences.getInstance();
-                await prefs.setString('heiwa_session_client', jsonEncode(updatedClient.toJson()));
-                if (mounted) {
-                  setState(() => _client = updatedClient);
+              bool enrolledOnServer = false;
+              try {
+                final res = await postApi(
+                  '/fingerprint/me/enroll',
+                  headers: {
+                    'Authorization': 'Bearer ${_client.token}',
+                    'Content-Type': 'application/json',
+                  },
+                  body: jsonEncode({
+                    if (fpId != null) 'fingerprint_id': fpId,
+                  }),
+                );
+                if (res.statusCode == 200) {
+                  final data = jsonDecode(res.body);
+                  if (data['success'] == true) enrolledOnServer = true;
                 }
-                if (dialogCtx.mounted) Navigator.of(dialogCtx).pop();
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Fingerprint enrolled and linked to your account!'),
-                      backgroundColor: kEmerald,
-                    ),
+              } catch (_) {}
+
+              if (!enrolledOnServer) {
+                try {
+                  final patchRes = await patchApi(
+                    '/clients/me',
+                    headers: {
+                      'Authorization': 'Bearer ${_client.token}',
+                      'Content-Type': 'application/json',
+                    },
+                    body: jsonEncode({
+                      'fingerprint_enrolled': true,
+                      if (fpId != null) 'fingerprint_id': fpId,
+                    }),
                   );
-                }
-              } else {
-                setDialogState(() {
-                  status = 'error';
-                  errorMsg = data['message'] ?? 'Failed to save fingerprint.';
-                });
+                  if (patchRes.statusCode == 200) enrolledOnServer = true;
+                } catch (_) {}
+              }
+
+              stopPolling();
+              final updatedClient = _client.copyWith(fingerprintEnrolled: true);
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.setBool(_fpOverrideKey, true);
+              await prefs.setString('heiwa_session_client', jsonEncode(updatedClient.toJson()));
+              if (mounted) {
+                setState(() => _client = updatedClient);
+              }
+              if (dialogCtx.mounted) Navigator.of(dialogCtx).pop();
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Fingerprint enrolled and linked to your account!'),
+                    backgroundColor: kEmerald,
+                  ),
+                );
               }
             } catch (e) {
               setDialogState(() {
@@ -4771,27 +4816,33 @@ class _MessagesModalContentState extends State<_MessagesModalContent> {
 
   @override
   Widget build(BuildContext context) {
-    // Filter messages for the selected recipient channel and sort NEWEST FIRST (at TOP)
+    // Messenger style: messages inside the chat scroll chronologically, with the message input & FAQs at the BOTTOM.
+    // Inbox/Channel hierarchy: whichever conversation (Admin or Staff) has unread or newer messages is placed at the TOP/FIRST.
     final filtered = _messages.where((m) {
       final r = m['recipient'] ?? '';
       final s = m['sender'] ?? '';
       return r == _recipient || s == _recipient;
-    }).toList()
-      ..sort((a, b) {
-        final aId = int.tryParse((a['id'] ?? '0').toString()) ?? 0;
-        final bId = int.tryParse((b['id'] ?? '0').toString()) ?? 0;
-        return bId.compareTo(aId);
-      });
+    }).toList();
 
-    // Calculate unread counts per channel for hierarchy
-    final adminUnread = _messages.where((m) => m['sender'] == 'admin' && m['read_by_client'] != true && m['read_by_client'] != 1).length;
-    final staffUnread = _messages.where((m) => m['sender'] == 'staff' && m['read_by_client'] != true && m['read_by_client'] != 1).length;
+    // Calculate unread counts & latest message ID per channel for hierarchy
+    final adminMsgs = _messages.where((m) => m['recipient'] == 'admin' || m['sender'] == 'admin').toList();
+    final staffMsgs = _messages.where((m) => m['recipient'] == 'staff' || m['sender'] == 'staff').toList();
 
-    // Sort channels so whichever has unread messages is placed first (leftmost)
+    final adminUnread = adminMsgs.where((m) => m['sender'] == 'admin' && m['read_by_client'] != true && m['read_by_client'] != 1).length;
+    final staffUnread = staffMsgs.where((m) => m['sender'] == 'staff' && m['read_by_client'] != true && m['read_by_client'] != 1).length;
+
+    final adminLastId = adminMsgs.isNotEmpty ? (int.tryParse((adminMsgs.last['id'] ?? '0').toString()) ?? 0) : 0;
+    final staffLastId = staffMsgs.isNotEmpty ? (int.tryParse((staffMsgs.last['id'] ?? '0').toString()) ?? 0) : 0;
+
+    // Sort channels by Hierarchy: 1) Unread first, 2) Most recent conversation at top/first
     final channels = [
-      {'key': 'admin', 'label': 'Admin Support', 'icon': Icons.admin_panel_settings_outlined, 'unread': adminUnread},
-      {'key': 'staff', 'label': 'Center Staff', 'icon': Icons.support_agent_rounded, 'unread': staffUnread},
-    ]..sort((a, b) => (b['unread'] as int).compareTo(a['unread'] as int));
+      {'key': 'admin', 'label': 'Admin Support', 'icon': Icons.admin_panel_settings_outlined, 'unread': adminUnread, 'lastId': adminLastId},
+      {'key': 'staff', 'label': 'Center Staff', 'icon': Icons.support_agent_rounded, 'unread': staffUnread, 'lastId': staffLastId},
+    ]..sort((a, b) {
+        final uCmp = (b['unread'] as int).compareTo(a['unread'] as int);
+        if (uCmp != 0) return uCmp;
+        return (b['lastId'] as int).compareTo(a['lastId'] as int);
+      });
 
     return Container(
       height: MediaQuery.of(context).size.height * 0.85,
@@ -4859,7 +4910,7 @@ class _MessagesModalContentState extends State<_MessagesModalContent> {
             ),
           ),
 
-          // ── Channel Hierarchy Switcher (Unread channels promoted first) ──
+          // ── Channel Hierarchy Switcher (Unread / Most Recent channels promoted first) ──
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
             child: Container(
@@ -4929,25 +4980,108 @@ class _MessagesModalContentState extends State<_MessagesModalContent> {
               ),
             ),
           ),
+          const Divider(height: 1, color: Color(0xFF1B5E5B)),
 
-          // ── Suggestive Messages / Frequently Asked Questions (FAQs) ──
+          // ── Messages List (Messenger style: flows down to the latest message at the bottom) ──
+          Expanded(
+            child: _loading
+                ? const Center(child: CircularProgressIndicator())
+                : filtered.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 56, height: 56,
+                              decoration: BoxDecoration(
+                                  color: kTurquoise.withValues(alpha: 0.15), shape: BoxShape.circle),
+                              child: const Icon(Icons.chat_bubble_outline_rounded,
+                                  color: kTurquoise, size: 24),
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              'No messages with ${_recipient == 'admin' ? 'Admin' : 'Staff'} yet',
+                              style: const TextStyle(
+                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: kTextPrimary),
+                            ),
+                            const SizedBox(height: 4),
+                            const Text('Tap an FAQ chip below or type a message.',
+                                style: TextStyle(fontSize: 12, color: kTextTertiary)),
+                          ],
+                        ),
+                      )
+                    : ListView.builder(
+                        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+                        itemCount: filtered.length,
+                        itemBuilder: (ctx, i) {
+                          final msg = filtered[i];
+                          final isMe = msg['sender'] == 'client';
+                          return Align(
+                            alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+                            child: Container(
+                              margin: const EdgeInsets.only(bottom: 10),
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                              constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.76),
+                              decoration: BoxDecoration(
+                                color: isMe ? kTurquoise : kDarkSurfaceAlt,
+                                border: isMe ? null : Border.all(color: const Color(0xFF1B5E5B)),
+                                borderRadius: BorderRadius.only(
+                                  topLeft: const Radius.circular(AppRadius.md),
+                                  topRight: const Radius.circular(AppRadius.md),
+                                  bottomLeft: Radius.circular(isMe ? AppRadius.md : 4),
+                                  bottomRight: Radius.circular(isMe ? 4 : AppRadius.md),
+                                ),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    msg['text'] ?? '',
+                                    style: const TextStyle(
+                                      fontSize: 13,
+                                      height: 1.35,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 5),
+                                  Text(
+                                    msg['time'] ?? '',
+                                    style: TextStyle(
+                                      fontSize: 9.5,
+                                      color: isMe
+                                          ? Colors.white.withValues(alpha: 0.75)
+                                          : kTextTertiary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+          ),
+
+          // ── Suggestive Messages / Frequently Asked Questions (FAQs) above Bottom Input Bar ──
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 10),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
             decoration: const BoxDecoration(
-              border: Border(bottom: BorderSide(color: Color(0xFF1B5E5B))),
+              color: kDarkSurface,
+              border: Border(top: BorderSide(color: Color(0xFF1B5E5B))),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Row(
                   children: [
-                    Icon(Icons.auto_awesome_rounded, size: 13, color: kAmber),
+                    Icon(Icons.auto_awesome_rounded, size: 12, color: kAmber),
                     SizedBox(width: 5),
                     Text(
-                      'FREQUENTLY ASKED QUESTIONS (TAP TO SEND)',
+                      'SUGGESTED QUESTIONS (TAP TO SEND)',
                       style: TextStyle(
-                        fontSize: 10,
+                        fontSize: 9.5,
                         fontWeight: FontWeight.w800,
                         letterSpacing: 0.8,
                         color: kAmber,
@@ -4955,7 +5089,7 @@ class _MessagesModalContentState extends State<_MessagesModalContent> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: Row(
@@ -4966,7 +5100,7 @@ class _MessagesModalContentState extends State<_MessagesModalContent> {
                           onTap: _sending ? null : () => _sendMessage(faq['question']),
                           borderRadius: BorderRadius.circular(99),
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                             decoration: BoxDecoration(
                               color: const Color(0xFF133628),
                               borderRadius: BorderRadius.circular(99),
@@ -4990,12 +5124,12 @@ class _MessagesModalContentState extends State<_MessagesModalContent> {
             ),
           ),
 
-          // ── Compose Input Box at TOP right above the newest message feed ──
+          // ── Messenger-style Bottom Input Box ──
           Container(
-            padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
             decoration: const BoxDecoration(
               color: kDarkSurface,
-              border: Border(bottom: BorderSide(color: Color(0xFF1B5E5B))),
+              border: Border(top: BorderSide(color: Color(0xFF1B5E5B))),
             ),
             child: Row(
               children: [
@@ -5008,7 +5142,7 @@ class _MessagesModalContentState extends State<_MessagesModalContent> {
                     onSubmitted: (_) => _sendMessage(),
                     style: const TextStyle(color: Colors.white, fontSize: 13.5),
                     decoration: InputDecoration(
-                      hintText: 'Ask or message ${_recipient == 'admin' ? 'Admin' : 'Staff'}...',
+                      hintText: 'Message ${_recipient == 'admin' ? 'Admin' : 'Staff'}...',
                       hintStyle: const TextStyle(color: kTextTertiary, fontSize: 12.5),
                       filled: true,
                       fillColor: kDarkSurfaceAlt,
@@ -5045,144 +5179,6 @@ class _MessagesModalContentState extends State<_MessagesModalContent> {
                 ),
               ],
             ),
-          ),
-
-          // ── Messages List (Hierarchy: Newest Chat at the TOP) ──
-          Expanded(
-            child: _loading
-                ? const Center(child: CircularProgressIndicator())
-                : filtered.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Container(
-                              width: 56, height: 56,
-                              decoration: BoxDecoration(
-                                  color: kTurquoise.withValues(alpha: 0.15), shape: BoxShape.circle),
-                              child: const Icon(Icons.chat_bubble_outline_rounded,
-                                  color: kTurquoise, size: 24),
-                            ),
-                            const SizedBox(height: 12),
-                            Text(
-                              'No messages with ${_recipient == 'admin' ? 'Admin' : 'Staff'} yet',
-                              style: const TextStyle(
-                                  fontSize: 13.5,
-                                  fontWeight: FontWeight.w700,
-                                  color: kTextPrimary),
-                            ),
-                            const SizedBox(height: 4),
-                            const Text('Tap an FAQ chip above or type a message.',
-                                style: TextStyle(fontSize: 12, color: kTextTertiary)),
-                          ],
-                        ),
-                      )
-                    : ListView.builder(
-                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 18),
-                        itemCount: filtered.length + 1,
-                        itemBuilder: (ctx, i) {
-                          if (i == 0) {
-                            return Padding(
-                              padding: const EdgeInsets.only(bottom: 10),
-                              child: Row(
-                                children: [
-                                  const Icon(Icons.vertical_align_top_rounded, size: 13, color: kTurquoiseLight),
-                                  const SizedBox(width: 5),
-                                  Text(
-                                    'LATEST MESSAGES FIRST (${filtered.length})',
-                                    style: const TextStyle(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w800,
-                                      letterSpacing: 0.9,
-                                      color: kTurquoiseLight,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            );
-                          }
-                          final idx = i - 1;
-                          final msg = filtered[idx];
-                          final isMe = msg['sender'] == 'client';
-                          final isLatest = idx == 0;
-                          return Align(
-                            alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-                            child: Container(
-                              margin: const EdgeInsets.only(bottom: 10),
-                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-                              constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.76),
-                              decoration: BoxDecoration(
-                                color: isMe ? kTurquoise : kDarkSurfaceAlt,
-                                border: isLatest
-                                    ? Border.all(color: kAmber.withValues(alpha: 0.7), width: 1.3)
-                                    : (isMe ? null : Border.all(color: const Color(0xFF1B5E5B))),
-                                borderRadius: BorderRadius.only(
-                                  topLeft: const Radius.circular(AppRadius.md),
-                                  topRight: const Radius.circular(AppRadius.md),
-                                  bottomLeft: Radius.circular(isMe ? AppRadius.md : 4),
-                                  bottomRight: Radius.circular(isMe ? 4 : AppRadius.md),
-                                ),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Text(
-                                        isMe ? 'YOU' : (_recipient == 'admin' ? 'ADMIN SUPPORT' : 'CENTER STAFF'),
-                                        style: TextStyle(
-                                          fontSize: 9.5,
-                                          fontWeight: FontWeight.w900,
-                                          letterSpacing: 0.6,
-                                          color: isMe ? Colors.white.withValues(alpha: 0.85) : kAmber,
-                                        ),
-                                      ),
-                                      if (isLatest) ...[
-                                        const SizedBox(width: 8),
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
-                                          decoration: BoxDecoration(
-                                            color: isMe ? Colors.black.withValues(alpha: 0.25) : kAmber.withValues(alpha: 0.2),
-                                            borderRadius: BorderRadius.circular(99),
-                                          ),
-                                          child: Text(
-                                            'NEWEST',
-                                            style: TextStyle(
-                                              fontSize: 8.5,
-                                              fontWeight: FontWeight.w900,
-                                              color: isMe ? Colors.white : kAmber,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ],
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    msg['text'] ?? '',
-                                    style: const TextStyle(
-                                      fontSize: 13,
-                                      height: 1.35,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 5),
-                                  Text(
-                                    msg['time'] ?? '',
-                                    style: TextStyle(
-                                      fontSize: 9.5,
-                                      color: isMe
-                                          ? Colors.white.withValues(alpha: 0.75)
-                                          : kTextTertiary,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
-                      ),
           ),
         ],
       ),

@@ -937,10 +937,10 @@ app.get('/api/v1/clients/me', auth, async (req, res) => {
   res.json({ success: true, client: formatClient(rows[0]) });
 });
 
-// Client: update own profile (including username, password, name, contact)
+// Client: update own profile (including username, password, name, contact, fingerprint_enrolled)
 app.patch('/api/v1/clients/me', auth, async (req, res) => {
   if (req.user.role !== 'client') return res.status(403).json({ success: false, message: 'Forbidden' });
-  const { first_name, last_name, middle_name, username, password, birthdate, contact_number, email, address, region, province, city_municipality, emergency_contact, emergency_number, profile_photo } = req.body;
+  const { first_name, last_name, middle_name, username, password, birthdate, contact_number, email, address, region, province, city_municipality, emergency_contact, emergency_number, profile_photo, fingerprint_enrolled, fingerprint_id } = req.body;
 
   try {
     const [rows] = await db.execute('SELECT * FROM clients WHERE id = ?', [req.user.id]);
@@ -1004,10 +1004,27 @@ app.patch('/api/v1/clients/me', auth, async (req, res) => {
     }
 
     const photoToSave = profile_photo !== undefined ? profile_photo : c.profile_photo;
+    let fpEnrolled = c.fingerprint_enrolled ? 1 : 0;
+    if (fingerprint_enrolled !== undefined) {
+      fpEnrolled = fingerprint_enrolled ? 1 : 0;
+      if (fpEnrolled === 0) {
+        await db.execute('DELETE FROM fingerprints WHERE client_id = ?', [req.user.id]);
+      } else {
+        let parsedFpId = fingerprint_id !== undefined && fingerprint_id !== null ? Number(fingerprint_id) : null;
+        if (parsedFpId === null || isNaN(parsedFpId)) {
+          const [maxRows] = await db.execute('SELECT MAX(fingerprint_id) as max_id FROM fingerprints');
+          parsedFpId = ((maxRows[0]?.max_id || 0) + 1);
+        }
+        await db.execute(
+          'INSERT INTO fingerprints (client_id, fingerprint_id) VALUES (?, ?) ON CONFLICT (client_id) DO UPDATE SET fingerprint_id = EXCLUDED.fingerprint_id',
+          [req.user.id, parsedFpId]
+        );
+      }
+    }
 
     await db.execute(
-      'UPDATE clients SET first_name=?, last_name=?, middle_name=?, full_name=?, username=?, password=?, birthdate=?, contact_number=?, email=?, address=?, emergency_contact=?, emergency_number=?, profile_photo=?, must_change_password=? WHERE id=?',
-      [fn, ln, mn || null, full_name, un, pwdHash, bdate || null, phone || null, recoveryEmail || null, addr || null, eContact || null, ePhone || null, photoToSave || null, mustChangePwd, req.user.id]
+      'UPDATE clients SET first_name=?, last_name=?, middle_name=?, full_name=?, username=?, password=?, birthdate=?, contact_number=?, email=?, address=?, emergency_contact=?, emergency_number=?, profile_photo=?, must_change_password=?, fingerprint_enrolled=? WHERE id=?',
+      [fn, ln, mn || null, full_name, un, pwdHash, bdate || null, phone || null, recoveryEmail || null, addr || null, eContact || null, ePhone || null, photoToSave || null, mustChangePwd, fpEnrolled, req.user.id]
     );
 
     const [updated] = await db.execute('SELECT * FROM clients WHERE id = ?', [req.user.id]);

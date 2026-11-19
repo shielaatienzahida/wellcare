@@ -504,13 +504,18 @@ export default function ClientPortal() {
 
       {/* MESSAGES */}
       {tab === 'messages' && (() => {
-        // Hierarchy: sort messages so the newest / latest chat is at the TOP
-        const allMsgs = [...clientMessages]
-          .filter(m => m.recipient === msgRecipient || m.sender === msgRecipient)
-          .sort((a, b) => (b.id || 0) - (a.id || 0));
+        // Messenger style: messages flow downward chronologically, FAQ & input box are at the BOTTOM.
+        // Inbox/Channel hierarchy: whichever channel has unread or most recent chat is placed first.
+        const allMsgs = clientMessages.filter(m => m.recipient === msgRecipient || m.sender === msgRecipient);
 
-        const adminUnreadCount = clientMessages.filter(m => m.sender === 'admin' && !m.read_by_client).length;
-        const staffUnreadCount = clientMessages.filter(m => m.sender === 'staff' && !m.read_by_client).length;
+        const adminMsgs = clientMessages.filter(m => m.recipient === 'admin' || m.sender === 'admin');
+        const staffMsgs = clientMessages.filter(m => m.recipient === 'staff' || m.sender === 'staff');
+
+        const adminUnreadCount = adminMsgs.filter(m => m.sender === 'admin' && !m.read_by_client).length;
+        const staffUnreadCount = staffMsgs.filter(m => m.sender === 'staff' && !m.read_by_client).length;
+
+        const adminLastId = adminMsgs.length ? (adminMsgs[adminMsgs.length - 1].id || 0) : 0;
+        const staffLastId = staffMsgs.length ? (staffMsgs[staffMsgs.length - 1].id || 0) : 0;
 
         const CLIENT_FAQ_SUGGESTIONS = [
           'What are the wellness center operating hours?',
@@ -531,6 +536,7 @@ export default function ClientPortal() {
             });
             if (typeof customText !== 'string') setMsgInput('');
             loadClientData();
+            setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
           } catch (err) {
             alert('Failed to send message: ' + err.message);
           }
@@ -538,13 +544,13 @@ export default function ClientPortal() {
 
         return (
           <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 180px)' }}>
-            {/* Recipient Hierarchy Picker (Sorted if unread) */}
-            <div style={{ padding: '10px 16px 6px', display: 'flex', gap: '8px', background: 'var(--sand)' }}>
+            {/* Recipient Hierarchy Picker (Unread or most recent conversation placed first) */}
+            <div style={{ padding: '10px 16px 6px', display: 'flex', gap: '8px', background: 'var(--sand)', borderBottom: '1px solid rgba(4,106,56,0.08)' }}>
               {[
-                { key: 'admin', label: '💬 Admin Support', unread: adminUnreadCount },
-                { key: 'staff', label: '🧑‍⚕️ Center Staff', unread: staffUnreadCount }
+                { key: 'admin', label: '💬 Admin Support', unread: adminUnreadCount, lastId: adminLastId },
+                { key: 'staff', label: '🧑‍⚕️ Center Staff', unread: staffUnreadCount, lastId: staffLastId }
               ]
-                .sort((a, b) => b.unread - a.unread)
+                .sort((a, b) => (b.unread - a.unread) || (b.lastId - a.lastId))
                 .map(channel => (
                   <button
                     key={channel.key}
@@ -576,10 +582,36 @@ export default function ClientPortal() {
                 ))}
             </div>
 
-            {/* Suggestive Messages / Frequently Asked Questions */}
-            <div style={{ padding: '8px 16px 10px', background: 'var(--sand)', borderBottom: '1px solid rgba(4,106,56,0.08)' }}>
-              <div style={{ fontSize: '0.68rem', fontWeight: 800, color: 'var(--emerald-700)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>
-                Frequently Asked Questions (Tap to Ask)
+            {/* Messenger-style Chat Feed */}
+            <div style={{ flex: 1, overflowY: 'auto', padding: '16px 24px', display: 'flex', flexDirection: 'column', gap: '10px', background: 'var(--sand)' }}>
+              {allMsgs.length === 0 && (
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'rgba(4,106,56,0.35)', fontSize: '0.85rem', textAlign: 'center', paddingTop: '60px' }}>
+                  <MessageCircle size={40} color="rgba(4,106,56,0.15)" strokeWidth={1.5} style={{ marginBottom: '12px' }} />
+                  No messages yet. Tap a question below or type a message.
+                </div>
+              )}
+              {allMsgs.map((m, index) => (
+                <div key={m.id || index} style={{ display: 'flex', justifyContent: m.sender === 'client' ? 'flex-end' : 'flex-start' }}>
+                  <div style={{
+                    maxWidth: '75%', padding: '10px 14px', borderRadius: m.sender === 'client' ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
+                    background: m.sender === 'client' ? 'var(--emerald)' : 'white',
+                    color: m.sender === 'client' ? 'var(--sand)' : 'var(--emerald)',
+                    fontSize: '0.88rem', lineHeight: 1.5,
+                    border: m.sender !== 'client' ? '1px solid rgba(4,106,56,0.12)' : 'none',
+                    boxShadow: '0 2px 8px rgba(4,106,56,0.06)',
+                  }}>
+                    <div>{m.text}</div>
+                    <div style={{ fontSize: '0.62rem', opacity: 0.6, marginTop: '4px', textAlign: 'right' }}>{m.time}</div>
+                  </div>
+                </div>
+              ))}
+              <div ref={bottomRef} />
+            </div>
+
+            {/* Suggestive Messages / Frequently Asked Questions at the Bottom (above input box) */}
+            <div style={{ padding: '8px 16px 6px', background: 'rgba(245,242,235,0.9)', borderTop: '1px solid rgba(4,106,56,0.08)' }}>
+              <div style={{ fontSize: '0.66rem', fontWeight: 800, color: 'var(--emerald-700)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '5px' }}>
+                Suggested Questions (Tap to Send)
               </div>
               <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', paddingBottom: '4px' }}>
                 {CLIENT_FAQ_SUGGESTIONS.map((faq, idx) => (
@@ -589,12 +621,12 @@ export default function ClientPortal() {
                     onClick={() => handleSend(faq)}
                     style={{
                       whiteSpace: 'nowrap',
-                      padding: '6px 12px',
+                      padding: '5px 12px',
                       borderRadius: '99px',
                       border: '1px solid rgba(4,106,56,0.22)',
                       background: '#ffffff',
                       color: 'var(--emerald-800)',
-                      fontSize: '0.74rem',
+                      fontSize: '0.73rem',
                       fontWeight: 600,
                       cursor: 'pointer',
                       flexShrink: 0,
@@ -607,58 +639,18 @@ export default function ClientPortal() {
               </div>
             </div>
 
-            {/* Message Input at Top so user can type and see newest chat right below */}
-            <div style={{ padding: '10px 16px', borderBottom: '1px solid rgba(4,106,56,0.08)', display: 'flex', gap: '10px', alignItems: 'center', background: 'rgba(245,242,235,0.9)' }}>
+            {/* Messenger-style Bottom Input Box */}
+            <div style={{ padding: '8px 16px 12px', display: 'flex', gap: '10px', alignItems: 'center', background: 'rgba(245,242,235,0.9)' }}>
               <input
                 value={msgInput}
                 onChange={e => setMsgInput(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleSend()}
-                placeholder={`Ask or message ${msgRecipient === 'admin' ? 'Admin' : 'Staff'}...`}
-                style={{ flex: 1, padding: '10px 16px', borderRadius: '24px', border: '1.5px solid rgba(4,106,56,0.15)', background: 'white', fontSize: '0.86rem', fontFamily: 'Inter,sans-serif', color: 'var(--emerald)', outline: 'none' }}
+                placeholder={`Message ${msgRecipient === 'admin' ? 'Admin' : 'Staff'}...`}
+                style={{ flex: 1, padding: '11px 18px', borderRadius: '24px', border: '1.5px solid rgba(4,106,56,0.15)', background: 'white', fontSize: '0.88rem', fontFamily: 'Inter,sans-serif', color: 'var(--emerald)', outline: 'none' }}
               />
-              <button onClick={() => handleSend()} style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'var(--emerald)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <button onClick={() => handleSend()} style={{ width: '42px', height: '42px', borderRadius: '50%', background: 'var(--emerald)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                 <Send size={16} color="white" />
               </button>
-            </div>
-
-            {/* Messages Feed (Newest at TOP) */}
-            <div style={{ flex: 1, overflowY: 'auto', padding: '14px 20px', display: 'flex', flexDirection: 'column', gap: '10px', background: 'var(--sand)' }}>
-              {allMsgs.length > 0 && (
-                <div style={{ fontSize: '0.68rem', fontWeight: 800, color: 'rgba(4,106,56,0.5)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
-                  Latest Messages First ({allMsgs.length})
-                </div>
-              )}
-              {allMsgs.length === 0 && (
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'rgba(4,106,56,0.35)', fontSize: '0.85rem', textAlign: 'center', paddingTop: '40px' }}>
-                  <MessageCircle size={40} color="rgba(4,106,56,0.15)" strokeWidth={1.5} style={{ marginBottom: '12px' }} />
-                  No messages yet. Tap an FAQ above or type a message.
-                </div>
-              )}
-              {allMsgs.map((m, index) => (
-                <div key={m.id || index} style={{ display: 'flex', justifyContent: m.sender === 'client' ? 'flex-end' : 'flex-start' }}>
-                  <div style={{
-                    maxWidth: '78%', padding: '10px 14px', borderRadius: m.sender === 'client' ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
-                    background: m.sender === 'client' ? 'var(--emerald)' : 'white',
-                    color: m.sender === 'client' ? 'var(--sand)' : 'var(--emerald)',
-                    fontSize: '0.88rem', lineHeight: 1.5,
-                    border: m.sender !== 'client' ? '1.5px solid rgba(4,106,56,0.15)' : 'none',
-                    boxShadow: index === 0 ? '0 4px 14px rgba(4,106,56,0.14)' : '0 2px 8px rgba(4,106,56,0.06)',
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginBottom: '3px' }}>
-                      <span style={{ fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', opacity: 0.75 }}>
-                        {m.sender === 'client' ? 'You' : (m.sender === 'admin' ? 'Admin Support' : 'Center Staff')}
-                      </span>
-                      {index === 0 && (
-                        <span style={{ fontSize: '0.6rem', fontWeight: 800, background: m.sender === 'client' ? 'rgba(255,255,255,0.2)' : 'var(--emerald-100)', color: m.sender === 'client' ? '#fff' : 'var(--emerald-800)', padding: '1px 6px', borderRadius: '99px' }}>
-                          NEWEST
-                        </span>
-                      )}
-                    </div>
-                    <div>{m.text}</div>
-                    <div style={{ fontSize: '0.62rem', opacity: 0.65, marginTop: '4px', textAlign: 'right' }}>{m.time}</div>
-                  </div>
-                </div>
-              ))}
             </div>
           </div>
         );
