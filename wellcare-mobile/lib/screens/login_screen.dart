@@ -14,6 +14,14 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+  // Tech-Forward & Natural Palette (60% Warm Cream · 30% Deep Forest Green · 10% Warm Amber)
+  static const Color _bgCream = Color(0xFFF8F6F1);
+  static const Color _forestGreen = Color(0xFF12372A);
+  static const Color _mutedGreen = Color(0xFF2F4F42);
+  static const Color _sageBorder = Color(0xFF839B8B);
+  static const Color _warmAmber = Color(0xFFD58C22);
+  static const Color _pillAmber = Color(0xFFD99228);
+
   final _usernameCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
   final _passwordFocus = FocusNode();
@@ -90,299 +98,445 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: kDarkBg,
-      body: Stack(
-        children: [
-          // Dark green background
-          Positioned.fill(
-            child: Container(
-              decoration: const BoxDecoration(
-                color: kDarkBg,
-              ),
-            ),
-          ),
-          
-          // Decorative elements
-          Positioned(
-            top: -100,
-            right: -100,
-            child: Container(
-              width: 280,
-              height: 280,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(
-                  colors: [
-                    kEmeraldLight.withOpacity(0.08),
-                    kEmeraldLight.withOpacity(0.0),
-                  ],
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.dark,
+        statusBarBrightness: Brightness.light,
+        systemNavigationBarColor: _bgCream,
+        systemNavigationBarIconBrightness: Brightness.dark,
+      ),
+      child: Scaffold(
+        backgroundColor: _bgCream,
+        body: Stack(
+          children: [
+            // 60% Warm Cream soft natural background
+            Positioned.fill(
+              child: Container(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Color(0xFFFAF8F3),
+                      Color(0xFFF6F3EB),
+                      Color(0xFFF3EFE5),
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
-          
-          Positioned(
-            bottom: -120,
-            left: -120,
-            child: Container(
-              width: 260,
-              height: 260,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(
-                  colors: [
-                    kEmerald.withOpacity(0.06),
-                    kEmerald.withOpacity(0.0),
-                  ],
+
+            // Delicate top-right soft sage glow
+            Positioned(
+              top: -80,
+              right: -80,
+              child: IgnorePointer(
+                child: Container(
+                  width: 240,
+                  height: 240,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      colors: [
+                        _sageBorder.withValues(alpha: 0.14),
+                        _sageBorder.withValues(alpha: 0.0),
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ),
-          ),
-          
-          SafeArea(
-            child: LayoutBuilder(
-              builder: (context, constraints) => SingleChildScrollView(
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                  child: IntrinsicHeight(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Modern header
-                          Row(
-                            children: [
-                              Container(
-                                width: 54,
-                                height: 54,
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(AppRadius.md),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: kAmber.withValues(alpha: 0.25),
-                                      blurRadius: 12,
-                                      offset: const Offset(0, 3),
-                                    ),
-                                  ],
-                                  border: Border.all(color: kAmber, width: 2),
-                                ),
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(AppRadius.md - 2),
-                                  child: Image.asset('assets/heiwa_logo.jpg', fit: BoxFit.cover),
-                                ),
-                              ),
-                              const SizedBox(width: 14),
-                              const Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Text('HEIWA ', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: kAmber, letterSpacing: 1.2)),
-                                      Text('WELLCARE', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: kTextPrimary, letterSpacing: 1.2)),
-                                    ],
-                                  ),
-                                  Text('Wellness Center System', style: TextStyle(fontSize: 12, color: kCreamMuted, fontWeight: FontWeight.w600, letterSpacing: 0.3)),
-                                ],
-                              ),
-                            ],
-                          ),
-                          
-                          const SizedBox(height: 36),
-                          
-                          // Modern welcome text
-                          const Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('Welcome back', style: TextStyle(fontSize: 34, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: -0.8)),
-                              SizedBox(height: 6),
-                              SizedBox(
-                                width: 36,
-                                height: 3.5,
-                                child: DecoratedBox(
-                                  decoration: BoxDecoration(
-                                    color: kAmber,
-                                    borderRadius: BorderRadius.all(Radius.circular(2)),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          
-                          const SizedBox(height: 12),
-                          
-                          const Text('Sign in to access your WellCare mobile portal', style: TextStyle(fontSize: 15, height: 1.5, color: kTextSecondary, fontWeight: FontWeight.w500)),
-                          
-                          const SizedBox(height: 32),
-                          
-                          // Modern login card
-                          Container(
-                            padding: const EdgeInsets.all(28),
-                            decoration: BoxDecoration(
-                              color: kDarkSurface,
-                              borderRadius: BorderRadius.circular(AppRadius.xxxl),
-                              border: Border.all(color: kAmber.withValues(alpha: 0.35), width: 1.2),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.3),
-                                  blurRadius: 40,
-                                  offset: const Offset(0, 16),
-                                  spreadRadius: -8,
-                                ),
-                                BoxShadow(
-                                  color: kAmber.withOpacity(0.06),
-                                  blurRadius: 20,
-                                  offset: const Offset(0, 8),
-                                  spreadRadius: -4,
-                                ),
-                              ],
-                            ),
+
+            // Delicate bottom-left warm amber glow
+            Positioned(
+              bottom: -90,
+              left: -90,
+              child: IgnorePointer(
+                child: Container(
+                  width: 240,
+                  height: 240,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      colors: [
+                        _warmAmber.withValues(alpha: 0.08),
+                        _warmAmber.withValues(alpha: 0.0),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+            SafeArea(
+              child: LayoutBuilder(
+                builder: (context, constraints) => SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                    child: IntrinsicHeight(
+                      child: Center(
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 460),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                _fieldLabel('USERNAME'),
-                                const SizedBox(height: 10),
-                                _inputField(
-                                  controller: _usernameCtrl,
-                                  hint: 'Enter your username',
-                                  icon: Icons.person_outline_rounded,
-                                  textInputAction: TextInputAction.next,
-                                  onSubmitted: (_) => _passwordFocus.requestFocus(),
-                                ),
-                                const SizedBox(height: 20),
-                                _fieldLabel('PASSWORD'),
-                                const SizedBox(height: 10),
-                                _inputField(
-                                  controller: _passwordCtrl,
-                                  hint: 'Enter your password',
-                                  icon: Icons.lock_outline_rounded,
-                                  obscure: _obscure,
-                                  focusNode: _passwordFocus,
-                                  textInputAction: TextInputAction.done,
-                                  onSubmitted: (_) => _login(),
-                                  suffix: IconButton(
-                                    icon: Icon(_obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined, size: 20, color: kTextTertiary),
-                                    onPressed: () => setState(() => _obscure = !_obscure),
-                                  ),
-                                ),
-                                Align(
-                                  alignment: Alignment.centerRight,
-                                  child: Material(
-                                    borderRadius: BorderRadius.circular(AppRadius.pill),
-                                    color: Colors.transparent,
-                                    child: InkWell(
-                                      onTap: _showPasswordHelp,
-                                      borderRadius: BorderRadius.circular(AppRadius.pill),
-                                      child: const Padding(
-                                        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                        child: Text('Forgot password?', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: kAmber)),
+                                // Header row with Back button & WELLCARE branding
+                                Row(
+                                  children: [
+                                    if (Navigator.canPop(context)) ...[
+                                      Material(
+                                        color: Colors.white.withValues(alpha: 0.85),
+                                        shape: CircleBorder(
+                                          side: BorderSide(
+                                            color: _sageBorder.withValues(alpha: 0.4),
+                                            width: 1.2,
+                                          ),
+                                        ),
+                                        child: InkWell(
+                                          onTap: () => Navigator.pop(context),
+                                          customBorder: const CircleBorder(),
+                                          child: const Padding(
+                                            padding: EdgeInsets.all(9),
+                                            child: Icon(
+                                              Icons.arrow_back_rounded,
+                                              size: 19,
+                                              color: _forestGreen,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                    ],
+                                    Container(
+                                      width: 46,
+                                      height: 46,
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(14),
+                                        border: Border.all(
+                                          color: _forestGreen.withValues(alpha: 0.2),
+                                          width: 1.5,
+                                        ),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: _forestGreen.withValues(alpha: 0.1),
+                                            blurRadius: 10,
+                                            offset: const Offset(0, 3),
+                                          ),
+                                        ],
+                                      ),
+                                      child: ClipRRect(
+                                        borderRadius: BorderRadius.circular(12.5),
+                                        child: Image.asset('assets/heiwa_logo.jpg', fit: BoxFit.cover),
                                       ),
                                     ),
-                                  ),
-                                ),
-                                if (_error != null) ...{
-                                  const SizedBox(height: 16),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.dangerTint,
-                                      borderRadius: BorderRadius.circular(AppRadius.sm),
-                                      border: Border.all(color: AppColors.danger.withOpacity(0.3), width: 1.5),
-                                    ),
-                                    child: Row(
+                                    const SizedBox(width: 11),
+                                    Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        Container(
-                                          width: 28,
-                                          height: 28,
-                                          decoration: BoxDecoration(
-                                            color: AppColors.danger.withOpacity(0.1),
-                                            shape: BoxShape.circle,
+                                        const Text(
+                                          'WELLCARE',
+                                          style: TextStyle(
+                                            fontSize: 20,
+                                            fontWeight: FontWeight.w900,
+                                            color: _forestGreen,
+                                            letterSpacing: 0.8,
+                                            height: 1.05,
                                           ),
-                                          child: const Icon(Icons.error_outline_rounded, size: 16, color: AppColors.danger),
                                         ),
-                                        const SizedBox(width: 12),
-                                        Expanded(child: Text(_error!, style: const TextStyle(fontSize: 13, color: AppColors.danger, fontWeight: FontWeight.w600, height: 1.4))),
+                                        const SizedBox(height: 3.5),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+                                          decoration: BoxDecoration(
+                                            color: _pillAmber,
+                                            borderRadius: BorderRadius.circular(999),
+                                          ),
+                                          child: const Text(
+                                            'SMART WELLNESS SYSTEM',
+                                            style: TextStyle(
+                                              fontSize: 8.8,
+                                              fontWeight: FontWeight.w800,
+                                              color: _forestGreen,
+                                              letterSpacing: 0.6,
+                                              height: 1.05,
+                                            ),
+                                          ),
+                                        ),
                                       ],
                                     ),
-                                  ),
-                                },
-                                const SizedBox(height: 24),
-                                SizedBox(
-                                  width: double.infinity,
-                                  child: Material(
-                                    borderRadius: BorderRadius.circular(AppRadius.buttonLargeR),
-                                    child: InkWell(
-                                      onTap: _loading ? null : _login,
-                                      borderRadius: BorderRadius.circular(AppRadius.buttonLargeR),
-                                      child: Ink(
-                                        decoration: BoxDecoration(
-                                          gradient: const LinearGradient(
-                                            colors: [Color(0xFFF5A623), Color(0xFFD48B12)],
-                                            begin: Alignment.topLeft,
-                                            end: Alignment.bottomRight,
-                                          ),
-                                          borderRadius: BorderRadius.circular(AppRadius.buttonLargeR),
-                                          boxShadow: [
-                                            BoxShadow(
-                                              color: kAmber.withValues(alpha: 0.35),
-                                              blurRadius: 16,
-                                              offset: const Offset(0, 5),
-                                            ),
-                                          ],
-                                        ),
-                                        padding: const EdgeInsets.symmetric(vertical: 18),
-                                        child: _loading
-                                          ? const SizedBox(
-                                              width: 24,
-                                              height: 24,
-                                              child: CircularProgressIndicator(color: Color(0xFF071F15), strokeWidth: 2.5))
-                                          : const Row(
-                                              mainAxisAlignment: MainAxisAlignment.center,
-                                              children: [
-                                                Icon(Icons.login_rounded, size: 20, color: Color(0xFF071F15)),
-                                                SizedBox(width: 10),
-                                                Text('Sign In to Portal', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Color(0xFF071F15))),
-                                              ],
-                                            ),
+                                  ],
+                                ),
+
+                                const SizedBox(height: 34),
+
+                                // Welcome back typography (30% Forest Green + 10% Amber accent)
+                                const Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Welcome back',
+                                      style: TextStyle(
+                                        fontSize: 33,
+                                        fontWeight: FontWeight.w900,
+                                        color: _forestGreen,
+                                        letterSpacing: -0.7,
                                       ),
                                     ),
+                                    SizedBox(height: 6),
+                                    SizedBox(
+                                      width: 42,
+                                      height: 3.5,
+                                      child: DecoratedBox(
+                                        decoration: BoxDecoration(
+                                          color: _warmAmber,
+                                          borderRadius: BorderRadius.all(Radius.circular(99)),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+
+                                const SizedBox(height: 12),
+
+                                Text(
+                                  'Sign in to access your WellCare mobile portal',
+                                  style: TextStyle(
+                                    fontSize: 14.5,
+                                    height: 1.48,
+                                    color: _mutedGreen.withValues(alpha: 0.88),
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+
+                                const SizedBox(height: 28),
+
+                                // Clean Cream/White Login Card
+                                Container(
+                                  padding: const EdgeInsets.all(24),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.88),
+                                    borderRadius: BorderRadius.circular(26),
+                                    border: Border.all(
+                                      color: _sageBorder.withValues(alpha: 0.35),
+                                      width: 1.2,
+                                    ),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: _forestGreen.withValues(alpha: 0.08),
+                                        blurRadius: 28,
+                                        offset: const Offset(0, 12),
+                                        spreadRadius: -6,
+                                      ),
+                                    ],
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      _fieldLabel('USERNAME'),
+                                      const SizedBox(height: 8),
+                                      _inputField(
+                                        controller: _usernameCtrl,
+                                        hint: 'Enter your username',
+                                        icon: Icons.person_outline_rounded,
+                                        textInputAction: TextInputAction.next,
+                                        onSubmitted: (_) => _passwordFocus.requestFocus(),
+                                      ),
+                                      const SizedBox(height: 18),
+                                      _fieldLabel('PASSWORD'),
+                                      const SizedBox(height: 8),
+                                      _inputField(
+                                        controller: _passwordCtrl,
+                                        hint: 'Enter your password',
+                                        icon: Icons.lock_outline_rounded,
+                                        obscure: _obscure,
+                                        focusNode: _passwordFocus,
+                                        textInputAction: TextInputAction.done,
+                                        onSubmitted: (_) => _login(),
+                                        suffix: IconButton(
+                                          icon: Icon(
+                                            _obscure
+                                                ? Icons.visibility_off_outlined
+                                                : Icons.visibility_outlined,
+                                            size: 20,
+                                            color: _mutedGreen.withValues(alpha: 0.7),
+                                          ),
+                                          onPressed: () => setState(() => _obscure = !_obscure),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      Align(
+                                        alignment: Alignment.centerRight,
+                                        child: Material(
+                                          borderRadius: BorderRadius.circular(AppRadius.pill),
+                                          color: Colors.transparent,
+                                          child: InkWell(
+                                            onTap: _showPasswordHelp,
+                                            borderRadius: BorderRadius.circular(AppRadius.pill),
+                                            child: const Padding(
+                                              padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                              child: Text(
+                                                'Forgot password?',
+                                                style: TextStyle(
+                                                  fontSize: 13,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: _warmAmber,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      if (_error != null) ...[
+                                        const SizedBox(height: 14),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                                          decoration: BoxDecoration(
+                                            color: AppColors.dangerTint,
+                                            borderRadius: BorderRadius.circular(AppRadius.sm),
+                                            border: Border.all(
+                                              color: AppColors.danger.withValues(alpha: 0.3),
+                                              width: 1.3,
+                                            ),
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              Container(
+                                                width: 26,
+                                                height: 26,
+                                                decoration: BoxDecoration(
+                                                  color: AppColors.danger.withValues(alpha: 0.12),
+                                                  shape: BoxShape.circle,
+                                                ),
+                                                child: const Icon(
+                                                  Icons.error_outline_rounded,
+                                                  size: 16,
+                                                  color: AppColors.danger,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 10),
+                                              Expanded(
+                                                child: Text(
+                                                  _error!,
+                                                  style: const TextStyle(
+                                                    fontSize: 12.8,
+                                                    color: AppColors.danger,
+                                                    fontWeight: FontWeight.w600,
+                                                    height: 1.38,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                      const SizedBox(height: 22),
+                                      // Primary Forest Green Pill Button with Amber Circle Arrow (matches LandingScreen)
+                                      SizedBox(
+                                        width: double.infinity,
+                                        child: Material(
+                                          color: _forestGreen,
+                                          borderRadius: BorderRadius.circular(999),
+                                          elevation: 4,
+                                          shadowColor: _forestGreen.withValues(alpha: 0.28),
+                                          child: InkWell(
+                                            onTap: _loading ? null : _login,
+                                            borderRadius: BorderRadius.circular(999),
+                                            child: Container(
+                                              height: 54,
+                                              padding: const EdgeInsets.only(left: 22, right: 8),
+                                              child: _loading
+                                                  ? const Center(
+                                                      child: SizedBox(
+                                                        width: 22,
+                                                        height: 22,
+                                                        child: CircularProgressIndicator(
+                                                          color: _bgCream,
+                                                          strokeWidth: 2.5,
+                                                        ),
+                                                      ),
+                                                    )
+                                                  : Row(
+                                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                                      children: [
+                                                        const SizedBox(width: 38),
+                                                        const Text(
+                                                          'Sign In to Portal',
+                                                          style: TextStyle(
+                                                            fontSize: 15.5,
+                                                            fontWeight: FontWeight.w800,
+                                                            color: _bgCream,
+                                                            letterSpacing: 0.2,
+                                                          ),
+                                                        ),
+                                                        Container(
+                                                          width: 38,
+                                                          height: 38,
+                                                          decoration: const BoxDecoration(
+                                                            color: _warmAmber,
+                                                            shape: BoxShape.circle,
+                                                          ),
+                                                          child: const Icon(
+                                                            Icons.arrow_forward_rounded,
+                                                            size: 20,
+                                                            color: Colors.white,
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+
+                                const Spacer(),
+                                const SizedBox(height: 28),
+
+                                // Footer
+                                Center(
+                                  child: Column(
+                                    children: [
+                                      Text(
+                                        'WELLCARE WELLNESS CENTER · HEALTH & LIFE',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          letterSpacing: 1.2,
+                                          color: _mutedGreen.withValues(alpha: 0.65),
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                      const SizedBox(height: 5),
+                                      Text(
+                                        'Secure access to your wellness journey',
+                                        style: TextStyle(
+                                          fontSize: 11.5,
+                                          color: _forestGreen.withValues(alpha: 0.78),
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ],
                             ),
                           ),
-                          
-                          const Spacer(),
-                          
-                          const SizedBox(height: 28),
-                          
-                          // Modern footer
-                          Center(
-                            child: Column(
-                              children: [
-                                Text('WELLCARE WELLNESS CENTER · HEALTH & LIFE',
-                                  style: TextStyle(fontSize: 10, letterSpacing: 1.2, color: kTextTertiary, fontWeight: FontWeight.w800),
-                                  textAlign: TextAlign.center,
-                                ),
-                                const SizedBox(height: 6),
-                                Text('Secure access to your wellness journey',
-                                  style: TextStyle(fontSize: 11, color: kEmeraldLight, fontWeight: FontWeight.w600),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
+                        ),
                       ),
                     ),
                   ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -397,7 +551,7 @@ class _LoginScreenState extends State<LoginScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Password updated. You can now sign in.'),
-              backgroundColor: kEmerald,
+              backgroundColor: _forestGreen,
             ),
           );
         },
@@ -405,8 +559,15 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  Widget _fieldLabel(String label) => Text(label,
-    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: kTextPrimary, letterSpacing: 1.3));
+  Widget _fieldLabel(String label) => Text(
+        label,
+        style: const TextStyle(
+          fontSize: 11.5,
+          fontWeight: FontWeight.w800,
+          color: _forestGreen,
+          letterSpacing: 1.2,
+        ),
+      );
 
   Widget _inputField({
     required TextEditingController controller,
@@ -424,22 +585,34 @@ class _LoginScreenState extends State<LoginScreen> {
       focusNode: focusNode,
       textInputAction: textInputAction,
       onSubmitted: onSubmitted,
-      style: const TextStyle(fontSize: 16, color: kTextPrimary, fontWeight: FontWeight.w600),
+      cursorColor: _forestGreen,
+      style: const TextStyle(
+        fontSize: 15.5,
+        color: _forestGreen,
+        fontWeight: FontWeight.w600,
+      ),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: const TextStyle(color: kTextTertiary, fontSize: 15, fontWeight: FontWeight.w500),
-        prefixIcon: Icon(icon, size: 20, color: kAmber),
+        hintStyle: TextStyle(
+          color: _mutedGreen.withValues(alpha: 0.5),
+          fontSize: 14.5,
+          fontWeight: FontWeight.w500,
+        ),
+        prefixIcon: Icon(icon, size: 20, color: _warmAmber),
         suffixIcon: suffix,
         filled: true,
-        fillColor: kDarkSurfaceAlt,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+        fillColor: _bgCream,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppRadius.sm + 2),
-          borderSide: BorderSide(color: kAmber.withValues(alpha: 0.35), width: 1.2),
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(
+            color: _sageBorder.withValues(alpha: 0.45),
+            width: 1.2,
+          ),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppRadius.sm + 2),
-          borderSide: const BorderSide(color: kAmber, width: 1.8),
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: _warmAmber, width: 1.8),
         ),
       ),
     );
