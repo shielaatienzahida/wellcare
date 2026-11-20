@@ -12,61 +12,14 @@ class LandingScreen extends StatefulWidget {
   State<LandingScreen> createState() => _LandingScreenState();
 }
 
-class _OnboardingSlide {
-  final String titlePrimary;
-  final String titleAccent;
-  final String subtitle;
-  final String imageAsset;
-  final String fallbackAsset;
-
-  const _OnboardingSlide({
-    required this.titlePrimary,
-    required this.titleAccent,
-    required this.subtitle,
-    required this.imageAsset,
-    required this.fallbackAsset,
-  });
-}
-
 class _LandingScreenState extends State<LandingScreen> {
   // Tech-Forward & Natural Palette
   static const Color _bgCream = Color(0xFFF8F6F1);
   static const Color _forestGreen = Color(0xFF12372A);
   static const Color _mutedGreen = Color(0xFF2F4F42);
   static const Color _sageBorder = Color(0xFF839B8B);
-  static const Color _sageDot = Color(0xFF9AB0A1);
   static const Color _warmAmber = Color(0xFFD58C22);
   static const Color _pillAmber = Color(0xFFD99228);
-
-  final PageController _pageController = PageController();
-  int _currentPage = 0;
-
-  static const List<_OnboardingSlide> _slides = [
-    _OnboardingSlide(
-      titlePrimary: 'BIOMETRIC\nPRECISION.',
-      titleAccent: 'NATURAL CARE.',
-      subtitle:
-          'Seamless biometric attendance and client record management, beautifully integrated into your daily wellness workflow.',
-      imageAsset: 'assets/onboarding_biometric.jpg',
-      fallbackAsset: 'assets/card_records.jpg',
-    ),
-    _OnboardingSlide(
-      titlePrimary: 'ALKALINE\nHYDRATION.',
-      titleAccent: 'TRACKED DAILY.',
-      subtitle:
-          'Monitor every alkaline water session, daily hydration milestones, and visit history effortlessly from your mobile portal.',
-      imageAsset: 'assets/card_alkaline.jpg',
-      fallbackAsset: 'assets/card_health.jpg',
-    ),
-    _OnboardingSlide(
-      titlePrimary: 'PERSONAL\nWELLNESS.',
-      titleAccent: 'ALWAYS CONNECTED.',
-      subtitle:
-          'Message wellness center staff directly, review attendance logs by date, and keep your health records always within reach.',
-      imageAsset: 'assets/card_health.jpg',
-      fallbackAsset: 'assets/card_analytics.jpg',
-    ),
-  ];
 
   @override
   void initState() {
@@ -120,12 +73,6 @@ class _LandingScreenState extends State<LandingScreen> {
         );
       });
     }
-  }
-
-  @override
-  void dispose() {
-    _pageController.dispose();
-    super.dispose();
   }
 
   void _navigateToLogin() {
@@ -400,7 +347,7 @@ class _LandingScreenState extends State<LandingScreen> {
     );
   }
 
-  Widget _buildHeroVisualCard(_OnboardingSlide slide) {
+  Widget _buildHeroVisualCard() {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
@@ -416,41 +363,43 @@ class _LandingScreenState extends State<LandingScreen> {
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(24),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            Image.asset(
-              slide.imageAsset,
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => Image.asset(
-                slide.fallbackAsset,
+        child: AspectRatio(
+          aspectRatio: 1.24,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Image.asset(
+                'assets/onboarding_biometric.jpg',
                 fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Container(
-                  color: _forestGreen,
-                  child: const Center(
-                    child: Icon(
-                      Icons.fingerprint_rounded,
-                      size: 72,
-                      color: _warmAmber,
+                errorBuilder: (_, __, ___) => Image.asset(
+                  'assets/card_records.jpg',
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => Container(
+                    color: _forestGreen,
+                    child: const Center(
+                      child: Icon(
+                        Icons.fingerprint_rounded,
+                        size: 72,
+                        color: _warmAmber,
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-            // Subtle warm natural vignette to polish edges
-            DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.transparent,
-                    _forestGreen.withValues(alpha: 0.10),
-                  ],
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.transparent,
+                      _forestGreen.withValues(alpha: 0.10),
+                    ],
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -545,70 +494,6 @@ class _LandingScreenState extends State<LandingScreen> {
     );
   }
 
-  Widget _buildPaginationDots() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: List.generate(_slides.length, (idx) {
-        final isActive = idx == _currentPage;
-        return GestureDetector(
-          onTap: () {
-            _pageController.animateToPage(
-              idx,
-              duration: const Duration(milliseconds: 350),
-              curve: Curves.easeOutCubic,
-            );
-          },
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 280),
-            curve: Curves.easeOutCubic,
-            margin: const EdgeInsets.symmetric(horizontal: 4.5),
-            width: isActive ? 34 : 8,
-            height: 8,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(999),
-              gradient: isActive
-                  ? const LinearGradient(
-                      colors: [_warmAmber, Color(0xFF5D8A72)],
-                    )
-                  : null,
-              color: isActive ? null : _sageDot.withValues(alpha: 0.7),
-            ),
-          ),
-        );
-      }),
-    );
-  }
-
-  Widget _buildSocialProof() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        ...List.generate(
-          5,
-          (_) => const Padding(
-            padding: EdgeInsets.only(right: 1.5),
-            child: Icon(
-              Icons.star_rounded,
-              size: 15,
-              color: _warmAmber,
-            ),
-          ),
-        ),
-        const SizedBox(width: 6),
-        Text(
-          'Loved by 500+ wellness centers',
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: _mutedGreen.withValues(alpha: 0.88),
-            letterSpacing: 0.1,
-          ),
-        ),
-      ],
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return AnnotatedRegion<SystemUiOverlayStyle>(
@@ -685,114 +570,63 @@ class _LandingScreenState extends State<LandingScreen> {
               child: Center(
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 460),
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      return SingleChildScrollView(
-                        physics: const BouncingScrollPhysics(),
-                        padding: const EdgeInsets.fromLTRB(24, 18, 24, 22),
-                        child: ConstrainedBox(
-                          constraints: BoxConstraints(
-                            minHeight: (constraints.maxHeight - 40)
-                                .clamp(0.0, double.infinity),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  child: SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(),
+                    padding: const EdgeInsets.fromLTRB(24, 22, 24, 28),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // 1. Brand & Header
+                        _buildBrandHeader(),
+                        const SizedBox(height: 28),
+
+                        // 2. Hero Typography
+                        const Text.rich(
+                          TextSpan(
                             children: [
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  // 1. Brand & Header
-                                  _buildBrandHeader(),
-                                  const SizedBox(height: 26),
-
-                                  // 2 & 3. Swipeable Hero Typography + Hero Visual Card
-                                  SizedBox(
-                                    height: (constraints.maxHeight * 0.62)
-                                        .clamp(420.0, 500.0),
-                                    child: PageView.builder(
-                                      controller: _pageController,
-                                      itemCount: _slides.length,
-                                      onPageChanged: (index) {
-                                        setState(() => _currentPage = index);
-                                      },
-                                      itemBuilder: (context, index) {
-                                        final slide = _slides[index];
-                                        return Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            // Bold 3-line uppercase headline
-                                            Text.rich(
-                                              TextSpan(
-                                                children: [
-                                                  TextSpan(
-                                                    text:
-                                                        '${slide.titlePrimary}\n',
-                                                    style: const TextStyle(
-                                                      fontSize: 33,
-                                                      height: 1.06,
-                                                      fontWeight:
-                                                          FontWeight.w900,
-                                                      color: _forestGreen,
-                                                      letterSpacing: -0.6,
-                                                    ),
-                                                  ),
-                                                  TextSpan(
-                                                    text: slide.titleAccent,
-                                                    style: const TextStyle(
-                                                      fontSize: 33,
-                                                      height: 1.08,
-                                                      fontWeight:
-                                                          FontWeight.w900,
-                                                      color: _warmAmber,
-                                                      letterSpacing: -0.6,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                            const SizedBox(height: 12),
-                                            // 3-line muted green subtitle
-                                            Text(
-                                              slide.subtitle,
-                                              style: TextStyle(
-                                                fontSize: 13.8,
-                                                height: 1.48,
-                                                color: _mutedGreen
-                                                    .withValues(alpha: 0.92),
-                                                fontWeight: FontWeight.w500,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 20),
-                                            // Rounded hero visual card
-                                            Expanded(
-                                              child: _buildHeroVisualCard(slide),
-                                            ),
-                                          ],
-                                        );
-                                      },
-                                    ),
-                                  ),
-                                ],
+                              TextSpan(
+                                text: 'BIOMETRIC\nPRECISION.\n',
+                                style: TextStyle(
+                                  fontSize: 33,
+                                  height: 1.06,
+                                  fontWeight: FontWeight.w900,
+                                  color: _forestGreen,
+                                  letterSpacing: -0.6,
+                                ),
                               ),
-
-                              // 4 & 5. Action Buttons, Pagination Dots & Social Proof
-                              Column(
-                                children: [
-                                  const SizedBox(height: 14),
-                                  _buildActionButtons(),
-                                  const SizedBox(height: 20),
-                                  _buildPaginationDots(),
-                                  const SizedBox(height: 14),
-                                  _buildSocialProof(),
-                                ],
+                              TextSpan(
+                                text: 'NATURAL CARE.',
+                                style: TextStyle(
+                                  fontSize: 33,
+                                  height: 1.08,
+                                  fontWeight: FontWeight.w900,
+                                  color: _warmAmber,
+                                  letterSpacing: -0.6,
+                                ),
                               ),
                             ],
                           ),
                         ),
-                      );
-                    },
+                        const SizedBox(height: 12),
+                        Text(
+                          'Seamless biometric attendance and client record management, beautifully integrated into your daily wellness workflow.',
+                          style: TextStyle(
+                            fontSize: 13.8,
+                            height: 1.48,
+                            color: _mutedGreen.withValues(alpha: 0.92),
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+
+                        // 3. Hero Visual Card
+                        _buildHeroVisualCard(),
+                        const SizedBox(height: 28),
+
+                        // 4. Action Buttons
+                        _buildActionButtons(),
+                      ],
+                    ),
                   ),
                 ),
               ),
