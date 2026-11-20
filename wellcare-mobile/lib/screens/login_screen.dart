@@ -906,19 +906,56 @@ class _PasswordResetDialogState extends State<_PasswordResetDialog> {
     }
   }
 
+  static const Color _bgCream = Color(0xFFF8F6F1);
+  static const Color _forestGreen = Color(0xFF12372A);
+  static const Color _mutedGreen = Color(0xFF2F4F42);
+  static const Color _sageBorder = Color(0xFF839B8B);
+  static const Color _warmAmber = Color(0xFFD58C22);
+
   String _errorText(Object error) =>
       error.toString().replaceFirst('Exception: ', '');
+
+  InputDecoration _dialogInputDecoration({
+    required String label,
+    String? hint,
+    required IconData prefixIcon,
+    Widget? suffixIcon,
+  }) {
+    return InputDecoration(
+      labelText: label,
+      labelStyle: TextStyle(color: _mutedGreen.withValues(alpha: 0.78), fontSize: 13, fontWeight: FontWeight.w600),
+      hintText: hint,
+      hintStyle: TextStyle(color: _mutedGreen.withValues(alpha: 0.45), fontSize: 12.5),
+      filled: true,
+      fillColor: Colors.white,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+      prefixIcon: Icon(prefixIcon, size: 19, color: _warmAmber),
+      suffixIcon: suffixIcon,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: _sageBorder.withValues(alpha: 0.45)),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: _sageBorder.withValues(alpha: 0.45)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: _warmAmber, width: 1.6),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
       titlePadding: const EdgeInsets.fromLTRB(22, 22, 22, 6),
       contentPadding: const EdgeInsets.fromLTRB(22, 12, 22, 10),
-      backgroundColor: kDarkSurface,
+      backgroundColor: _bgCream,
       surfaceTintColor: Colors.transparent,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        side: BorderSide(color: kAmber.withOpacity(0.3), width: 1.2),
+        borderRadius: BorderRadius.circular(22),
+        side: BorderSide(color: _sageBorder.withValues(alpha: 0.4), width: 1.2),
       ),
       title: Row(
         children: [
@@ -926,17 +963,17 @@ class _PasswordResetDialogState extends State<_PasswordResetDialog> {
             width: 42,
             height: 42,
             decoration: BoxDecoration(
-              color: kAmber.withOpacity(0.18),
-              borderRadius: BorderRadius.circular(AppRadius.sm),
-              border: Border.all(color: kAmber.withOpacity(0.35), width: 1.2),
+              color: _warmAmber.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: _warmAmber.withValues(alpha: 0.35), width: 1.2),
             ),
-            child: const Icon(Icons.lock_reset_rounded, color: kAmber, size: 22),
+            child: const Icon(Icons.lock_reset_rounded, color: _warmAmber, size: 22),
           ),
           const SizedBox(width: 12),
           const Expanded(
             child: Text(
               'Reset your password',
-              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: kCream),
+              style: TextStyle(fontSize: 17.5, fontWeight: FontWeight.w900, color: _forestGreen),
             ),
           ),
         ],
@@ -950,11 +987,11 @@ class _PasswordResetDialogState extends State<_PasswordResetDialog> {
             if (_resetKey.isEmpty) ...[
               Container(
                 decoration: BoxDecoration(
-                  color: kDarkSurfaceAlt,
-                  borderRadius: BorderRadius.circular(AppRadius.sm),
-                  border: Border.all(color: Colors.white.withOpacity(0.08)),
+                  color: Colors.white.withValues(alpha: 0.85),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: _sageBorder.withValues(alpha: 0.35)),
                 ),
-                padding: const EdgeInsets.all(3),
+                padding: const EdgeInsets.all(3.5),
                 child: Row(
                   children: [
                     Expanded(
@@ -969,10 +1006,10 @@ class _PasswordResetDialogState extends State<_PasswordResetDialog> {
                         },
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 200),
-                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          padding: const EdgeInsets.symmetric(vertical: 9),
                           decoration: BoxDecoration(
-                            color: _selectedTab == 0 ? kAmber : Colors.transparent,
-                            borderRadius: BorderRadius.circular(AppRadius.xs + 2),
+                            color: _selectedTab == 0 ? _forestGreen : Colors.transparent,
+                            borderRadius: BorderRadius.circular(9),
                           ),
                           alignment: Alignment.center,
                           child: Row(
@@ -981,7 +1018,7 @@ class _PasswordResetDialogState extends State<_PasswordResetDialog> {
                               Icon(
                                 Icons.email_outlined,
                                 size: 15,
-                                color: _selectedTab == 0 ? const Color(0xFF0B1F1A) : kTextSecondary,
+                                color: _selectedTab == 0 ? _warmAmber : _mutedGreen,
                               ),
                               const SizedBox(width: 6),
                               Text(
@@ -989,7 +1026,7 @@ class _PasswordResetDialogState extends State<_PasswordResetDialog> {
                                 style: TextStyle(
                                   fontSize: 12.5,
                                   fontWeight: _selectedTab == 0 ? FontWeight.w800 : FontWeight.w600,
-                                  color: _selectedTab == 0 ? const Color(0xFF0B1F1A) : kTextSecondary,
+                                  color: _selectedTab == 0 ? _bgCream : _mutedGreen,
                                 ),
                               ),
                             ],
@@ -1009,10 +1046,10 @@ class _PasswordResetDialogState extends State<_PasswordResetDialog> {
                         },
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 200),
-                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          padding: const EdgeInsets.symmetric(vertical: 9),
                           decoration: BoxDecoration(
-                            color: _selectedTab == 1 ? kAmber : Colors.transparent,
-                            borderRadius: BorderRadius.circular(AppRadius.xs + 2),
+                            color: _selectedTab == 1 ? _forestGreen : Colors.transparent,
+                            borderRadius: BorderRadius.circular(9),
                           ),
                           alignment: Alignment.center,
                           child: Row(
@@ -1021,7 +1058,7 @@ class _PasswordResetDialogState extends State<_PasswordResetDialog> {
                               Icon(
                                 Icons.support_agent_rounded,
                                 size: 16,
-                                color: _selectedTab == 1 ? const Color(0xFF0B1F1A) : kTextSecondary,
+                                color: _selectedTab == 1 ? _warmAmber : _mutedGreen,
                               ),
                               const SizedBox(width: 6),
                               Text(
@@ -1029,7 +1066,7 @@ class _PasswordResetDialogState extends State<_PasswordResetDialog> {
                                 style: TextStyle(
                                   fontSize: 12.5,
                                   fontWeight: _selectedTab == 1 ? FontWeight.w800 : FontWeight.w600,
-                                  color: _selectedTab == 1 ? const Color(0xFF0B1F1A) : kTextSecondary,
+                                  color: _selectedTab == 1 ? _bgCream : _mutedGreen,
                                 ),
                               ),
                             ],
@@ -1046,46 +1083,31 @@ class _PasswordResetDialogState extends State<_PasswordResetDialog> {
             if (_resetKey.isEmpty && _selectedTab == 1) ...[
               // ── Admin-Assisted Recovery 3-Step Flow ──
               if (_adminStep == 0) ...[
-                // STEP 1: Request Password Reset Form
-                const Text(
+                Text(
                   'Submit your username or Client ID to request a password reset. Center staff or admin will verify your identity.',
-                  style: TextStyle(fontSize: 12.5, height: 1.45, color: kTextSecondary),
+                  style: TextStyle(fontSize: 12.5, height: 1.45, color: _mutedGreen.withValues(alpha: 0.9)),
                 ),
                 const SizedBox(height: 14),
                 TextField(
                   controller: _adminIdCtrl,
-                  style: const TextStyle(color: kTextPrimary, fontSize: 14),
-                  decoration: InputDecoration(
-                    labelText: 'Username or Client ID',
-                    labelStyle: const TextStyle(color: kTextTertiary, fontSize: 13),
-                    hintText: 'e.g. maria or 104829',
-                    hintStyle: TextStyle(color: kTextTertiary.withOpacity(0.55), fontSize: 12),
-                    filled: true,
-                    fillColor: kDarkSurfaceAlt,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-                    prefixIcon: const Icon(Icons.person_outline_rounded, size: 19, color: kAmber),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: Colors.white.withOpacity(0.08))),
-                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: Colors.white.withOpacity(0.08))),
-                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kAmber, width: 1.5)),
+                  cursorColor: _forestGreen,
+                  style: const TextStyle(color: _forestGreen, fontSize: 14, fontWeight: FontWeight.w600),
+                  decoration: _dialogInputDecoration(
+                    label: 'Username or Client ID',
+                    hint: 'e.g. maria or 104829',
+                    prefixIcon: Icons.person_outline_rounded,
                   ),
                 ),
                 const SizedBox(height: 10),
                 TextField(
                   controller: _adminContactCtrl,
                   keyboardType: TextInputType.phone,
-                  style: const TextStyle(color: kTextPrimary, fontSize: 14),
-                  decoration: InputDecoration(
-                    labelText: 'Registered Contact Number (Optional)',
-                    labelStyle: const TextStyle(color: kTextTertiary, fontSize: 13),
-                    hintText: '09XX XXX XXXX',
-                    hintStyle: TextStyle(color: kTextTertiary.withOpacity(0.55), fontSize: 12),
-                    filled: true,
-                    fillColor: kDarkSurfaceAlt,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-                    prefixIcon: const Icon(Icons.phone_outlined, size: 18, color: kAmber),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: Colors.white.withOpacity(0.08))),
-                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: Colors.white.withOpacity(0.08))),
-                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kAmber, width: 1.5)),
+                  cursorColor: _forestGreen,
+                  style: const TextStyle(color: _forestGreen, fontSize: 14, fontWeight: FontWeight.w600),
+                  decoration: _dialogInputDecoration(
+                    label: 'Registered Contact Number (Optional)',
+                    hint: '09XX XXX XXXX',
+                    prefixIcon: Icons.phone_outlined,
                   ),
                 ),
                 const SizedBox(height: 14),
@@ -1094,12 +1116,12 @@ class _PasswordResetDialogState extends State<_PasswordResetDialog> {
                   child: FilledButton.icon(
                     onPressed: _busy ? null : _submitAdminRequest,
                     style: FilledButton.styleFrom(
-                      backgroundColor: kAmber,
-                      foregroundColor: const Color(0xFF0B1F1A),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.sm)),
+                      backgroundColor: _forestGreen,
+                      foregroundColor: _bgCream,
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      shape: const StadiumBorder(),
                     ),
-                    icon: const Icon(Icons.send_rounded, size: 16),
+                    icon: const Icon(Icons.send_rounded, size: 16, color: _warmAmber),
                     label: Text(
                       _busy ? 'Submitting...' : 'Request Password Reset',
                       style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
@@ -1111,9 +1133,9 @@ class _PasswordResetDialogState extends State<_PasswordResetDialog> {
                 Container(
                   width: double.infinity,
                   decoration: BoxDecoration(
-                    color: kDarkBg,
-                    borderRadius: BorderRadius.circular(AppRadius.md),
-                    border: Border.all(color: kAmber.withOpacity(0.4), width: 1.2),
+                    color: Colors.white.withValues(alpha: 0.9),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: _sageBorder.withValues(alpha: 0.4), width: 1.2),
                   ),
                   padding: const EdgeInsets.all(16),
                   child: Column(
@@ -1122,11 +1144,11 @@ class _PasswordResetDialogState extends State<_PasswordResetDialog> {
                         width: 50,
                         height: 50,
                         decoration: BoxDecoration(
-                          color: kAmber.withOpacity(0.18),
+                          color: _warmAmber.withValues(alpha: 0.14),
                           shape: BoxShape.circle,
-                          border: Border.all(color: kAmber.withOpacity(0.4), width: 1.5),
+                          border: Border.all(color: _warmAmber.withValues(alpha: 0.4), width: 1.5),
                         ),
-                        child: const Icon(Icons.hourglass_top_rounded, color: kAmber, size: 26),
+                        child: const Icon(Icons.hourglass_top_rounded, color: _warmAmber, size: 26),
                       ),
                       const SizedBox(height: 12),
                       const Text(
@@ -1135,7 +1157,7 @@ class _PasswordResetDialogState extends State<_PasswordResetDialog> {
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w800,
-                          color: kCream,
+                          color: _forestGreen,
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -1145,17 +1167,17 @@ class _PasswordResetDialogState extends State<_PasswordResetDialog> {
                         style: const TextStyle(
                           fontSize: 12.5,
                           fontWeight: FontWeight.w700,
-                          color: kAmber,
+                          color: _warmAmber,
                         ),
                       ),
                       const SizedBox(height: 10),
-                      const Text(
+                      Text(
                         'Inform the center receptionist or admin that you requested a password reset. Once verified, this screen will let you create a new password.',
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 12,
                           height: 1.4,
-                          color: kTextSecondary,
+                          color: _mutedGreen.withValues(alpha: 0.88),
                         ),
                       ),
                       const SizedBox(height: 16),
@@ -1165,13 +1187,13 @@ class _PasswordResetDialogState extends State<_PasswordResetDialog> {
                             child: OutlinedButton.icon(
                               onPressed: _busy ? null : () => setState(() => _adminStep = 0),
                               style: OutlinedButton.styleFrom(
-                                foregroundColor: kTextTertiary,
-                                side: BorderSide(color: Colors.white.withOpacity(0.15)),
+                                foregroundColor: _forestGreen,
+                                side: BorderSide(color: _sageBorder.withValues(alpha: 0.6)),
                                 padding: const EdgeInsets.symmetric(vertical: 10),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                shape: const StadiumBorder(),
                               ),
                               icon: const Icon(Icons.arrow_back, size: 14),
-                              label: const Text('Back', style: TextStyle(fontSize: 12)),
+                              label: const Text('Back', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
                             ),
                           ),
                           const SizedBox(width: 10),
@@ -1180,12 +1202,12 @@ class _PasswordResetDialogState extends State<_PasswordResetDialog> {
                             child: FilledButton.icon(
                               onPressed: _busy ? null : () => _checkAdminStatus(showMessage: true),
                               style: FilledButton.styleFrom(
-                                backgroundColor: kAmber,
-                                foregroundColor: const Color(0xFF0B1F1A),
+                                backgroundColor: _forestGreen,
+                                foregroundColor: _bgCream,
                                 padding: const EdgeInsets.symmetric(vertical: 10),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                shape: const StadiumBorder(),
                               ),
-                              icon: const Icon(Icons.refresh_rounded, size: 15),
+                              icon: const Icon(Icons.refresh_rounded, size: 15, color: _warmAmber),
                               label: Text(
                                 _busy ? 'Checking...' : 'Check Status',
                                 style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
@@ -1200,11 +1222,11 @@ class _PasswordResetDialogState extends State<_PasswordResetDialog> {
               ] else if (_adminStep == 2) ...[
                 // STEP 3: Create New Password
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
                   decoration: BoxDecoration(
-                    color: AppColors.success.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: AppColors.success.withOpacity(0.35)),
+                    color: AppColors.successTint,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: AppColors.success.withValues(alpha: 0.35)),
                   ),
                   child: Row(
                     children: [
@@ -1213,7 +1235,7 @@ class _PasswordResetDialogState extends State<_PasswordResetDialog> {
                       Expanded(
                         child: Text(
                           'Identity Verified! Create New Password for ${_adminVerifiedName ?? ''}:',
-                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: kCream),
+                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: _forestGreen),
                         ),
                       ),
                     ],
@@ -1223,54 +1245,40 @@ class _PasswordResetDialogState extends State<_PasswordResetDialog> {
                 TextField(
                   controller: _adminNewPassCtrl,
                   obscureText: _obscureAdminNewPass,
-                  style: const TextStyle(color: kTextPrimary, fontSize: 14),
-                  decoration: InputDecoration(
-                    labelText: 'New password',
-                    labelStyle: const TextStyle(color: kTextTertiary, fontSize: 13),
-                    hintText: '6+ characters',
-                    hintStyle: TextStyle(color: kTextTertiary.withOpacity(0.55), fontSize: 12),
-                    filled: true,
-                    fillColor: kDarkSurfaceAlt,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                    prefixIcon: const Icon(Icons.lock_outline_rounded, size: 18, color: kAmber),
+                  cursorColor: _forestGreen,
+                  style: const TextStyle(color: _forestGreen, fontSize: 14, fontWeight: FontWeight.w600),
+                  decoration: _dialogInputDecoration(
+                    label: 'New password',
+                    hint: '6+ characters',
+                    prefixIcon: Icons.lock_outline_rounded,
                     suffixIcon: IconButton(
                       icon: Icon(
                         _obscureAdminNewPass ? Icons.visibility_off_outlined : Icons.visibility_outlined,
                         size: 18,
-                        color: kTextTertiary,
+                        color: _mutedGreen.withValues(alpha: 0.7),
                       ),
                       onPressed: () => setState(() => _obscureAdminNewPass = !_obscureAdminNewPass),
                     ),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: Colors.white.withOpacity(0.08))),
-                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: Colors.white.withOpacity(0.08))),
-                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kAmber, width: 1.5)),
                   ),
                 ),
                 const SizedBox(height: 10),
                 TextField(
                   controller: _adminConfirmPassCtrl,
                   obscureText: _obscureAdminConfirmPass,
-                  style: const TextStyle(color: kTextPrimary, fontSize: 14),
-                  decoration: InputDecoration(
-                    labelText: 'Confirm new password',
-                    labelStyle: const TextStyle(color: kTextTertiary, fontSize: 13),
-                    hintText: 'Re-enter new password',
-                    hintStyle: TextStyle(color: kTextTertiary.withOpacity(0.55), fontSize: 12),
-                    filled: true,
-                    fillColor: kDarkSurfaceAlt,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                    prefixIcon: const Icon(Icons.check_circle_outline_rounded, size: 18, color: kAmber),
+                  cursorColor: _forestGreen,
+                  style: const TextStyle(color: _forestGreen, fontSize: 14, fontWeight: FontWeight.w600),
+                  decoration: _dialogInputDecoration(
+                    label: 'Confirm new password',
+                    hint: 'Re-enter new password',
+                    prefixIcon: Icons.check_circle_outline_rounded,
                     suffixIcon: IconButton(
                       icon: Icon(
                         _obscureAdminConfirmPass ? Icons.visibility_off_outlined : Icons.visibility_outlined,
                         size: 18,
-                        color: kTextTertiary,
+                        color: _mutedGreen.withValues(alpha: 0.7),
                       ),
                       onPressed: () => setState(() => _obscureAdminConfirmPass = !_obscureAdminConfirmPass),
                     ),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: Colors.white.withOpacity(0.08))),
-                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: Colors.white.withOpacity(0.08))),
-                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kAmber, width: 1.5)),
                   ),
                 ),
                 const SizedBox(height: 14),
@@ -1279,12 +1287,12 @@ class _PasswordResetDialogState extends State<_PasswordResetDialog> {
                   child: FilledButton.icon(
                     onPressed: _busy ? null : _completeAdminPasswordReset,
                     style: FilledButton.styleFrom(
-                      backgroundColor: kAmber,
-                      foregroundColor: const Color(0xFF0B1F1A),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.sm)),
+                      backgroundColor: _forestGreen,
+                      foregroundColor: _bgCream,
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      shape: const StadiumBorder(),
                     ),
-                    icon: const Icon(Icons.lock_reset_rounded, size: 16),
+                    icon: const Icon(Icons.lock_reset_rounded, size: 16, color: _warmAmber),
                     label: Text(
                       _busy ? 'Saving...' : 'Save and Create New Password',
                       style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
@@ -1293,56 +1301,32 @@ class _PasswordResetDialogState extends State<_PasswordResetDialog> {
                 ),
               ],
             ] else if (_resetKey.isEmpty && _selectedTab == 0) ...{
-              const Text(
+              Text(
                 'Enter your registered email address to receive a one-time verification code (OTP).',
-                style: TextStyle(
-                    fontSize: 13, height: 1.45, color: kTextSecondary),
+                style: TextStyle(fontSize: 12.8, height: 1.45, color: _mutedGreen.withValues(alpha: 0.9)),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
               TextField(
                 controller: _emailCtrl,
                 keyboardType: TextInputType.emailAddress,
-                style: const TextStyle(color: kTextPrimary, fontSize: 14),
-                decoration: InputDecoration(
-                  labelText: 'Account Recovery Email',
-                  labelStyle: const TextStyle(color: kTextTertiary, fontSize: 13),
-                  hintText: 'Enter your registered email',
-                  hintStyle: TextStyle(color: kTextTertiary.withOpacity(0.6), fontSize: 12),
-                  filled: true,
-                  fillColor: kDarkSurfaceAlt,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-                  prefixIcon: const Icon(Icons.email_outlined, size: 19, color: kAmber),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: BorderSide(color: Colors.white.withOpacity(0.08)),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: BorderSide(color: Colors.white.withOpacity(0.08)),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: const BorderSide(color: kAmber, width: 1.5),
-                  ),
+                cursorColor: _forestGreen,
+                style: const TextStyle(color: _forestGreen, fontSize: 14, fontWeight: FontWeight.w600),
+                decoration: _dialogInputDecoration(
+                  label: 'Account Recovery Email',
+                  hint: 'Enter your registered email',
+                  prefixIcon: Icons.email_outlined,
                 ),
               ),
               const SizedBox(height: 14),
               // ── Dedicated New Password & Confirm Password Container ──────────
               Container(
                 decoration: BoxDecoration(
-                  color: kDarkBg,
-                  borderRadius: BorderRadius.circular(AppRadius.md),
+                  color: Colors.white.withValues(alpha: 0.78),
+                  borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: kAmber.withOpacity(0.35),
+                    color: _sageBorder.withValues(alpha: 0.35),
                     width: 1.2,
                   ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.25),
-                      blurRadius: 10,
-                      offset: const Offset(0, 3),
-                    ),
-                  ],
                 ),
                 padding: const EdgeInsets.all(14),
                 child: Column(
@@ -1353,10 +1337,10 @@ class _PasswordResetDialogState extends State<_PasswordResetDialog> {
                         Container(
                           padding: const EdgeInsets.all(5),
                           decoration: BoxDecoration(
-                            color: kAmber.withOpacity(0.18),
-                            borderRadius: BorderRadius.circular(6),
+                            color: _warmAmber.withValues(alpha: 0.16),
+                            borderRadius: BorderRadius.circular(7),
                           ),
-                          child: const Icon(Icons.vpn_key_rounded, size: 14, color: kAmber),
+                          child: const Icon(Icons.vpn_key_rounded, size: 14, color: _warmAmber),
                         ),
                         const SizedBox(width: 8),
                         const Text(
@@ -1365,7 +1349,7 @@ class _PasswordResetDialogState extends State<_PasswordResetDialog> {
                             fontSize: 11,
                             fontWeight: FontWeight.w800,
                             letterSpacing: 1.1,
-                            color: kAmber,
+                            color: _forestGreen,
                           ),
                         ),
                       ],
@@ -1374,35 +1358,19 @@ class _PasswordResetDialogState extends State<_PasswordResetDialog> {
                     TextField(
                       controller: _passwordCtrl,
                       obscureText: _obscureNewPass,
-                      style: const TextStyle(color: kTextPrimary, fontSize: 14),
-                      decoration: InputDecoration(
-                        labelText: 'New password',
-                        labelStyle: const TextStyle(color: kTextTertiary, fontSize: 13),
-                        hintText: '6+ characters',
-                        hintStyle: TextStyle(color: kTextTertiary.withOpacity(0.55), fontSize: 12),
-                        filled: true,
-                        fillColor: kDarkSurfaceAlt,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                        prefixIcon: const Icon(Icons.lock_outline_rounded, size: 18, color: kAmber),
+                      cursorColor: _forestGreen,
+                      style: const TextStyle(color: _forestGreen, fontSize: 14, fontWeight: FontWeight.w600),
+                      decoration: _dialogInputDecoration(
+                        label: 'New password',
+                        hint: '8+ characters',
+                        prefixIcon: Icons.lock_outline_rounded,
                         suffixIcon: IconButton(
                           icon: Icon(
                             _obscureNewPass ? Icons.visibility_off_outlined : Icons.visibility_outlined,
                             size: 18,
-                            color: kTextTertiary,
+                            color: _mutedGreen.withValues(alpha: 0.7),
                           ),
                           onPressed: () => setState(() => _obscureNewPass = !_obscureNewPass),
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide: BorderSide(color: Colors.white.withOpacity(0.08)),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide: BorderSide(color: Colors.white.withOpacity(0.08)),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide: const BorderSide(color: kAmber, width: 1.5),
                         ),
                       ),
                     ),
@@ -1410,35 +1378,19 @@ class _PasswordResetDialogState extends State<_PasswordResetDialog> {
                     TextField(
                       controller: _confirmCtrl,
                       obscureText: _obscureConfirmPass,
-                      style: const TextStyle(color: kTextPrimary, fontSize: 14),
-                      decoration: InputDecoration(
-                        labelText: 'Confirm new password',
-                        labelStyle: const TextStyle(color: kTextTertiary, fontSize: 13),
-                        hintText: 'Re-enter new password',
-                        hintStyle: TextStyle(color: kTextTertiary.withOpacity(0.55), fontSize: 12),
-                        filled: true,
-                        fillColor: kDarkSurfaceAlt,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                        prefixIcon: const Icon(Icons.check_circle_outline_rounded, size: 18, color: kAmber),
+                      cursorColor: _forestGreen,
+                      style: const TextStyle(color: _forestGreen, fontSize: 14, fontWeight: FontWeight.w600),
+                      decoration: _dialogInputDecoration(
+                        label: 'Confirm new password',
+                        hint: 'Re-enter new password',
+                        prefixIcon: Icons.check_circle_outline_rounded,
                         suffixIcon: IconButton(
                           icon: Icon(
                             _obscureConfirmPass ? Icons.visibility_off_outlined : Icons.visibility_outlined,
                             size: 18,
-                            color: kTextTertiary,
+                            color: _mutedGreen.withValues(alpha: 0.7),
                           ),
                           onPressed: () => setState(() => _obscureConfirmPass = !_obscureConfirmPass),
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide: BorderSide(color: Colors.white.withOpacity(0.08)),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide: BorderSide(color: Colors.white.withOpacity(0.08)),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide: const BorderSide(color: kAmber, width: 1.5),
                         ),
                       ),
                     ),
@@ -1446,30 +1398,37 @@ class _PasswordResetDialogState extends State<_PasswordResetDialog> {
                 ),
               ),
             } else ...{
-              const Text('Enter the OTP sent to your email. It expires in 3 minutes.',
-                  style: TextStyle(fontSize: 13, height: 1.45, color: kTextSecondary)),
+              Text(
+                'Enter the OTP sent to your email. It expires in 3 minutes.',
+                style: TextStyle(fontSize: 13, height: 1.45, color: _mutedGreen.withValues(alpha: 0.9)),
+              ),
               const SizedBox(height: 16),
               TextField(
                 controller: _otpCtrl,
                 keyboardType: TextInputType.number,
                 maxLength: 6,
                 textAlign: TextAlign.center,
+                cursorColor: _forestGreen,
                 inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                 style: const TextStyle(
-                    fontSize: 22, fontWeight: FontWeight.w800, letterSpacing: 8, color: kCream),
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 8,
+                  color: _forestGreen,
+                ),
                 decoration: InputDecoration(
                   labelText: 'Email OTP Code',
-                  labelStyle: const TextStyle(color: kTextTertiary),
+                  labelStyle: TextStyle(color: _mutedGreen.withValues(alpha: 0.75)),
                   counterText: '',
                   filled: true,
-                  fillColor: kDarkSurfaceAlt,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: BorderSide(color: kAmber.withOpacity(0.3)),
+                  fillColor: Colors.white,
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: _sageBorder.withValues(alpha: 0.5)),
                   ),
                   focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: const BorderSide(color: kAmber, width: 1.5),
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: _warmAmber, width: 1.8),
                   ),
                 ),
               ),
@@ -1480,11 +1439,11 @@ class _PasswordResetDialogState extends State<_PasswordResetDialog> {
                 margin: const EdgeInsets.only(top: 14),
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 decoration: BoxDecoration(
-                  color: _isSuccess ? kAmber.withOpacity(0.15) : AppColors.dangerTint,
-                  borderRadius: BorderRadius.circular(AppRadius.xs + 2),
+                  color: _isSuccess ? AppColors.successTint : AppColors.dangerTint,
+                  borderRadius: BorderRadius.circular(10),
                   border: Border.all(
-                      color: (_isSuccess ? kAmber : AppColors.danger)
-                          .withOpacity(0.35)),
+                    color: (_isSuccess ? AppColors.success : AppColors.danger).withValues(alpha: 0.35),
+                  ),
                 ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1492,7 +1451,7 @@ class _PasswordResetDialogState extends State<_PasswordResetDialog> {
                     Icon(
                       _isSuccess ? Icons.check_circle_outline_rounded : Icons.error_outline_rounded,
                       size: 17,
-                      color: _isSuccess ? kAmber : AppColors.danger,
+                      color: _isSuccess ? AppColors.success : AppColors.danger,
                     ),
                     const SizedBox(width: 8),
                     Expanded(
@@ -1502,7 +1461,7 @@ class _PasswordResetDialogState extends State<_PasswordResetDialog> {
                           fontSize: 12.5,
                           height: 1.35,
                           fontWeight: FontWeight.w600,
-                          color: _isSuccess ? kCream : AppColors.danger,
+                          color: _isSuccess ? _forestGreen : AppColors.danger,
                         ),
                       ),
                     ),
@@ -1515,18 +1474,20 @@ class _PasswordResetDialogState extends State<_PasswordResetDialog> {
       actions: [
         TextButton(
           onPressed: _busy ? null : () => Navigator.of(context).pop(),
-          style: TextButton.styleFrom(foregroundColor: kTextTertiary),
-          child: Text(_resetKey.isEmpty && _selectedTab == 1 ? 'Close' : 'Cancel'),
+          style: TextButton.styleFrom(foregroundColor: _mutedGreen),
+          child: Text(
+            _resetKey.isEmpty && _selectedTab == 1 ? 'Close' : 'Cancel',
+            style: const TextStyle(fontWeight: FontWeight.w700),
+          ),
         ),
         if (_resetKey.isNotEmpty || _selectedTab == 0)
           FilledButton(
             onPressed: _busy ? null : _submit,
             style: FilledButton.styleFrom(
-              backgroundColor: kAmber,
-              foregroundColor: const Color(0xFF0B1F1A),
+              backgroundColor: _forestGreen,
+              foregroundColor: _bgCream,
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.sm)),
+              shape: const StadiumBorder(),
             ),
             child: Text(
               _busy
