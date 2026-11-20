@@ -50,8 +50,8 @@ export default function AdminLayout({ children, unreadMsgCount = 0 }) {
   const navItems = [
     { path: '/dashboard',        label: 'Dashboard',        icon: LayoutDashboard },
     { path: '/staff-monitoring', label: 'Staff Monitoring', icon: Activity },
+    { path: '/admin-messages',   label: 'Messages',         icon: Inbox, badge: unreadMsgCount },
     { path: '/inventory',        label: 'Inventory',        icon: Package },
-    { path: '/admin-messages',   label: 'Messages',          icon: Inbox, badge: unreadMsgCount },
     { path: '/reports',          label: 'Reports',          icon: BarChart2 },
     { path: '/admin-profile',    label: 'Admin Profile',    icon: User },
   ];

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { jsPDF } from 'jspdf';
 import {
   Droplets,
   Package,
@@ -12,6 +13,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Download,
+  FileText,
   Filter,
   X,
 } from 'lucide-react';
@@ -41,6 +43,17 @@ export default function AdminInventory() {
   const [loggedByFilter, setLoggedByFilter] = useState('all');
   const [activeView, setActiveView] = useState('logs'); // 'logs' | 'by-client'
   const [page, setPage] = useState(1);
+
+  // Export PDF Modal state
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportStartDate, setExportStartDate] = useState(() => {
+    const d = new Date();
+    d.setDate(1);
+    return d.toISOString().slice(0, 10);
+  });
+  const [exportEndDate, setExportEndDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [exportError, setExportError] = useState('');
+  const [isExporting, setIsExporting] = useState(false);
 
   const loadData = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -161,24 +174,274 @@ export default function AdminInventory() {
   const safePage = Math.min(page, totalPages);
   const pagedItems = activeList.slice((safePage - 1) * ITEMS_PER_PAGE, safePage * ITEMS_PER_PAGE);
 
-  const exportCsv = () => {
-    const headers = ['Record ID', 'Client Name', 'Client ID', 'Type', 'Logged By', 'Date & Time'];
-    const rows = filteredLogs.map((r) => [
-      r.id ?? '',
-      `"${String(r.full_name || 'Unknown Client').replace(/"/g, '""')}"`,
-      r.client_id_number || r.client_id || '',
-      `"${String(r.type || 'Alkaline Session').replace(/"/g, '""')}"`,
-      r.logged_by || 'staff',
-      `"${String(r.date || r.created_at || '').replace(/"/g, '""')}"`,
-    ]);
-    const csv = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `alkaline-water-inventory-${new Date().toISOString().slice(0, 10)}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
+  const handleExportPdf = async () => {
+    if (isExporting) return;
+    setExportError('');
+
+    if (exportStartDate && exportEndDate && exportStartDate > exportEndDate) {
+      setExportError('Start date cannot be later than end date.');
+      return;
+    }
+
+    setIsExporting(true);
+    try {
+      const summaryRes = await api.getAttendanceSummary({
+        startDate: exportStartDate || undefined,
+        endDate: exportEndDate || undefined,
+      }).catch(() => ({ history: [] }));
+
+      const rangedAlkaline = (summaryRes?.history || []).filter((item) => {
+        const t = String(item.type || '').toLowerCase();
+        return t.includes('alkaline') || t.includes('water');
+      });
+
+      const reportDate = new Date().toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' });
+      const reportTime = new Date().toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' });
+      const dateRangeLabel = exportStartDate && exportEndDate
+        ? `${exportStartDate} to ${exportEndDate}`
+        : exportStartDate
+          ? `From ${exportStartDate}`
+          : exportEndDate
+            ? `Up to ${exportEndDate}`
+            : 'All Time';
+
+      const dateStamp = new Date().toISOString().slice(0, 10);
+      const filename = `WellCare_Alkaline_Inventory_${exportStartDate || 'all'}_to_${exportEndDate || dateStamp}.pdf`;
+
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const margin = 14;
+      const contentWidth = pageWidth - margin * 2;
+      let y = margin;
+
+      const drawFooter = (pageNum, totalPagesCount) => {
+        pdf.setDrawColor(215, 226, 220);
+        pdf.setLineWidth(0.3);
+        pdf.line(margin, pageHeight - 12, pageWidth - margin, pageHeight - 12);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(8);
+        pdf.setTextColor(100, 116, 139);
+        pdf.text('WELLCARE HEALTHCARE SYSTEM · Alkaline Water Bottle Inventory Report', margin, pageHeight - 7.5);
+        pdf.text(`Page ${pageNum} of ${totalPagesCount}`, pageWidth - margin, pageHeight - 7.5, { align: 'right' });
+      };
+
+      const ensureSpace = (needed) => {
+        if (y + needed > pageHeight - 18) {
+          pdf.addPage();
+          y = margin;
+        }
+      };
+
+      const drawSectionTitle = (title, subtitle = '') => {
+        ensureSpace(16);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(11);
+        pdf.setTextColor(4, 106, 56);
+        pdf.text(title, margin, y);
+        if (subtitle) {
+          pdf.setFont('helvetica', 'normal');
+          pdf.setFontSize(8.5);
+          pdf.setTextColor(100, 116, 139);
+          pdf.text(subtitle, pageWidth - margin, y, { align: 'right' });
+        }
+        y += 2.2;
+        pdf.setDrawColor(4, 106, 56);
+        pdf.setLineWidth(0.5);
+        pdf.line(margin, y, pageWidth - margin, y);
+        y += 4.5;
+      };
+
+      const drawTable = (columns, rows, emptyText = 'No bottle usage records found.') => {
+        const headerHeight = 8;
+        const rowHeight = 7;
+
+        const drawHeader = () => {
+          ensureSpace(headerHeight + rowHeight);
+          pdf.setFillColor(4, 106, 56);
+          pdf.rect(margin, y, contentWidth, headerHeight, 'F');
+          pdf.setFont('helvetica', 'bold');
+          pdf.setFontSize(8.2);
+          pdf.setTextColor(255, 255, 255);
+          let x = margin;
+          columns.forEach((col) => {
+            const align = col.align || 'left';
+            const textX = align === 'right' ? x + col.width - 2 : align === 'center' ? x + col.width / 2 : x + 2;
+            pdf.text(col.label, textX, y + 5.3, { align });
+            x += col.width;
+          });
+          y += headerHeight;
+        };
+
+        drawHeader();
+
+        if (rows.length === 0) {
+          pdf.setFillColor(248, 250, 252);
+          pdf.rect(margin, y, contentWidth, 9, 'F');
+          pdf.setDrawColor(226, 232, 240);
+          pdf.setLineWidth(0.2);
+          pdf.rect(margin, y, contentWidth, 9, 'S');
+          pdf.setFont('helvetica', 'italic');
+          pdf.setFontSize(8.5);
+          pdf.setTextColor(100, 116, 139);
+          pdf.text(emptyText, pageWidth / 2, y + 5.8, { align: 'center' });
+          y += 13;
+          return;
+        }
+
+        rows.forEach((row, rIdx) => {
+          if (y + rowHeight > pageHeight - 18) {
+            pdf.addPage();
+            y = margin;
+            drawHeader();
+          }
+          if (rIdx % 2 === 1) {
+            pdf.setFillColor(244, 251, 247);
+            pdf.rect(margin, y, contentWidth, rowHeight, 'F');
+          }
+          pdf.setDrawColor(226, 232, 240);
+          pdf.setLineWidth(0.18);
+          pdf.line(margin, y + rowHeight, pageWidth - margin, y + rowHeight);
+
+          pdf.setFont('helvetica', 'normal');
+          pdf.setFontSize(8);
+          pdf.setTextColor(15, 23, 42);
+
+          let x = margin;
+          columns.forEach((col) => {
+            const rawVal = row[col.key] !== undefined && row[col.key] !== null ? String(row[col.key]) : '—';
+            const maxChars = Math.max(4, Math.floor(col.width * 0.52));
+            const cellText = rawVal.length > maxChars ? `${rawVal.slice(0, maxChars - 1)}…` : rawVal;
+            const align = col.align || 'left';
+            const textX = align === 'right' ? x + col.width - 2 : align === 'center' ? x + col.width / 2 : x + 2;
+            pdf.text(cellText, textX, y + 4.8, { align });
+            x += col.width;
+          });
+          y += rowHeight;
+        });
+
+        pdf.setDrawColor(203, 213, 225);
+        pdf.setLineWidth(0.25);
+        pdf.line(margin, y, pageWidth - margin, y);
+        y += 7;
+      };
+
+      // ── Header Banner ──
+      pdf.setFillColor(4, 106, 56);
+      pdf.roundedRect(margin, y, contentWidth, 24, 2.5, 2.5, 'F');
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(15);
+      pdf.setTextColor(255, 255, 255);
+      pdf.text('WELLCARE HEALTHCARE SYSTEM', margin + 5, y + 9.5);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(9);
+      pdf.setTextColor(209, 250, 229);
+      pdf.text('Alkaline Water Bottle Inventory & Usage Report', margin + 5, y + 15.5);
+
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(8.5);
+      pdf.setTextColor(255, 255, 255);
+      pdf.text(`Date Range: ${dateRangeLabel}`, pageWidth - margin - 5, y + 9.5, { align: 'right' });
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(8);
+      pdf.setTextColor(209, 250, 229);
+      pdf.text(`Generated: ${reportDate} · ${reportTime}`, pageWidth - margin - 5, y + 15.5, { align: 'right' });
+      pdf.text(`Records in Period: ${rangedAlkaline.length} bottles`, pageWidth - margin - 5, y + 20.5, { align: 'right' });
+      y += 30;
+
+      // ── 1. Inventory Summary Table ──
+      const rangedBottles = rangedAlkaline.length;
+      const rangedLiters = (rangedBottles * 0.5).toFixed(1);
+      const rangedClientsCount = new Set(rangedAlkaline.map((r) => r.client_id)).size;
+
+      drawSectionTitle('1. Alkaline Bottle Inventory Summary', `Period: ${dateRangeLabel}`);
+      drawTable(
+        [
+          { key: 'metric', label: 'Inventory Metric', width: 84 },
+          { key: 'value', label: 'Total', width: 38, align: 'right' },
+          { key: 'notes', label: 'Details', width: 60 },
+        ],
+        [
+          { metric: 'Bottles Used (Selected Period)', value: `${rangedBottles}`, notes: `${rangedLiters} Liters (${(rangedBottles * 500).toLocaleString()} mL)` },
+          { metric: 'Active Consumers (Selected Period)', value: `${rangedClientsCount}`, notes: 'Unique clients served' },
+          { metric: 'All-Time Total Bottles Used', value: `${stats.totalBottlesUsed}`, notes: `${stats.totalLiters} Liters cumulative` },
+          { metric: 'Used Today', value: `${stats.todaySessions}`, notes: `${(stats.todaySessions * 0.5).toFixed(1)} L dispensed today` },
+        ]
+      );
+
+      // ── 2. Per-Client Breakdown Table (within selected range) ──
+      const perClientMap = {};
+      rangedAlkaline.forEach((r) => {
+        const key = r.client_id || r.full_name;
+        if (!perClientMap[key]) {
+          perClientMap[key] = {
+            name: r.full_name || `Client #${r.client_id}`,
+            cid: r.client_id_number || `ID-${r.client_id}`,
+            bottles: 0,
+            lastDate: r.date || (r.created_at ? String(r.created_at).slice(0, 16).replace('T', ' ') : '—'),
+          };
+        }
+        perClientMap[key].bottles += 1;
+      });
+      const perClientRows = Object.values(perClientMap)
+        .sort((a, b) => b.bottles - a.bottles)
+        .map((c) => ({
+          cid: c.cid,
+          name: c.name,
+          bottles: `${c.bottles} ${c.bottles === 1 ? 'bottle' : 'bottles'}`,
+          volume: `${(c.bottles * 0.5).toFixed(1)} L (${(c.bottles * 500).toLocaleString()} mL)`,
+          lastDate: c.lastDate,
+        }));
+
+      drawSectionTitle('2. Bottle Usage by Client', `${perClientRows.length} clients`);
+      drawTable(
+        [
+          { key: 'cid', label: 'Client ID', width: 24 },
+          { key: 'name', label: 'Client Name', width: 54 },
+          { key: 'bottles', label: 'Bottles Used', width: 28, align: 'center' },
+          { key: 'volume', label: 'Total Volume', width: 38, align: 'right' },
+          { key: 'lastDate', label: 'Latest Log', width: 38 },
+        ],
+        perClientRows,
+        'No client bottle consumption recorded for this date range.'
+      );
+
+      // ── 3. Detailed Bottle Usage Logs Table ──
+      drawSectionTitle('3. Detailed Bottle Dispense Logs', `${rangedAlkaline.length} entries`);
+      drawTable(
+        [
+          { key: 'id', label: 'Log #', width: 16 },
+          { key: 'name', label: 'Client Name', width: 52 },
+          { key: 'cid', label: 'Client ID', width: 24 },
+          { key: 'qty', label: 'Quantity', width: 28, align: 'center' },
+          { key: 'by', label: 'Logged By', width: 22 },
+          { key: 'date', label: 'Date & Time', width: 40 },
+        ],
+        rangedAlkaline.map((r) => ({
+          id: `#${r.id ?? ''}`,
+          name: r.full_name || `Client #${r.client_id}`,
+          cid: r.client_id_number || `ID-${r.client_id}`,
+          qty: '1 Bottle (500 mL)',
+          by: r.logged_by || 'staff',
+          date: r.date || (r.created_at ? String(r.created_at).slice(0, 16).replace('T', ' ') : '—'),
+        })),
+        'No bottle dispense logs found in the selected date range.'
+      );
+
+      const totalPagesCount = pdf.getNumberOfPages();
+      for (let p = 1; p <= totalPagesCount; p++) {
+        pdf.setPage(p);
+        drawFooter(p, totalPagesCount);
+      }
+
+      pdf.save(filename);
+      setShowExportModal(false);
+    } catch (err) {
+      console.error('Inventory PDF export error:', err);
+      setExportError('Failed to generate PDF report. Please try again.');
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   return (
@@ -209,13 +472,16 @@ export default function AdminInventory() {
             </button>
             <button
               type="button"
-              onClick={exportCsv}
-              disabled={filteredLogs.length === 0}
+              onClick={() => {
+                setExportError('');
+                setShowExportModal(true);
+              }}
+              disabled={loading || isExporting}
               className="btn-primary"
               style={{ padding: '9px 16px', fontSize: '0.82rem' }}
             >
               <Download size={15} />
-              Export CSV
+              {isExporting ? 'Generating PDF...' : 'Export PDF'}
             </button>
           </div>
         </div>
@@ -516,6 +782,125 @@ export default function AdminInventory() {
           )}
         </div>
       </main>
+
+      {/* ── Export PDF Date Range Modal ── */}
+      {showExportModal && (
+        <div
+          role="presentation"
+          onClick={() => !isExporting && setShowExportModal(false)}
+          className="modal-overlay"
+          style={{ zIndex: 120 }}
+        >
+          <section
+            role="dialog"
+            aria-modal="true"
+            onClick={(e) => e.stopPropagation()}
+            className="modal-card"
+            style={{ maxWidth: '450px', padding: '26px', borderRadius: '22px' }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ width: 40, height: 40, borderRadius: 12, background: 'var(--emerald-50)', border: '1px solid rgba(16,185,129,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--emerald-700)' }}>
+                  <FileText size={20} />
+                </div>
+                <div>
+                  <h3 className="modal-title" style={{ fontSize: '1.12rem', marginBottom: 2 }}>Export Water Inventory PDF</h3>
+                  <p style={{ fontSize: '0.76rem', color: 'var(--text-muted)', margin: 0 }}>Select date range for tabular bottle records</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => !isExporting && setShowExportModal(false)}
+                style={{ background: 'var(--emerald-50)', border: 'none', borderRadius: '50%', width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--emerald-800)' }}
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div style={{ display: 'grid', gap: '14px' }}>
+              {/* Quick Presets */}
+              <div>
+                <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--emerald-800)', marginBottom: '6px' }}>
+                  Quick Date Presets
+                </label>
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                  {[
+                    { label: 'Today', fn: () => { const t = new Date().toISOString().slice(0, 10); setExportStartDate(t); setExportEndDate(t); } },
+                    { label: 'Last 7 Days', fn: () => { const e = new Date(); const s = new Date(); s.setDate(e.getDate() - 6); setExportStartDate(s.toISOString().slice(0, 10)); setExportEndDate(e.toISOString().slice(0, 10)); } },
+                    { label: 'This Month', fn: () => { const e = new Date(); const s = new Date(e.getFullYear(), e.getMonth(), 1); setExportStartDate(s.toISOString().slice(0, 10)); setExportEndDate(e.toISOString().slice(0, 10)); } },
+                    { label: 'All Time', fn: () => { setExportStartDate(''); setExportEndDate(''); } },
+                  ].map((preset) => (
+                    <button
+                      key={preset.label}
+                      type="button"
+                      onClick={preset.fn}
+                      style={{
+                        padding: '5px 11px', borderRadius: '99px', fontSize: '0.74rem', fontWeight: 700,
+                        border: '1px solid rgba(4,106,56,0.2)', background: 'var(--emerald-50)',
+                        color: 'var(--emerald-800)', cursor: 'pointer'
+                      }}
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Date Range Inputs */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--emerald-800)', marginBottom: '5px' }}>
+                    Start Date
+                  </label>
+                  <input
+                    type="date"
+                    value={exportStartDate}
+                    onChange={(e) => setExportStartDate(e.target.value)}
+                    className="login-input"
+                    style={{ padding: '9px 12px', fontSize: '0.84rem' }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--emerald-800)', marginBottom: '5px' }}>
+                    End Date
+                  </label>
+                  <input
+                    type="date"
+                    value={exportEndDate}
+                    onChange={(e) => setExportEndDate(e.target.value)}
+                    className="login-input"
+                    style={{ padding: '9px 12px', fontSize: '0.84rem' }}
+                  />
+                </div>
+              </div>
+
+              {exportError && (
+                <div className="login-error" style={{ margin: 0 }}>{exportError}</div>
+              )}
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '6px' }}>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  disabled={isExporting}
+                  onClick={() => setShowExportModal(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="btn-primary"
+                  disabled={isExporting}
+                  onClick={handleExportPdf}
+                >
+                  <Download size={15} />
+                  {isExporting ? 'Generating PDF...' : 'Download PDF'}
+                </button>
+              </div>
+            </div>
+          </section>
+        </div>
+      )}
     </AdminLayout>
   );
 }
