@@ -488,7 +488,7 @@ export default function Reports() {
           { metric: 'Total Registered Clients', value: String(clients.length), notes: `${enrolled} biometric enrolled` },
           { metric: 'Total Active Staff', value: String(staffList.length), notes: 'System operators' },
           { metric: 'Check-ins (Selected Range)', value: String(periodCheckins), notes: `${dateRangeLabel}` },
-          { metric: 'Alkaline Water Bottles Used', value: String(periodAlkaline), notes: `${(periodAlkaline * 0.5).toFixed(1)} Liters dispensed` },
+          { metric: 'Alkaline Water Bottles Used', value: String(periodAlkaline), notes: `${periodAlkaline} L (${(periodAlkaline * 1000).toLocaleString()} mL) dispensed` },
           { metric: 'Absences (Selected Range)', value: String(periodAbsences), notes: `Attendance Rate: ${periodRate}%` },
         ]
       );

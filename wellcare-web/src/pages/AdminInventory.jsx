@@ -112,7 +112,7 @@ export default function AdminInventory() {
     const totalSessions = history.length;
     const totalFromClients = clients.reduce((sum, c) => sum + Number(c.total_bottles || 0), 0);
     const totalBottlesUsed = Math.max(totalSessions, totalFromClients);
-    const totalLiters = (totalBottlesUsed * 0.5).toFixed(1);
+    const totalLiters = totalBottlesUsed;
 
     const todaySessions = history.filter((h) => matchesDate(h, todayIso)).length;
     const monthSessions = history.filter((h) => {
@@ -351,7 +351,7 @@ export default function AdminInventory() {
 
       // ── 1. Inventory Summary Table ──
       const rangedBottles = rangedAlkaline.length;
-      const rangedLiters = (rangedBottles * 0.5).toFixed(1);
+      const rangedLiters = rangedBottles;
       const rangedClientsCount = new Set(rangedAlkaline.map((r) => r.client_id)).size;
 
       drawSectionTitle('1. Alkaline Bottle Inventory Summary', `Period: ${dateRangeLabel}`);
@@ -362,10 +362,10 @@ export default function AdminInventory() {
           { key: 'notes', label: 'Details', width: 60 },
         ],
         [
-          { metric: 'Bottles Used (Selected Period)', value: `${rangedBottles}`, notes: `${rangedLiters} Liters (${(rangedBottles * 500).toLocaleString()} mL)` },
+          { metric: 'Bottles Used (Selected Period)', value: `${rangedBottles}`, notes: `${rangedLiters} L (${(rangedBottles * 1000).toLocaleString()} mL)` },
           { metric: 'Active Consumers (Selected Period)', value: `${rangedClientsCount}`, notes: 'Unique clients served' },
-          { metric: 'All-Time Total Bottles Used', value: `${stats.totalBottlesUsed}`, notes: `${stats.totalLiters} Liters cumulative` },
-          { metric: 'Used Today', value: `${stats.todaySessions}`, notes: `${(stats.todaySessions * 0.5).toFixed(1)} L dispensed today` },
+          { metric: 'All-Time Total Bottles Used', value: `${stats.totalBottlesUsed}`, notes: `${stats.totalLiters} L (${(stats.totalBottlesUsed * 1000).toLocaleString()} mL) total` },
+          { metric: 'Used Today', value: `${stats.todaySessions}`, notes: `${stats.todaySessions} L (${(stats.todaySessions * 1000).toLocaleString()} mL) today` },
         ]
       );
 
@@ -389,7 +389,7 @@ export default function AdminInventory() {
           cid: c.cid,
           name: c.name,
           bottles: `${c.bottles} ${c.bottles === 1 ? 'bottle' : 'bottles'}`,
-          volume: `${(c.bottles * 0.5).toFixed(1)} L (${(c.bottles * 500).toLocaleString()} mL)`,
+          volume: `${c.bottles} L (${(c.bottles * 1000).toLocaleString()} mL)`,
           lastDate: c.lastDate,
         }));
 
@@ -411,9 +411,9 @@ export default function AdminInventory() {
       drawTable(
         [
           { key: 'id', label: 'Log #', width: 16 },
-          { key: 'name', label: 'Client Name', width: 52 },
+          { key: 'name', label: 'Client Name', width: 44 },
           { key: 'cid', label: 'Client ID', width: 24 },
-          { key: 'qty', label: 'Quantity', width: 28, align: 'center' },
+          { key: 'qty', label: 'Quantity', width: 36, align: 'center' },
           { key: 'by', label: 'Logged By', width: 22 },
           { key: 'date', label: 'Date & Time', width: 40 },
         ],
@@ -421,7 +421,7 @@ export default function AdminInventory() {
           id: `#${r.id ?? ''}`,
           name: r.full_name || `Client #${r.client_id}`,
           cid: r.client_id_number || `ID-${r.client_id}`,
-          qty: '1 Bottle (500 mL)',
+          qty: '1 Bottle (1000 mL)',
           by: r.logged_by || 'staff',
           date: r.date || (r.created_at ? String(r.created_at).slice(0, 16).replace('T', ' ') : '—'),
         })),
@@ -507,7 +507,7 @@ export default function AdminInventory() {
               {stats.totalBottlesUsed}
             </div>
             <div className="mt-1 text-xs font-semibold text-emerald-700">
-              {stats.totalLiters} Liters total dispensed
+              {stats.totalLiters} L ({(stats.totalBottlesUsed * 1000).toLocaleString()} mL) total dispensed
             </div>
           </div>
 
@@ -524,7 +524,7 @@ export default function AdminInventory() {
               {stats.todaySessions}
             </div>
             <div className="mt-1 text-xs font-semibold text-sky-700">
-              {(stats.todaySessions * 0.5).toFixed(1)} L dispensed today
+              {stats.todaySessions} L ({(stats.todaySessions * 1000).toLocaleString()} mL) dispensed today
             </div>
           </div>
 
@@ -541,7 +541,7 @@ export default function AdminInventory() {
               {stats.monthSessions}
             </div>
             <div className="mt-1 text-xs font-semibold text-amber-700">
-              {(stats.monthSessions * 0.5).toFixed(1)} L this month
+              {stats.monthSessions} L ({(stats.monthSessions * 1000).toLocaleString()} mL) this month
             </div>
           </div>
 
@@ -693,7 +693,7 @@ export default function AdminInventory() {
                       <td className="py-3.5 px-4">
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-sky-50 text-sky-700 border border-sky-200">
                           <Droplets size={12} />
-                          1 Bottle (500 mL)
+                          1 Bottle (1 L / 1,000 mL)
                         </span>
                       </td>
                       <td className="py-3.5 px-4 capitalize text-xs font-semibold text-wellcare-dark/75">
@@ -737,7 +737,7 @@ export default function AdminInventory() {
                           </span>
                         </td>
                         <td className="py-3.5 px-4 text-xs font-bold text-sky-700">
-                          {(bottles * 0.5).toFixed(1)} L ({(bottles * 500).toLocaleString()} mL)
+                          {bottles} L ({(bottles * 1000).toLocaleString()} mL)
                         </td>
                         <td className="py-3.5 px-4 text-xs font-semibold text-wellcare-dark/70">
                           {c.last_seen || '—'}
