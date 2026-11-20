@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../theme.dart';
 import 'login_screen.dart';
@@ -11,7 +12,62 @@ class LandingScreen extends StatefulWidget {
   State<LandingScreen> createState() => _LandingScreenState();
 }
 
+class _OnboardingSlide {
+  final String titlePrimary;
+  final String titleAccent;
+  final String subtitle;
+  final String imageAsset;
+  final String fallbackAsset;
+
+  const _OnboardingSlide({
+    required this.titlePrimary,
+    required this.titleAccent,
+    required this.subtitle,
+    required this.imageAsset,
+    required this.fallbackAsset,
+  });
+}
+
 class _LandingScreenState extends State<LandingScreen> {
+  // Tech-Forward & Natural Palette
+  static const Color _bgCream = Color(0xFFF8F6F1);
+  static const Color _forestGreen = Color(0xFF12372A);
+  static const Color _mutedGreen = Color(0xFF2F4F42);
+  static const Color _sageBorder = Color(0xFF839B8B);
+  static const Color _sageDot = Color(0xFF9AB0A1);
+  static const Color _warmAmber = Color(0xFFD58C22);
+  static const Color _pillAmber = Color(0xFFD99228);
+
+  final PageController _pageController = PageController();
+  int _currentPage = 0;
+
+  static const List<_OnboardingSlide> _slides = [
+    _OnboardingSlide(
+      titlePrimary: 'BIOMETRIC\nPRECISION.',
+      titleAccent: 'NATURAL CARE.',
+      subtitle:
+          'Seamless biometric attendance and client record management, beautifully integrated into your daily wellness workflow.',
+      imageAsset: 'assets/onboarding_biometric.jpg',
+      fallbackAsset: 'assets/card_records.jpg',
+    ),
+    _OnboardingSlide(
+      titlePrimary: 'ALKALINE\nHYDRATION.',
+      titleAccent: 'TRACKED DAILY.',
+      subtitle:
+          'Monitor every alkaline water session, daily hydration milestones, and visit history effortlessly from your mobile portal.',
+      imageAsset: 'assets/card_alkaline.jpg',
+      fallbackAsset: 'assets/card_health.jpg',
+    ),
+    _OnboardingSlide(
+      titlePrimary: 'PERSONAL\nWELLNESS.',
+      titleAccent: 'ALWAYS CONNECTED.',
+      subtitle:
+          'Message wellness center staff directly, review attendance logs by date, and keep your health records always within reach.',
+      imageAsset: 'assets/card_health.jpg',
+      fallbackAsset: 'assets/card_analytics.jpg',
+    ),
+  ];
+
   @override
   void initState() {
     super.initState();
@@ -25,10 +81,14 @@ class _LandingScreenState extends State<LandingScreen> {
                 Container(
                   padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
-                    color: kAmber.withOpacity(0.2),
+                    color: _warmAmber.withValues(alpha: 0.2),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.check_circle_rounded, color: kAmber, size: 18),
+                  child: const Icon(
+                    Icons.check_circle_rounded,
+                    color: _warmAmber,
+                    size: 18,
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -36,20 +96,23 @@ class _LandingScreenState extends State<LandingScreen> {
                     widget.logoutMessage!,
                     style: const TextStyle(
                       fontWeight: FontWeight.w700,
-                      color: kCream,
+                      color: _bgCream,
                       fontSize: 13.5,
                     ),
                   ),
                 ),
               ],
             ),
-            backgroundColor: kDarkSurface,
+            backgroundColor: _forestGreen,
             behavior: SnackBarBehavior.floating,
             margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(AppRadius.md),
-              side: BorderSide(color: kAmber.withOpacity(0.35), width: 1.2),
+              side: BorderSide(
+                color: _warmAmber.withValues(alpha: 0.45),
+                width: 1.2,
+              ),
             ),
             elevation: 8,
             duration: const Duration(seconds: 4),
@@ -57,6 +120,12 @@ class _LandingScreenState extends State<LandingScreen> {
         );
       });
     }
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
   }
 
   void _navigateToLogin() {
@@ -77,72 +146,209 @@ class _LandingScreenState extends State<LandingScreen> {
     }
   }
 
-  Widget _buildHeader() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
-      child: Row(
-        children: [
-          // Modern logo container
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              gradient: AppColors.gradientEmerald,
-              borderRadius: BorderRadius.circular(AppRadius.md),
-              boxShadow: AppShadows.medium,
-              border: Border.all(color: Colors.white, width: 2),
+  void _showFeaturesSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        decoration: const BoxDecoration(
+          color: _bgCream,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        padding: EdgeInsets.fromLTRB(
+          24,
+          14,
+          24,
+          MediaQuery.of(ctx).padding.bottom + 24,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 44,
+                height: 4.5,
+                decoration: BoxDecoration(
+                  color: _sageBorder.withValues(alpha: 0.45),
+                  borderRadius: BorderRadius.circular(99),
+                ),
+              ),
             ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(AppRadius.md - 2),
-              child: Image.asset('assets/heiwa_logo.jpg', fit: BoxFit.cover),
-            ),
-          ),
-          
-          const SizedBox(width: 12),
-          
-          // Modern branding
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
+            const SizedBox(height: 18),
+            Row(
               children: [
-                Text('Wellcare',
-                    style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w900,
-                        color: kTextPrimary,
-                        height: 1.1,
-                        letterSpacing: -0.5)),
-                Text('Wellness Center System',
-                    style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: kEmeraldLight,
-                        letterSpacing: 0.3)),
+                const _WellCareLeafLogo(size: 32),
+                const SizedBox(width: 10),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'WELLCARE FEATURES',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w900,
+                          color: _forestGreen,
+                          letterSpacing: 0.6,
+                        ),
+                      ),
+                      Text(
+                        'Smart biometric & natural wellness tools',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: _mutedGreen,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  icon: const Icon(Icons.close_rounded, color: _forestGreen),
+                ),
               ],
             ),
-          ),
-          
-          // Modern login button
-          Material(
-            borderRadius: BorderRadius.circular(AppRadius.pill),
-            child: InkWell(
-              onTap: _navigateToLogin,
-              borderRadius: BorderRadius.circular(AppRadius.pill),
-              child: Ink(
-                decoration: BoxDecoration(
-                  gradient: AppColors.gradientTeal,
-                  borderRadius: BorderRadius.circular(AppRadius.pill),
-                  boxShadow: AppShadows.button,
+            const SizedBox(height: 18),
+            _featureRow(
+              Icons.fingerprint_rounded,
+              'Biometric Attendance',
+              'Fast, accurate fingerprint check-ins and automated absence tracking.',
+            ),
+            const SizedBox(height: 12),
+            _featureRow(
+              Icons.water_drop_rounded,
+              'Alkaline Water Therapy',
+              'Track every 1L alkaline bottle dispensed and view your hydration progress.',
+            ),
+            const SizedBox(height: 12),
+            _featureRow(
+              Icons.calendar_month_rounded,
+              'Wellness Logs & Filters',
+              'Search your check-ins, alkaline sessions, and absences by date.',
+            ),
+            const SizedBox(height: 12),
+            _featureRow(
+              Icons.forum_rounded,
+              'Direct Wellness Messaging',
+              'Chat with clinic staff anytime with quick FAQ suggestions.',
+            ),
+            const SizedBox(height: 22),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      _openFacebook();
+                    },
+                    icon: const Icon(Icons.chat_bubble_outline_rounded,
+                        size: 17, color: _forestGreen),
+                    label: const Text(
+                      'Facebook',
+                      style: TextStyle(
+                        color: _forestGreen,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13.5,
+                      ),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      backgroundColor: Colors.transparent,
+                      side: const BorderSide(color: _sageBorder, width: 1.4),
+                      shape: const StadiumBorder(),
+                      minimumSize: const Size(0, 48),
+                    ),
+                  ),
                 ),
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                child: const Text('Login',
-                    style: TextStyle(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 14,
-                        color: Colors.white,
-                        letterSpacing: 0.5)),
-              ),
+                const SizedBox(width: 12),
+                Expanded(
+                  flex: 2,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      _navigateToLogin();
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _forestGreen,
+                      foregroundColor: _bgCream,
+                      shape: const StadiumBorder(),
+                      minimumSize: const Size(0, 48),
+                      elevation: 0,
+                    ),
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          'Get Started',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14,
+                            color: _bgCream,
+                          ),
+                        ),
+                        SizedBox(width: 8),
+                        Icon(Icons.arrow_forward_rounded,
+                            size: 17, color: _warmAmber),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _featureRow(IconData icon, String title, String desc) {
+    return Container(
+      padding: const EdgeInsets.all(13),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.78),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: _sageBorder.withValues(alpha: 0.3),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: _forestGreen.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: _warmAmber, size: 21),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w800,
+                    color: _forestGreen,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  desc,
+                  style: TextStyle(
+                    fontSize: 12,
+                    height: 1.35,
+                    color: _mutedGreen.withValues(alpha: 0.85),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -150,308 +356,543 @@ class _LandingScreenState extends State<LandingScreen> {
     );
   }
 
-  /// Modern feature pill with gradient and shadow
-  Widget _trustPill(IconData icon, String label) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-      decoration: BoxDecoration(
-        color: kDarkSurface,
-        borderRadius: BorderRadius.circular(AppRadius.pill),
-        border: Border.all(color: Color(0xFF1B5E5B), width: 1.2),
-        boxShadow: AppShadows.card,
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 24,
-            height: 24,
-            decoration: BoxDecoration(
-              color: kEmeraldLight.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(AppRadius.xs),
+  Widget _buildBrandHeader() {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        const _WellCareLeafLogo(size: 46),
+        const SizedBox(width: 11),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'WELLCARE',
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w900,
+                color: _forestGreen,
+                letterSpacing: 0.8,
+                height: 1.05,
+              ),
             ),
-            child: Icon(icon, size: 14, color: kEmeraldLight),
+            const SizedBox(height: 4),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3.5),
+              decoration: BoxDecoration(
+                color: _pillAmber,
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: const Text(
+                'SMART WELLNESS SYSTEM',
+                style: TextStyle(
+                  fontSize: 9.2,
+                  fontWeight: FontWeight.w800,
+                  color: _forestGreen,
+                  letterSpacing: 0.65,
+                  height: 1.05,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildHeroVisualCard(_OnboardingSlide slide) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: _forestGreen.withValues(alpha: 0.12),
+            blurRadius: 24,
+            offset: const Offset(0, 12),
+            spreadRadius: -6,
           ),
-          const SizedBox(width: 8),
-          Text(label,
-              style: const TextStyle(
-                  fontSize: 12, fontWeight: FontWeight.w700, color: kTextPrimary)),
         ],
       ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Image.asset(
+              slide.imageAsset,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => Image.asset(
+                slide.fallbackAsset,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => Container(
+                  color: _forestGreen,
+                  child: const Center(
+                    child: Icon(
+                      Icons.fingerprint_rounded,
+                      size: 72,
+                      color: _warmAmber,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            // Subtle warm natural vignette to polish edges
+            DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.transparent,
+                    _forestGreen.withValues(alpha: 0.10),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActionButtons() {
+    return Row(
+      children: [
+        // Left: Pill-shaped forest green button with amber circle + white arrow
+        Expanded(
+          child: Material(
+            color: _forestGreen,
+            borderRadius: BorderRadius.circular(999),
+            elevation: 4,
+            shadowColor: _forestGreen.withValues(alpha: 0.28),
+            child: InkWell(
+              onTap: _navigateToLogin,
+              borderRadius: BorderRadius.circular(999),
+              child: Container(
+                height: 52,
+                padding: const EdgeInsets.only(left: 18, right: 7),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        'Get Started',
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w700,
+                          color: _bgCream,
+                          letterSpacing: 0.1,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Container(
+                      width: 36,
+                      height: 36,
+                      decoration: const BoxDecoration(
+                        color: _warmAmber,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.arrow_forward_rounded,
+                        color: Colors.white,
+                        size: 19,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        // Right: Transparent outlined button with sage green border
+        Expanded(
+          child: Material(
+            color: Colors.transparent,
+            borderRadius: BorderRadius.circular(999),
+            child: InkWell(
+              onTap: _showFeaturesSheet,
+              borderRadius: BorderRadius.circular(999),
+              child: Container(
+                height: 52,
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(color: _sageBorder, width: 1.5),
+                ),
+                alignment: Alignment.center,
+                child: const Text(
+                  'Explore Features',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: _forestGreen,
+                    letterSpacing: 0.1,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPaginationDots() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: List.generate(_slides.length, (idx) {
+        final isActive = idx == _currentPage;
+        return GestureDetector(
+          onTap: () {
+            _pageController.animateToPage(
+              idx,
+              duration: const Duration(milliseconds: 350),
+              curve: Curves.easeOutCubic,
+            );
+          },
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 280),
+            curve: Curves.easeOutCubic,
+            margin: const EdgeInsets.symmetric(horizontal: 4.5),
+            width: isActive ? 34 : 8,
+            height: 8,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(999),
+              gradient: isActive
+                  ? const LinearGradient(
+                      colors: [_warmAmber, Color(0xFF5D8A72)],
+                    )
+                  : null,
+              color: isActive ? null : _sageDot.withValues(alpha: 0.7),
+            ),
+          ),
+        );
+      }),
+    );
+  }
+
+  Widget _buildSocialProof() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        ...List.generate(
+          5,
+          (_) => const Padding(
+            padding: EdgeInsets.only(right: 1.5),
+            child: Icon(
+              Icons.star_rounded,
+              size: 15,
+              color: _warmAmber,
+            ),
+          ),
+        ),
+        const SizedBox(width: 6),
+        Text(
+          'Loved by 500+ wellness centers',
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: _mutedGreen.withValues(alpha: 0.88),
+            letterSpacing: 0.1,
+          ),
+        ),
+      ],
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: kDarkBg,
-      body: Stack(
-        children: [
-          // Dark green background
-          Positioned.fill(
-            child: Container(
-              decoration: const BoxDecoration(
-                color: kDarkBg,
-              ),
-            ),
-          ),
-          
-          // Decorative elements
-          Positioned(
-            top: -100,
-            right: -100,
-            child: Container(
-              width: 300,
-              height: 300,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(
-                  colors: [
-                    kEmeraldLight.withOpacity(0.08),
-                    kEmeraldLight.withOpacity(0.0),
-                  ],
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.dark,
+        statusBarBrightness: Brightness.light,
+        systemNavigationBarColor: _bgCream,
+        systemNavigationBarIconBrightness: Brightness.dark,
+      ),
+      child: Scaffold(
+        backgroundColor: _bgCream,
+        body: Stack(
+          children: [
+            // Soft natural warm cream backdrop with delicate organic shadows
+            Positioned.fill(
+              child: Container(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Color(0xFFFAF8F3),
+                      Color(0xFFF6F3EB),
+                      Color(0xFFF3EFE5),
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
-          
-          Positioned(
-            bottom: -120,
-            left: -120,
-            child: Container(
-              width: 280,
-              height: 280,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(
-                  colors: [
-                    kEmerald.withOpacity(0.06),
-                    kEmerald.withOpacity(0.0),
-                  ],
+            // Delicate top-right soft leaf-shadow glow
+            Positioned(
+              top: -70,
+              right: -70,
+              child: IgnorePointer(
+                child: Container(
+                  width: 220,
+                  height: 220,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      colors: [
+                        _sageBorder.withValues(alpha: 0.14),
+                        _sageBorder.withValues(alpha: 0.0),
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ),
-          ),
-          
-          SafeArea(
-            child: Column(
-              children: [
-                _buildHeader(),
-                Expanded(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-                    child: Center(
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 500),
-                        child: Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 40),
-                          decoration: BoxDecoration(
-                            color: kDarkSurface,
-                            borderRadius: BorderRadius.circular(AppRadius.xxxl),
-                            border: Border.all(color: const Color(0xFF1B5E5B), width: 1),
-                            boxShadow: [
-                              BoxShadow(
-                                color: kEmerald.withOpacity(0.08),
-                                blurRadius: 40,
-                                offset: const Offset(0, 16),
-                                spreadRadius: -8,
-                              ),
-                              BoxShadow(
-                                color: kEmerald.withOpacity(0.04),
-                                blurRadius: 20,
-                                offset: const Offset(0, 8),
-                                spreadRadius: -4,
-                              ),
-                            ],
+            // Delicate bottom-left warm amber/leaf shadow glow
+            Positioned(
+              bottom: -80,
+              left: -80,
+              child: IgnorePointer(
+                child: Container(
+                  width: 240,
+                  height: 240,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      colors: [
+                        _warmAmber.withValues(alpha: 0.08),
+                        _warmAmber.withValues(alpha: 0.0),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+            // Main onboarding content
+            SafeArea(
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 460),
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      return SingleChildScrollView(
+                        physics: const BouncingScrollPhysics(),
+                        padding: const EdgeInsets.fromLTRB(24, 18, 24, 22),
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                            minHeight: (constraints.maxHeight - 40)
+                                .clamp(0.0, double.infinity),
                           ),
                           child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              // Modern logo container
-                              Container(
-                                width: 96,
-                                height: 96,
-                                decoration: BoxDecoration(
-                                  gradient: AppColors.gradientEmerald,
-                                  borderRadius: BorderRadius.circular(AppRadius.xxl),
-                                  boxShadow: AppShadows.glow,
-                                  border: Border.all(color: Colors.white, width: 3),
-                                ),
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(AppRadius.xxl - 3),
-                                  child: Image.asset('assets/heiwa_logo.jpg',
-                                      fit: BoxFit.cover),
-                                ),
-                              ),
-                              
-                              const SizedBox(height: 28),
-                              
-                              // Modern badge
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 16, vertical: 8),
-                                decoration: BoxDecoration(
-                                  gradient: AppColors.gradientTeal,
-                                  borderRadius: BorderRadius.circular(AppRadius.pill),
-                                  boxShadow: AppShadows.medium,
-                                ),
-                                child: const Text('YOUR WELLNESS WORKSPACE',
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w800,
-                                        letterSpacing: 1.2,
-                                        color: Colors.white)),
-                              ),
-                              
-                              const SizedBox(height: 28),
-                              
-                              // Modern typography with gradient
-                              ShaderMask(
-                                shaderCallback: (bounds) => AppColors.gradientEmerald.createShader(bounds),
-                                child: const Text(
-                                  'A little care,\nevery day.',
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                      fontSize: 44,
-                                      height: 1.05,
-                                      fontWeight: FontWeight.w900,
-                                      letterSpacing: -1.2,
-                                      color: Colors.white),
-                                ),
-                              ),
-                              
-                              const SizedBox(height: 20),
-                              
-                              const Text(
-                                'Track your alkaline therapy, check-ins and\nwellness visits — all in one place.',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                    fontSize: 16,
-                                    height: 1.5,
-                                    color: kTextSecondary,
-                                    fontWeight: FontWeight.w500),
-                              ),
-                              
-                              const SizedBox(height: 32),
-                              
-                              // Modern feature pills
-                              Wrap(
-                                alignment: WrapAlignment.center,
-                                spacing: 10,
-                                runSpacing: 10,
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  _trustPill(Icons.water_drop_rounded, 'Alkaline therapy'),
-                                  _trustPill(Icons.how_to_reg_rounded, 'Check-ins'),
-                                  _trustPill(Icons.insights_rounded, 'Reports'),
-                                  _trustPill(Icons.health_and_safety_rounded, 'Wellness'),
+                                  // 1. Brand & Header
+                                  _buildBrandHeader(),
+                                  const SizedBox(height: 26),
+
+                                  // 2 & 3. Swipeable Hero Typography + Hero Visual Card
+                                  SizedBox(
+                                    height: (constraints.maxHeight * 0.62)
+                                        .clamp(420.0, 500.0),
+                                    child: PageView.builder(
+                                      controller: _pageController,
+                                      itemCount: _slides.length,
+                                      onPageChanged: (index) {
+                                        setState(() => _currentPage = index);
+                                      },
+                                      itemBuilder: (context, index) {
+                                        final slide = _slides[index];
+                                        return Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            // Bold 3-line uppercase headline
+                                            Text.rich(
+                                              TextSpan(
+                                                children: [
+                                                  TextSpan(
+                                                    text:
+                                                        '${slide.titlePrimary}\n',
+                                                    style: const TextStyle(
+                                                      fontSize: 33,
+                                                      height: 1.06,
+                                                      fontWeight:
+                                                          FontWeight.w900,
+                                                      color: _forestGreen,
+                                                      letterSpacing: -0.6,
+                                                    ),
+                                                  ),
+                                                  TextSpan(
+                                                    text: slide.titleAccent,
+                                                    style: const TextStyle(
+                                                      fontSize: 33,
+                                                      height: 1.08,
+                                                      fontWeight:
+                                                          FontWeight.w900,
+                                                      color: _warmAmber,
+                                                      letterSpacing: -0.6,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            const SizedBox(height: 12),
+                                            // 3-line muted green subtitle
+                                            Text(
+                                              slide.subtitle,
+                                              style: TextStyle(
+                                                fontSize: 13.8,
+                                                height: 1.48,
+                                                color: _mutedGreen
+                                                    .withValues(alpha: 0.92),
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 20),
+                                            // Rounded hero visual card
+                                            Expanded(
+                                              child: _buildHeroVisualCard(slide),
+                                            ),
+                                          ],
+                                        );
+                                      },
+                                    ),
+                                  ),
                                 ],
                               ),
-                              
-                              const SizedBox(height: 36),
-                              
-                              // Modern primary button
-                              SizedBox(
-                                width: double.infinity,
-                                child: Material(
-                                  borderRadius: BorderRadius.circular(AppRadius.buttonLargeR),
-                                  child: InkWell(
-                                    onTap: _navigateToLogin,
-                                    borderRadius: BorderRadius.circular(AppRadius.buttonLargeR),
-                                    child: Ink(
-                                      decoration: appButtonDecoration(
-                                        gradient: AppColors.gradientEmerald,
-                                        radius: AppRadius.buttonLargeR,
-                                      ),
-                                      padding: const EdgeInsets.symmetric(vertical: 18),
-                                      child: Row(
-                                        mainAxisAlignment: MainAxisAlignment.center,
-                                        children: [
-                                          const Icon(Icons.arrow_forward_rounded,
-                                              size: 22, color: Colors.white),
-                                          const SizedBox(width: 10),
-                                          const Text('Sign in to your portal',
-                                              style: TextStyle(
-                                                  fontSize: 16,
-                                                  fontWeight: FontWeight.w800,
-                                                  color: Colors.white)),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              
-                              const SizedBox(height: 16),
-                              
-                              // Modern secondary button
-                              SizedBox(
-                                width: double.infinity,
-                                child: Material(
-                                  borderRadius: BorderRadius.circular(AppRadius.buttonLargeR),
-                                  child: InkWell(
-                                    onTap: _openFacebook,
-                                    borderRadius: BorderRadius.circular(AppRadius.buttonLargeR),
-                                    child: Ink(
-                                      decoration: BoxDecoration(
-                                        color: kDarkSurfaceAlt,
-                                        borderRadius: BorderRadius.circular(AppRadius.buttonLargeR),
-                                        border: Border.all(color: Color(0xFF1B5E5B), width: 1.5),
-                                        boxShadow: AppShadows.card,
-                                      ),
-                                      padding: const EdgeInsets.symmetric(vertical: 16),
-                                      child: Row(
-                                        mainAxisAlignment: MainAxisAlignment.center,
-                                        children: [
-                                          const Icon(Icons.chat_bubble_outline_rounded,
-                                              size: 20, color: kEmeraldLight),
-                                          const SizedBox(width: 10),
-                                          Text('Contact us on Facebook',
-                                              style: TextStyle(
-                                                  fontSize: 15,
-                                                  fontWeight: FontWeight.w700,
-                                                  color: kEmeraldLight)),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                ),
+
+                              // 4 & 5. Action Buttons, Pagination Dots & Social Proof
+                              Column(
+                                children: [
+                                  const SizedBox(height: 14),
+                                  _buildActionButtons(),
+                                  const SizedBox(height: 20),
+                                  _buildPaginationDots(),
+                                  const SizedBox(height: 14),
+                                  _buildSocialProof(),
+                                ],
                               ),
                             ],
                           ),
                         ),
-                      ),
-                    ),
+                      );
+                    },
                   ),
                 ),
-                
-                // Modern footer
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 24, top: 16),
-                  child: Column(
-                    children: [
-                      Text('WELLCARE WELLNESS CENTER · HEALTH & LIFE',
-                          style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 1.4,
-                              color: kTextTertiary.withOpacity(0.9))),
-                      const SizedBox(height: 6),
-                      Text('Your journey to better health starts here',
-                          style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: kEmeraldLight.withOpacity(0.8))),
-                    ],
-                  ),
-                ),
-              ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
+}
+
+/// Custom stylized dual-tone leaf emblem (warm amber + sage green with deep forest veins)
+class _WellCareLeafLogo extends StatelessWidget {
+  final double size;
+  const _WellCareLeafLogo({this.size = 44});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: size,
+      height: size,
+      child: CustomPaint(
+        painter: _WellCareLeafPainter(),
+      ),
+    );
+  }
+}
+
+class _WellCareLeafPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    final cx = w / 2;
+
+    // Left half of leaf (warm amber)
+    final leftPath = Path()
+      ..moveTo(cx, h * 0.06)
+      ..cubicTo(w * 0.14, h * 0.28, w * 0.10, h * 0.68, cx, h * 0.94)
+      ..close();
+
+    // Right half of leaf (sage / forest green)
+    final rightPath = Path()
+      ..moveTo(cx, h * 0.06)
+      ..cubicTo(w * 0.86, h * 0.28, w * 0.90, h * 0.68, cx, h * 0.94)
+      ..close();
+
+    // Full leaf outline path
+    final fullLeaf = Path()
+      ..moveTo(cx, h * 0.06)
+      ..cubicTo(w * 0.14, h * 0.28, w * 0.10, h * 0.68, cx, h * 0.94)
+      ..cubicTo(w * 0.90, h * 0.68, w * 0.86, h * 0.28, cx, h * 0.06)
+      ..close();
+
+    final leftPaint = Paint()
+      ..color = const Color(0xFFD89228)
+      ..style = PaintingStyle.fill;
+
+    final rightPaint = Paint()
+      ..color = const Color(0xFF4B7A5E)
+      ..style = PaintingStyle.fill;
+
+    canvas.drawPath(leftPath, leftPaint);
+    canvas.drawPath(rightPath, rightPaint);
+
+    // Veins + outline in deep forest green
+    final strokePaint = Paint()
+      ..color = const Color(0xFF12372A)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = w * 0.052
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+
+    canvas.drawPath(fullLeaf, strokePaint);
+
+    // Center stem vein
+    canvas.drawLine(
+      Offset(cx, h * 0.10),
+      Offset(cx, h * 0.93),
+      strokePaint,
+    );
+
+    // Side veins (3 pairs)
+    final veinPaint = Paint()
+      ..color = const Color(0xFF12372A)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = w * 0.042
+      ..strokeCap = StrokeCap.round;
+
+    // Upper pair
+    canvas.drawLine(Offset(cx, h * 0.36), Offset(w * 0.30, h * 0.26), veinPaint);
+    canvas.drawLine(Offset(cx, h * 0.36), Offset(w * 0.70, h * 0.26), veinPaint);
+    // Middle pair
+    canvas.drawLine(Offset(cx, h * 0.56), Offset(w * 0.22, h * 0.44), veinPaint);
+    canvas.drawLine(Offset(cx, h * 0.56), Offset(w * 0.78, h * 0.44), veinPaint);
+    // Lower pair
+    canvas.drawLine(Offset(cx, h * 0.75), Offset(w * 0.28, h * 0.64), veinPaint);
+    canvas.drawLine(Offset(cx, h * 0.75), Offset(w * 0.72, h * 0.64), veinPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

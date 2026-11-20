@@ -26,6 +26,7 @@ flutter:
   uses-material-design: true
   assets:
     - assets/heiwa_logo.jpg
+    - assets/onboarding_biometric.jpg
     - assets/card_alkaline.jpg
     - assets/card_health.jpg
     - assets/card_records.jpg
