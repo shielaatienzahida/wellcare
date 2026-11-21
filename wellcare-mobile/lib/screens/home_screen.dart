@@ -249,7 +249,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       iconBg: const Color(0xFFE6F4EF),
                       value: _client.checkins.toString(),
                       label: 'Check-ins',
-                      onTap: () => widget.onSwitchTab?.call(2), // Reports
+                      onTap: () => widget.onSwitchTab?.call(1), // Wellness
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -260,7 +260,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       iconBg: const Color(0xFFFEE2E2),
                       value: (_hasCheckedInToday ? _client.absences : (_client.absences + 1)).toString(),
                       label: 'Absences',
-                      onTap: () => widget.onSwitchTab?.call(2), // Reports
+                      onTap: () => widget.onSwitchTab?.call(1), // Wellness
                     ),
                   ),
                 ],
@@ -275,7 +275,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       iconBg: const Color(0xFFFEF3DC),
                       value: sessions.toString(),
                       label: 'Sessions',
-                      onTap: () => widget.onSwitchTab?.call(1), // Wellness
+                      onTap: () => widget.onSwitchTab?.call(3), // Alkaline
                     ),
                   ),
                   const SizedBox(width: 12),
