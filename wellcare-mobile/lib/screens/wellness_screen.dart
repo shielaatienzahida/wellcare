@@ -595,7 +595,7 @@ class _WellnessScreenState extends State<WellnessScreen> {
           Padding(
             padding: const EdgeInsets.only(bottom: 10),
             child: pageItems[i]['isSyntheticAbsentToday'] == true
-                ? _buildAbsentTodayCard(pageItems[i]['date'].toString())
+                ? _buildAbsentTodayCard(pageItems[i])
                 : _timelineCard(pageItems[i]),
           ),
 
@@ -682,100 +682,108 @@ class _WellnessScreenState extends State<WellnessScreen> {
     );
   }
 
-  Widget _buildAbsentTodayCard(String todayFormatted) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFEF2F2),
+  Widget _buildAbsentTodayCard(Map<String, dynamic> absentRecord) {
+    final todayFormatted = (absentRecord['date'] ?? '').toString();
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => _showAttendanceDetailsDialog(absentRecord),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFEF4444).withValues(alpha: 0.35), width: 1.2),
-        boxShadow: [
-          BoxShadow(
-            color: _darkInk.withValues(alpha: 0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 3),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFEF2F2),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFEF4444).withValues(alpha: 0.35), width: 1.2),
+            boxShadow: [
+              BoxShadow(
+                color: _darkInk.withValues(alpha: 0.05),
+                blurRadius: 8,
+                offset: const Offset(0, 3),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              color: const Color(0xFFEF4444).withValues(alpha: 0.14),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: const Icon(
-              Icons.event_busy_rounded,
-              color: Color(0xFFDC2626),
-              size: 20,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+          child: Row(
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEF4444).withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  Icons.event_busy_rounded,
+                  color: Color(0xFFDC2626),
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      todayFormatted,
-                      style: const TextStyle(
-                        fontSize: 13.5,
-                        fontWeight: FontWeight.w800,
-                        color: _darkInk,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFEF4444).withValues(alpha: 0.16),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: const Text(
-                        'TODAY',
-                        style: TextStyle(
-                          fontSize: 9,
-                          fontWeight: FontWeight.w900,
-                          color: Color(0xFFDC2626),
+                    Row(
+                      children: [
+                        Text(
+                          todayFormatted,
+                          style: const TextStyle(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w800,
+                            color: _darkInk,
+                          ),
                         ),
-                      ),
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEF4444).withValues(alpha: 0.16),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: const Text(
+                            'TODAY',
+                            style: TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w900,
+                              color: Color(0xFFDC2626),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    const Row(
+                      children: [
+                        Text(
+                          'Absent',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFFDC2626),
+                          ),
+                        ),
+                        SizedBox(width: 6),
+                        Text(
+                          '· No check-in logged today',
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w600,
+                            color: _creamMuted,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-                const SizedBox(height: 2),
-                const Row(
-                  children: [
-                    Text(
-                      'Absent',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFFDC2626),
-                      ),
-                    ),
-                    SizedBox(width: 6),
-                    Text(
-                      '· No check-in logged today',
-                      style: TextStyle(
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w600,
-                        color: _creamMuted,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
+              ),
+              const Icon(
+                Icons.info_outline_rounded,
+                color: Color(0xFFDC2626),
+                size: 20,
+              ),
+            ],
           ),
-          const Icon(
-            Icons.cancel_rounded,
-            color: Color(0xFFDC2626),
-            size: 20,
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -907,9 +915,26 @@ class _WellnessScreenState extends State<WellnessScreen> {
     final displayDate = _formatVisitDate(rawDate);
     final type = (visit['type'] ?? 'Visit').toString();
     final loggedBy = (visit['logged_by'] ?? 'Staff').toString();
-    final isAlkaline = type.toLowerCase().contains('alkaline');
+    final isAlkaline = type.toLowerCase().contains('alkaline') || type.toLowerCase().contains('water');
+    final isSyntheticAbsent = visit['isSyntheticAbsentToday'] == true;
+    final isAbsence = isSyntheticAbsent || type.toLowerCase().contains('absent') || type.toLowerCase().contains('absence');
     final staffId = visit['staff_id'];
     final id = visit['id'];
+
+    final Color accentColor = isAbsence
+        ? const Color(0xFFDC2626)
+        : isAlkaline
+            ? _amber
+            : const Color(0xFF0F766E);
+    final IconData headerIcon = isAbsence
+        ? Icons.event_busy_rounded
+        : isAlkaline
+            ? Icons.water_drop_rounded
+            : Icons.how_to_reg_rounded;
+    final String dialogTitle = isAbsence ? 'Absence Info' : 'Attendance Info';
+    final String statusLabel = isAbsence
+        ? (isSyntheticAbsent ? 'Absent Today · No check-in yet' : 'Recorded Absence')
+        : 'Recorded & Verified';
 
     showDialog(
       context: context,
@@ -922,10 +947,10 @@ class _WellnessScreenState extends State<WellnessScreen> {
           decoration: BoxDecoration(
             color: _cardDark,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: _amber.withValues(alpha: 0.5), width: 1.5),
+            border: Border.all(color: accentColor.withValues(alpha: 0.45), width: 1.5),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.6),
+                color: _darkInk.withValues(alpha: 0.18),
                 blurRadius: 24,
                 offset: const Offset(0, 10),
               ),
@@ -944,31 +969,23 @@ class _WellnessScreenState extends State<WellnessScreen> {
                       width: 46,
                       height: 46,
                       decoration: BoxDecoration(
-                        color: isAlkaline
-                            ? _amber.withValues(alpha: 0.18)
-                            : const Color(0xFF10B981).withValues(alpha: 0.18),
+                        color: accentColor.withValues(alpha: 0.14),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: isAlkaline
-                              ? _amber.withValues(alpha: 0.4)
-                              : const Color(0xFF10B981).withValues(alpha: 0.4),
+                          color: accentColor.withValues(alpha: 0.35),
                           width: 1.2,
                         ),
                       ),
-                      child: Icon(
-                        isAlkaline ? Icons.water_drop_rounded : Icons.how_to_reg_rounded,
-                        color: isAlkaline ? _amber : const Color(0xFF34D399),
-                        size: 24,
-                      ),
+                      child: Icon(headerIcon, color: accentColor, size: 24),
                     ),
                     const SizedBox(width: 14),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
-                            'Attendance Info',
-                            style: TextStyle(
+                          Text(
+                            dialogTitle,
+                            style: const TextStyle(
                               fontSize: 17,
                               fontWeight: FontWeight.w900,
                               color: _darkInk,
@@ -978,17 +995,15 @@ class _WellnessScreenState extends State<WellnessScreen> {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                             decoration: BoxDecoration(
-                              color: isAlkaline
-                                  ? _amber.withValues(alpha: 0.18)
-                                  : const Color(0xFF10B981).withValues(alpha: 0.18),
+                              color: accentColor.withValues(alpha: 0.14),
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
-                              type,
+                              isSyntheticAbsent ? 'Absent Today' : type,
                               style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w800,
-                                color: isAlkaline ? _amber : const Color(0xFF34D399),
+                                color: accentColor,
                               ),
                             ),
                           ),
@@ -1012,18 +1027,26 @@ class _WellnessScreenState extends State<WellnessScreen> {
                     children: [
                       _infoRow('Date & Time', displayDate, Icons.access_time_rounded),
                       const Divider(color: _cardBorder, height: 16),
-                      _infoRow('Status', 'Recorded & Verified', Icons.check_circle_rounded, valueColor: const Color(0xFF34D399)),
+                      _infoRow(
+                        'Status',
+                        statusLabel,
+                        isAbsence ? Icons.event_busy_rounded : Icons.check_circle_rounded,
+                        valueColor: isAbsence ? const Color(0xFFDC2626) : const Color(0xFF0F766E),
+                      ),
                       const Divider(color: _cardBorder, height: 16),
-                      _infoRow('Session Type', type, Icons.label_rounded),
+                      _infoRow('Record Type', isAbsence ? 'Absence' : type, Icons.label_rounded),
                       const Divider(color: _cardBorder, height: 16),
                       _infoRow(
                         'Logged By',
-                        '${loggedBy[0].toUpperCase()}${loggedBy.substring(1)}${staffId != null ? ' (Staff #$staffId)' : ''}',
+                        '${loggedBy.isNotEmpty ? '${loggedBy[0].toUpperCase()}${loggedBy.substring(1)}' : 'System'}${staffId != null ? ' (Staff #$staffId)' : ''}',
                         Icons.person_rounded,
                       ),
                       if (id != null) ...[
                         const Divider(color: _cardBorder, height: 16),
                         _infoRow('Record ID', '#$id', Icons.fingerprint_rounded),
+                      ] else if (isSyntheticAbsent) ...[
+                        const Divider(color: _cardBorder, height: 16),
+                        _infoRow('Note', 'No biometric check-in recorded today', Icons.info_outline_rounded),
                       ],
                     ],
                   ),
