@@ -59,16 +59,17 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     }
   }
 
-  // Custom palette for the new requested design:
-  static const Color _bgDark = Color(0xFF061A12);
-  static const Color _cardDark = Color(0xFF0C251C);
-  static const Color _cardBorder = Color(0xFF153C2C);
-  static const Color _iconBoxDark = Color(0xFF133628);
-  static const Color _amber = Color(0xFFF5A623);
-  static const Color _cream = Color(0xFFF5EFE6);
-  static const Color _creamMuted = Color(0xFF9BB3A5);
-  static const Color _darkInk = Color(0xFF071F15);
-  static const Color _oliveMuted = Color(0xFF6B7D74);
+  // 60-30-10 Tech-Forward & Natural Palette
+  // 60% Warm Cream (#F8F6F1) · 30% Deep Forest Green (#12372A) · 10% Warm Amber (#D58C22)
+  static const Color _bgDark = Color(0xFFF8F6F1);        // 60% Warm Cream background
+  static const Color _cardDark = Color(0xFFFFFFFF);      // Clean white elevated card
+  static const Color _cardBorder = Color(0xFFDCE5DF);    // Subtle sage border
+  static const Color _iconBoxDark = Color(0xFFF3EFE6);   // Soft cream icon badge
+  static const Color _amber = Color(0xFFD58C22);         // 10% Warm Amber accent
+  static const Color _cream = Color(0xFFF8F6F1);         // Warm Cream text on forest green
+  static const Color _creamMuted = Color(0xFF5D7669);    // Muted sage-green captions
+  static const Color _darkInk = Color(0xFF12372A);       // 30% Deep Forest Green ink/anchor
+  static const Color _oliveMuted = Color(0xFF4F6A5E);    // Soft forest green subtitle
 
   @override
   void initState() {
@@ -212,7 +213,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   fontSize: 23,
                   height: 1.18,
                   fontWeight: FontWeight.w900,
-                  color: Colors.white,
+                  color: _darkInk,
                   letterSpacing: -0.6,
                 ),
               ),
@@ -244,8 +245,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   Expanded(
                     child: _statCard(
                       icon: Icons.person_pin_rounded,
-                      iconColor: const Color(0xFF6EE7B7),
-                      iconBg: const Color(0xFF123B2A),
+                      iconColor: const Color(0xFF0F766E),
+                      iconBg: const Color(0xFFE6F4EF),
                       value: _client.checkins.toString(),
                       label: 'Check-ins',
                       onTap: () => widget.onSwitchTab?.call(2), // Reports
@@ -255,8 +256,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   Expanded(
                     child: _statCard(
                       icon: Icons.event_busy_rounded,
-                      iconColor: const Color(0xFFF87171),
-                      iconBg: const Color(0xFF2C1A1C),
+                      iconColor: const Color(0xFFDC2626),
+                      iconBg: const Color(0xFFFEE2E2),
                       value: (_hasCheckedInToday ? _client.absences : (_client.absences + 1)).toString(),
                       label: 'Absences',
                       onTap: () => widget.onSwitchTab?.call(2), // Reports
@@ -271,7 +272,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     child: _statCard(
                       icon: Icons.spa_rounded,
                       iconColor: _amber,
-                      iconBg: const Color(0xFF2E2412),
+                      iconBg: const Color(0xFFFEF3DC),
                       value: sessions.toString(),
                       label: 'Sessions',
                       onTap: () => widget.onSwitchTab?.call(1), // Wellness
@@ -281,8 +282,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   Expanded(
                     child: _statCard(
                       icon: Icons.water_drop_rounded,
-                      iconColor: const Color(0xFF38BDF8),
-                      iconBg: const Color(0xFF0F2E36),
+                      iconColor: const Color(0xFF0284C7),
+                      iconBg: const Color(0xFFE0F2FE),
                       value: '${intakeLitres.toStringAsFixed(1)}L',
                       label: 'Alkaline intake',
                       onTap: () => widget.onSwitchTab?.call(3), // Alkaline
@@ -302,26 +303,27 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  // ── MEMBERSHIP CARD ────────────────────────────────────────────────────────
+  // ── MEMBERSHIP CARD (30% Deep Forest Green anchor card on 60% Cream) ──────
   Widget _buildMembershipCard() {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
       decoration: BoxDecoration(
-        color: _cream,
+        gradient: kGradientDarkTeal,
         borderRadius: BorderRadius.circular(22),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.35),
-            blurRadius: 18,
-            offset: const Offset(0, 8),
+            color: _darkInk.withValues(alpha: 0.2),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+            spreadRadius: -4,
           ),
         ],
       ),
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          // Subtle watermark flame / petal on right
+          // Subtle watermark leaf on right
           Positioned(
             right: -6,
             bottom: -12,
@@ -330,7 +332,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               child: Icon(
                 Icons.spa_rounded,
                 size: 118,
-                color: _darkInk,
+                color: _cream,
               ),
             ),
           ),
@@ -348,16 +350,16 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         height: 7,
                         margin: const EdgeInsets.only(right: 7),
                         decoration: const BoxDecoration(
-                          color: _darkInk,
+                          color: _amber,
                           shape: BoxShape.circle,
                         ),
                       ),
-                      const Text(
+                      Text(
                         'MEMBERSHIP',
                         style: TextStyle(
                           fontSize: 10.5,
                           fontWeight: FontWeight.w800,
-                          color: _darkInk,
+                          color: _cream.withValues(alpha: 0.8),
                           letterSpacing: 1.4,
                         ),
                       ),
@@ -406,7 +408,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 style: const TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.w900,
-                  color: _darkInk,
+                  color: _cream,
                   letterSpacing: -0.4,
                 ),
               ),
@@ -416,10 +418,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               // @username
               Text(
                 '@${_client.username}',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: _oliveMuted,
+                  color: _cream.withValues(alpha: 0.72),
                 ),
               ),
 
@@ -493,7 +495,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w800,
-                        color: Colors.white,
+                        color: _darkInk,
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -578,7 +580,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 style: const TextStyle(
                   fontSize: 26,
                   fontWeight: FontWeight.w900,
-                  color: Colors.white,
+                  color: _darkInk,
                   height: 1.1,
                 ),
               ),
@@ -625,7 +627,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w800,
-                color: Colors.white,
+                color: _darkInk,
               ),
             ),
             if (_visitHistory.isNotEmpty)
@@ -699,12 +701,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF2C1A1C),
+                      color: const Color(0xFFFEF2F2),
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: const Color(0xFFEF4444).withValues(alpha: 0.4), width: 1.2),
+                      border: Border.all(color: const Color(0xFFEF4444).withValues(alpha: 0.35), width: 1.2),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.2),
+                          color: _darkInk.withValues(alpha: 0.05),
                           blurRadius: 8,
                           offset: const Offset(0, 3),
                         ),
@@ -716,12 +718,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           width: 38,
                           height: 38,
                           decoration: BoxDecoration(
-                            color: const Color(0xFFEF4444).withValues(alpha: 0.18),
+                            color: const Color(0xFFEF4444).withValues(alpha: 0.14),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: const Icon(
                             Icons.event_busy_rounded,
-                            color: Color(0xFFEF4444),
+                            color: Color(0xFFDC2626),
                             size: 20,
                           ),
                         ),
@@ -737,14 +739,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                     style: const TextStyle(
                                       fontSize: 13.5,
                                       fontWeight: FontWeight.w800,
-                                      color: Colors.white,
+                                      color: _darkInk,
                                     ),
                                   ),
                                   const SizedBox(width: 6),
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                     decoration: BoxDecoration(
-                                      color: const Color(0xFFEF4444).withValues(alpha: 0.2),
+                                      color: const Color(0xFFEF4444).withValues(alpha: 0.16),
                                       borderRadius: BorderRadius.circular(4),
                                     ),
                                     child: const Text(
@@ -752,7 +754,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                       style: TextStyle(
                                         fontSize: 9,
                                         fontWeight: FontWeight.w900,
-                                        color: Color(0xFFEF4444),
+                                        color: Color(0xFFDC2626),
                                       ),
                                     ),
                                   ),
@@ -766,7 +768,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                     style: TextStyle(
                                       fontSize: 12,
                                       fontWeight: FontWeight.w800,
-                                      color: Color(0xFFF87171),
+                                      color: Color(0xFFDC2626),
                                     ),
                                   ),
                                   SizedBox(width: 6),
@@ -785,7 +787,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         ),
                         const Icon(
                           Icons.cancel_rounded,
-                          color: Color(0xFFEF4444),
+                          color: Color(0xFFDC2626),
                           size: 20,
                         ),
                       ],
@@ -817,11 +819,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           decoration: BoxDecoration(
-            color: _cream,
+            color: _cardDark,
             borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: _cardBorder, width: 1.1),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.2),
+                color: _darkInk.withValues(alpha: 0.05),
                 blurRadius: 8,
                 offset: const Offset(0, 3),
               ),
@@ -833,7 +836,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 width: 38,
                 height: 38,
                 decoration: BoxDecoration(
-                  color: _cardDark,
+                  color: _darkInk,
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: const Icon(
@@ -999,7 +1002,7 @@ class _AllVisitsPaginationModalState extends State<_AllVisitsPaginationModal> {
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w800,
-                            color: Colors.white,
+                            color: _HomeScreenState._darkInk,
                           ),
                         ),
                         Text(
@@ -1083,7 +1086,7 @@ class _AllVisitsPaginationModalState extends State<_AllVisitsPaginationModal> {
                                       style: const TextStyle(
                                         fontSize: 13.5,
                                         fontWeight: FontWeight.w800,
-                                        color: Colors.white,
+                                        color: _HomeScreenState._darkInk,
                                       ),
                                     ),
                                     const SizedBox(height: 2),

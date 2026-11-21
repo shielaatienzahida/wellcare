@@ -4,75 +4,76 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// WellCare Premium Dark Teal & Turquoise Wellness Aesthetic
+// WellCare 60-30-10 "Tech-Forward & Natural" Palette
+// 60% Warm Cream (#F8F6F1) · 30% Deep Forest Green (#12372A) · 10% Warm Amber (#D58C22)
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Dark green base (#061A12)
-const kDarkBg = Color(0xFF061A12);
-const kDarkSurface = Color(0xFF0C251C);
-const kDarkSurfaceAlt = Color(0xFF133628);
+// 60% Warm Cream base & clean elevated card surfaces
+const kDarkBg = Color(0xFFF8F6F1);
+const kDarkSurface = Color(0xFFFFFFFF);
+const kDarkSurfaceAlt = Color(0xFFF3EFE6);
 
-// Turquoise and teal accents
-const kTurquoise = Color(0xFF14B8A6);
-const kTurquoiseDark = Color(0xFF0D9488);
-const kTurquoiseLight = Color(0xFF5EEAD4);
-const kCyan = Color(0xFF06B6D4);
-const kCyanLight = Color(0xFF22D3EE);
-const kMint = Color(0xFF10B981);
-const kMintLight = Color(0xFF6EE7B7);
+// Natural forest & sage accents
+const kTurquoise = Color(0xFF1F6E52);
+const kTurquoiseDark = Color(0xFF12372A);
+const kTurquoiseLight = Color(0xFF2D7A5E);
+const kCyan = Color(0xFF0284C7);
+const kCyanLight = Color(0xFF0EA5E9);
+const kMint = Color(0xFFE9F3ED);
+const kMintLight = Color(0xFF10B981);
 
-// Brand accents (#F5A623 Amber & #F5EFE6 Cream)
-const kAmber = Color(0xFFF5A623);
-const kAmberLight = Color(0xFFFBD47D);
-const kCream = Color(0xFFF5EFE6);
-const kCreamMuted = Color(0xFF9BB3A5);
+// Brand accents (#D58C22 Warm Amber & #F8F6F1 Warm Cream)
+const kAmber = Color(0xFFD58C22);
+const kAmberLight = Color(0xFFE8A944);
+const kCream = Color(0xFFF8F6F1);
+const kCreamMuted = Color(0xFF5D7669);
 
 // Accent colors
-const kLavender = Color(0xFF8B5CF6);
-const kRose = Color(0xFFF43F5E);
+const kLavender = Color(0xFF7C3AED);
+const kRose = Color(0xFFE11D48);
 const kWhite = Color(0xFFFFFFFF);
 const kBlack = Color(0xFF000000);
 
-// Text colors for dark theme (Cream palette)
-const kTextPrimary = Color(0xFFF4EFE6);           // #F4EFE6 Cream - Main text on dark backgrounds
-const kTextSecondary = Color(0xFFE5DECE);         // Soft cream - Secondary text
-const kTextTertiary = Color(0xFFA59E90);          // Subtle cream-gray - Tertiary text
+// Primary text colors on 60% Warm Cream backgrounds (30% Deep Forest Green)
+const kTextPrimary = Color(0xFF12372A);           // Deep Forest Green - Main text
+const kTextSecondary = Color(0xFF2F4F42);         // Muted Forest Green - Secondary text
+const kTextTertiary = Color(0xFF5D7669);          // Sage-gray - Captions & hints
 
 // Light background text colors (for info cards, modals, etc.)
-const kLightBgText = Color(0xFF0F172A);          // Dark text on light backgrounds
-const kLightBgTextSecondary = Color(0xFF475569); // Muted text on light backgrounds
-const kLightBgTextTertiary = Color(0xFF64748B);  // Subtle text on light backgrounds
+const kLightBgText = Color(0xFF12372A);
+const kLightBgTextSecondary = Color(0xFF2F4F42);
+const kLightBgTextTertiary = Color(0xFF5D7669);
 
-// Legacy emerald (for backward compatibility)
-const kEmerald = Color(0xFF00897B);
-const kEmeraldDark = Color(0xFF004D40);
-const kEmeraldLight = Color(0xFF14B8A6);
-const kKelly = Color(0xFF26A69A);
-const kSand = Color(0xFF0D3B2F);
-const kSandDark = Color(0xFF0F4A38);
-const kDarkText = Color(0xFFFFFFFF);
+// Brand Forest Green tokens
+const kEmerald = Color(0xFF12372A);
+const kEmeraldDark = Color(0xFF0C261D);
+const kEmeraldLight = Color(0xFF2D6A4F);
+const kKelly = Color(0xFF3E8E63);
+const kSand = Color(0xFFF3EFE6);
+const kSandDark = Color(0xFFE8E2D5);
+const kDarkText = Color(0xFF12372A);
 
 // Gradient colors
-const kGradientEmeraldStart = Color(0xFF046A38);
-const kGradientEmeraldEnd = Color(0xFF10B981);
-const kGradientTealStart = Color(0xFF0D9488);
-const kGradientTealEnd = Color(0xFF06B6D4);
-const kGradientSkyStart = Color(0xFF0EA5E9);
-const kGradientSkyEnd = Color(0xFF8B5CF6);
+const kGradientEmeraldStart = Color(0xFF12372A);
+const kGradientEmeraldEnd = Color(0xFF1F5A44);
+const kGradientTealStart = Color(0xFF12372A);
+const kGradientTealEnd = Color(0xFF245F49);
+const kGradientSkyStart = Color(0xFF0284C7);
+const kGradientSkyEnd = Color(0xFF0EA5E9);
 
-// Premium dark theme gradients
+// Deep Forest Green hero card gradient (30% anchor accent on cream)
 const kGradientDarkTeal = LinearGradient(
   colors: [
-    Color(0xFF163C32),
-    Color(0xFF102E26),
-    Color(0xFF0B1F1A),
+    Color(0xFF174535),
+    Color(0xFF12372A),
+    Color(0xFF0D291F),
   ],
   begin: Alignment.topLeft,
   end: Alignment.bottomRight,
 );
 
 const kGradientAmber = LinearGradient(
-  colors: [kAmber, Color(0xFFD4971E)],
+  colors: [Color(0xFFE0962C), Color(0xFFC47D19)],
   begin: Alignment.topLeft,
   end: Alignment.bottomRight,
 );
@@ -145,10 +146,10 @@ class AppColors {
   static const surfaceMuted = kSand;
   static const surfaceSunken = kSandDark;
   static const ink = kTextPrimary;
-  static const inkSoft = kCream;
-  static const inkFaint = kCreamMuted;
-  static const hairline = Color(0xFF1B5E5B);
-  static const hairlineDark = Color(0xFF0F4A38);
+  static const inkSoft = kTextSecondary;
+  static const inkFaint = kTextTertiary;
+  static const hairline = Color(0xFFDCE5DF);
+  static const hairlineDark = Color(0xFFC8D6CD);
 
   // Status
   static const danger = Color(0xFFDC2A2A);
@@ -555,20 +556,20 @@ Future<http.Response> putApi(String endpoint, {Map<String, String>? headers, Obj
 
 ThemeData heiwaTheme() {
   final colorScheme = ColorScheme.fromSeed(
-    seedColor: kEmeraldLight,
-    primary: kEmeraldLight,
-    onPrimary: Colors.white,
-    secondary: kEmerald,
-    onSecondary: Colors.white,
+    seedColor: kEmerald,
+    primary: kEmerald,
+    onPrimary: kCream,
+    secondary: kAmber,
+    onSecondary: kEmerald,
     surface: kDarkSurface,
     onSurface: kTextPrimary,
     error: AppColors.danger,
-    brightness: Brightness.dark,
+    brightness: Brightness.light,
   );
 
   return ThemeData(
     useMaterial3: true,
-    brightness: Brightness.dark,
+    brightness: Brightness.light,
     colorScheme: colorScheme,
     scaffoldBackgroundColor: kDarkBg,
     fontFamily: 'sans-serif',
@@ -576,12 +577,12 @@ ThemeData heiwaTheme() {
     visualDensity: VisualDensity.standard,
 
     appBarTheme: const AppBarTheme(
-      backgroundColor: kDarkSurface,
+      backgroundColor: kDarkBg,
       surfaceTintColor: Colors.transparent,
       elevation: 0,
       scrolledUnderElevation: 0,
       centerTitle: false,
-      iconTheme: IconThemeData(color: kEmeraldLight),
+      iconTheme: IconThemeData(color: kEmerald),
       titleTextStyle: TextStyle(
           fontSize: 19, fontWeight: FontWeight.w800, color: kTextPrimary),
     ),
@@ -592,21 +593,21 @@ ThemeData heiwaTheme() {
       margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppRadius.lg),
-        side: const BorderSide(color: Color(0xFF1B5E5B)),
+        side: const BorderSide(color: Color(0xFFDCE5DF)),
       ),
     ),
 
     dividerTheme: const DividerThemeData(
-      color: Color(0xFF1B5E5B),
+      color: Color(0xFFDCE5DF),
       thickness: 1,
       space: 1,
     ),
 
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
-        backgroundColor: kEmeraldLight,
-        foregroundColor: Colors.white,
-        disabledBackgroundColor: kEmeraldLight.withOpacity(0.4),
+        backgroundColor: kEmerald,
+        foregroundColor: kCream,
+        disabledBackgroundColor: kEmerald.withValues(alpha: 0.4),
         disabledForegroundColor: Colors.white70,
         elevation: 0,
         shadowColor: Colors.transparent,
@@ -619,10 +620,10 @@ ThemeData heiwaTheme() {
 
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
-        foregroundColor: kEmeraldLight,
-        backgroundColor: kDarkSurfaceAlt,
+        foregroundColor: kEmerald,
+        backgroundColor: Colors.transparent,
         minimumSize: const Size.fromHeight(52),
-        side: const BorderSide(color: Color(0xFF1B5E5B)),
+        side: const BorderSide(color: Color(0xFF839B8B)),
         shape: const RoundedRectangleBorder(borderRadius: AppRadius.buttonBR),
         textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
       ),
@@ -630,47 +631,47 @@ ThemeData heiwaTheme() {
 
     textButtonTheme: TextButtonThemeData(
       style: TextButton.styleFrom(
-        foregroundColor: kEmeraldLight,
+        foregroundColor: kEmerald,
         textStyle: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700),
       ),
     ),
 
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
-      fillColor: kDarkSurfaceAlt,
+      fillColor: Colors.white,
       contentPadding:
           const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       hintStyle: const TextStyle(
-          fontSize: 14, fontWeight: FontWeight.w500, color: kTextSecondary),
+          fontSize: 14, fontWeight: FontWeight.w500, color: kTextTertiary),
       labelStyle: const TextStyle(fontSize: 12.5, color: kTextSecondary),
-      prefixIconColor: kEmeraldLight,
-      suffixIconColor: kEmeraldLight,
+      prefixIconColor: kAmber,
+      suffixIconColor: kTextTertiary,
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AppRadius.sm + 2),
-        borderSide: const BorderSide(color: Color(0xFF1B5E5B)),
+        borderSide: const BorderSide(color: Color(0xFFDCE5DF)),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AppRadius.sm + 2),
-        borderSide: const BorderSide(color: Color(0xFF1B5E5B)),
+        borderSide: const BorderSide(color: Color(0xFFDCE5DF)),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AppRadius.sm + 2),
-        borderSide: const BorderSide(color: kEmeraldLight, width: 1.8),
+        borderSide: const BorderSide(color: kAmber, width: 1.8),
       ),
     ),
 
     navigationBarTheme: NavigationBarThemeData(
-      backgroundColor: kDarkSurface,
+      backgroundColor: kEmerald,
       surfaceTintColor: Colors.transparent,
-      indicatorColor: kEmeraldLight.withOpacity(0.15),
+      indicatorColor: kAmber.withValues(alpha: 0.18),
       elevation: 0,
       height: 70,
       labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
       iconTheme: WidgetStateProperty.resolveWith((states) => IconThemeData(
             size: 23,
             color: states.contains(WidgetState.selected)
-                ? kEmeraldLight
-                : kTextTertiary,
+                ? kAmber
+                : kCream.withValues(alpha: 0.65),
           )),
       labelTextStyle: WidgetStateProperty.resolveWith((states) => TextStyle(
             fontSize: 10.5,
@@ -678,22 +679,22 @@ ThemeData heiwaTheme() {
                 ? FontWeight.w800
                 : FontWeight.w600,
             color: states.contains(WidgetState.selected)
-                ? kEmeraldLight
-                : kTextTertiary,
+                ? kAmber
+                : kCream.withValues(alpha: 0.65),
           )),
     ),
 
     snackBarTheme: SnackBarThemeData(
-      backgroundColor: kDarkSurfaceAlt,
+      backgroundColor: kEmerald,
       contentTextStyle:
-          const TextStyle(color: kTextPrimary, fontWeight: FontWeight.w600),
+          const TextStyle(color: kCream, fontWeight: FontWeight.w600),
       behavior: SnackBarBehavior.floating,
       shape:
           RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.sm)),
     ),
 
     dialogTheme: DialogThemeData(
-      backgroundColor: kDarkSurface,
+      backgroundColor: kDarkBg,
       surfaceTintColor: Colors.transparent,
       shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadius.xl)),
@@ -702,7 +703,7 @@ ThemeData heiwaTheme() {
     ),
 
     bottomSheetTheme: const BottomSheetThemeData(
-      backgroundColor: kDarkSurface,
+      backgroundColor: kDarkBg,
       surfaceTintColor: Colors.transparent,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xxl)),
@@ -710,6 +711,6 @@ ThemeData heiwaTheme() {
     ),
 
     progressIndicatorTheme:
-        const ProgressIndicatorThemeData(color: kEmeraldLight, strokeWidth: 2.6),
+        const ProgressIndicatorThemeData(color: kAmber, strokeWidth: 2.6),
   );
 }

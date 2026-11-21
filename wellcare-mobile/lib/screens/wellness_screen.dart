@@ -121,13 +121,13 @@ class _WellnessScreenState extends State<WellnessScreen> {
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.dark(
-              primary: _amber,
-              onPrimary: _darkInk,
-              surface: _cardDark,
-              onSurface: _cream,
+            colorScheme: const ColorScheme.light(
+              primary: _darkInk,
+              onPrimary: _cream,
+              surface: _bgDark,
+              onSurface: _darkInk,
             ),
-            dialogTheme: const DialogThemeData(backgroundColor: _cardDark),
+            dialogTheme: const DialogThemeData(backgroundColor: _bgDark),
           ),
           child: child!,
         );
@@ -140,14 +140,15 @@ class _WellnessScreenState extends State<WellnessScreen> {
       });
     }
   }
-  static const Color _bgDark = Color(0xFF061A12);
-  static const Color _cardDark = Color(0xFF0C251C);
-  static const Color _cardBorder = Color(0xFF153C2C);
-  static const Color _amber = Color(0xFFF5A623);
-  static const Color _cream = Color(0xFFF5EFE6);
-  static const Color _creamMuted = Color(0xFF9BB3A5);
-  static const Color _darkInk = Color(0xFF071F15);
-  static const Color _oliveMuted = Color(0xFF6B7D74);
+  // 60-30-10 Tech-Forward & Natural Palette
+  static const Color _bgDark = Color(0xFFF8F6F1);        // 60% Warm Cream
+  static const Color _cardDark = Color(0xFFFFFFFF);      // Clean white cards
+  static const Color _cardBorder = Color(0xFFDCE5DF);    // Subtle sage border
+  static const Color _amber = Color(0xFFD58C22);         // 10% Warm Amber
+  static const Color _cream = Color(0xFFF8F6F1);         // Warm Cream
+  static const Color _creamMuted = Color(0xFF5D7669);    // Muted sage green
+  static const Color _darkInk = Color(0xFF12372A);       // 30% Deep Forest Green
+  static const Color _oliveMuted = Color(0xFF4F6A5E);    // Soft forest green
 
   @override
   void initState() {
@@ -200,7 +201,7 @@ class _WellnessScreenState extends State<WellnessScreen> {
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.w900,
-                color: Colors.white,
+                color: _darkInk,
                 letterSpacing: -0.5,
               ),
             ),
@@ -244,7 +245,7 @@ class _WellnessScreenState extends State<WellnessScreen> {
                               style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.w800,
-                                color: Colors.white,
+                                color: _darkInk,
                               ),
                             ),
                             const SizedBox(width: 8),
@@ -342,7 +343,7 @@ class _WellnessScreenState extends State<WellnessScreen> {
                                                   ? FontWeight.w800
                                                   : FontWeight.w500,
                                               color: _selectedDateFilter != null
-                                                  ? _cream
+                                                  ? _darkInk
                                                   : _creamMuted,
                                             ),
                                           ),
@@ -401,10 +402,10 @@ class _WellnessScreenState extends State<WellnessScreen> {
                                     child: Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 6),
                                       decoration: BoxDecoration(
-                                        color: isSelected ? _amber : _bgDark,
+                                        color: isSelected ? _darkInk : _bgDark,
                                         borderRadius: BorderRadius.circular(99),
                                         border: Border.all(
-                                          color: isSelected ? _amber : _cardBorder,
+                                          color: isSelected ? _darkInk : _cardBorder,
                                         ),
                                       ),
                                       child: Text(
@@ -412,7 +413,7 @@ class _WellnessScreenState extends State<WellnessScreen> {
                                         style: TextStyle(
                                           fontSize: 11.5,
                                           fontWeight: FontWeight.w800,
-                                          color: isSelected ? _darkInk : _creamMuted,
+                                          color: isSelected ? _cream : _creamMuted,
                                         ),
                                       ),
                                     ),
@@ -453,19 +454,20 @@ class _WellnessScreenState extends State<WellnessScreen> {
     );
   }
 
-  // ── MEMBERSHIP SUMMARY (CREAM CARD) ────────────────────────────────────────
+  // ── MEMBERSHIP SUMMARY (30% Deep Forest Green anchor card on 60% Cream) ───
   Widget _buildProfileSummary() {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: _cream,
+        gradient: kGradientDarkTeal,
         borderRadius: BorderRadius.circular(22),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.35),
-            blurRadius: 18,
-            offset: const Offset(0, 8),
+            color: _darkInk.withValues(alpha: 0.2),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+            spreadRadius: -4,
           ),
         ],
       ),
@@ -482,16 +484,16 @@ class _WellnessScreenState extends State<WellnessScreen> {
                     height: 7,
                     margin: const EdgeInsets.only(right: 7),
                     decoration: const BoxDecoration(
-                      color: _darkInk,
+                      color: _amber,
                       shape: BoxShape.circle,
                     ),
                   ),
-                  const Text(
+                  Text(
                     'MEMBERSHIP SUMMARY',
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w800,
-                      color: _darkInk,
+                      color: _cream.withValues(alpha: 0.85),
                       letterSpacing: 1.2,
                     ),
                   ),
@@ -516,18 +518,18 @@ class _WellnessScreenState extends State<WellnessScreen> {
             ],
           ),
           const SizedBox(height: 16),
-          _summaryRow('Total Check-ins', _client.checkins.toString(), const Color(0xFF10B981)),
+          _summaryRow('Total Check-ins', _client.checkins.toString(), const Color(0xFF34D399)),
           const SizedBox(height: 10),
           _summaryRow(
             'Absences',
             (_hasCheckedInToday ? _client.absences : (_client.absences + 1)).toString(),
-            const Color(0xFFEF4444),
+            const Color(0xFFF87171),
           ),
           const SizedBox(height: 10),
           _summaryRow('Alkaline Sessions', _client.alkalineSessions.toString(), _amber),
           if (_client.lastSeen.isNotEmpty) ...[
             const SizedBox(height: 10),
-            _summaryRow('Last Visit', _client.lastSeen, const Color(0xFF0EA5E9)),
+            _summaryRow('Last Visit', _client.lastSeen, const Color(0xFF38BDF8)),
           ],
         ],
       ),
@@ -538,7 +540,7 @@ class _WellnessScreenState extends State<WellnessScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.04),
+        color: Colors.white.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(10),
       ),
       child: Row(
@@ -557,10 +559,10 @@ class _WellnessScreenState extends State<WellnessScreen> {
               const SizedBox(width: 10),
               Text(
                 label,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
-                  color: _darkInk,
+                  color: _cream.withValues(alpha: 0.85),
                 ),
               ),
             ],
@@ -570,7 +572,7 @@ class _WellnessScreenState extends State<WellnessScreen> {
             style: const TextStyle(
               fontSize: 13.5,
               fontWeight: FontWeight.w900,
-              color: _darkInk,
+              color: _cream,
             ),
           ),
         ],
@@ -638,7 +640,7 @@ class _WellnessScreenState extends State<WellnessScreen> {
                       style: const TextStyle(
                         fontSize: 12.5,
                         fontWeight: FontWeight.w800,
-                        color: _cream,
+                        color: _darkInk,
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -684,12 +686,12 @@ class _WellnessScreenState extends State<WellnessScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: const Color(0xFF2C1A1C),
+        color: const Color(0xFFFEF2F2),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFEF4444).withValues(alpha: 0.4), width: 1.2),
+        border: Border.all(color: const Color(0xFFEF4444).withValues(alpha: 0.35), width: 1.2),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.2),
+            color: _darkInk.withValues(alpha: 0.05),
             blurRadius: 8,
             offset: const Offset(0, 3),
           ),
@@ -701,12 +703,12 @@ class _WellnessScreenState extends State<WellnessScreen> {
             width: 38,
             height: 38,
             decoration: BoxDecoration(
-              color: const Color(0xFFEF4444).withValues(alpha: 0.18),
+              color: const Color(0xFFEF4444).withValues(alpha: 0.14),
               borderRadius: BorderRadius.circular(10),
             ),
             child: const Icon(
               Icons.event_busy_rounded,
-              color: Color(0xFFEF4444),
+              color: Color(0xFFDC2626),
               size: 20,
             ),
           ),
@@ -722,14 +724,14 @@ class _WellnessScreenState extends State<WellnessScreen> {
                       style: const TextStyle(
                         fontSize: 13.5,
                         fontWeight: FontWeight.w800,
-                        color: Colors.white,
+                        color: _darkInk,
                       ),
                     ),
                     const SizedBox(width: 6),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFEF4444).withValues(alpha: 0.2),
+                        color: const Color(0xFFEF4444).withValues(alpha: 0.16),
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: const Text(
@@ -737,7 +739,7 @@ class _WellnessScreenState extends State<WellnessScreen> {
                         style: TextStyle(
                           fontSize: 9,
                           fontWeight: FontWeight.w900,
-                          color: Color(0xFFEF4444),
+                          color: Color(0xFFDC2626),
                         ),
                       ),
                     ),
@@ -751,7 +753,7 @@ class _WellnessScreenState extends State<WellnessScreen> {
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w800,
-                        color: Color(0xFFF87171),
+                        color: Color(0xFFDC2626),
                       ),
                     ),
                     SizedBox(width: 6),
@@ -770,7 +772,7 @@ class _WellnessScreenState extends State<WellnessScreen> {
           ),
           const Icon(
             Icons.cancel_rounded,
-            color: Color(0xFFEF4444),
+            color: Color(0xFFDC2626),
             size: 20,
           ),
         ],
@@ -794,12 +796,15 @@ class _WellnessScreenState extends State<WellnessScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           decoration: BoxDecoration(
-            color: isAbsence ? const Color(0xFF2C1A1C) : _cream,
+            color: isAbsence ? const Color(0xFFFEF2F2) : _cardDark,
             borderRadius: BorderRadius.circular(16),
-            border: isAbsence ? Border.all(color: const Color(0xFFEF4444).withValues(alpha: 0.4), width: 1.2) : null,
+            border: Border.all(
+              color: isAbsence ? const Color(0xFFEF4444).withValues(alpha: 0.35) : _cardBorder,
+              width: 1.1,
+            ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.2),
+                color: _darkInk.withValues(alpha: 0.05),
                 blurRadius: 8,
                 offset: const Offset(0, 3),
               ),
@@ -812,10 +817,10 @@ class _WellnessScreenState extends State<WellnessScreen> {
                 height: 38,
                 decoration: BoxDecoration(
                   color: isAbsence
-                      ? const Color(0xFFEF4444).withValues(alpha: 0.18)
+                      ? const Color(0xFFEF4444).withValues(alpha: 0.14)
                       : isAlkaline
-                          ? _amber.withValues(alpha: 0.18)
-                          : _cardDark,
+                          ? _amber.withValues(alpha: 0.16)
+                          : _darkInk,
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(
@@ -825,10 +830,10 @@ class _WellnessScreenState extends State<WellnessScreen> {
                           ? Icons.water_drop_rounded
                           : Icons.event_available_rounded,
                   color: isAbsence
-                      ? const Color(0xFFEF4444)
+                      ? const Color(0xFFDC2626)
                       : isAlkaline
                           ? _amber
-                          : const Color(0xFF10B981),
+                          : _cream,
                   size: 20,
                 ),
               ),
@@ -839,10 +844,10 @@ class _WellnessScreenState extends State<WellnessScreen> {
                   children: [
                     Text(
                       displayDate,
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 13.5,
                         fontWeight: FontWeight.w800,
-                        color: isAbsence ? Colors.white : _darkInk,
+                        color: _darkInk,
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -852,10 +857,10 @@ class _WellnessScreenState extends State<WellnessScreen> {
                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
                             color: isAbsence
-                                ? const Color(0xFFEF4444).withValues(alpha: 0.22)
+                                ? const Color(0xFFEF4444).withValues(alpha: 0.16)
                                 : isAlkaline
-                                    ? _amber.withValues(alpha: 0.2)
-                                    : const Color(0xFF10B981).withValues(alpha: 0.2),
+                                    ? _amber.withValues(alpha: 0.18)
+                                    : const Color(0xFF10B981).withValues(alpha: 0.16),
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(
@@ -864,7 +869,7 @@ class _WellnessScreenState extends State<WellnessScreen> {
                               fontSize: 10,
                               fontWeight: FontWeight.w800,
                               color: isAbsence
-                                  ? const Color(0xFFF87171)
+                                  ? const Color(0xFFDC2626)
                                   : isAlkaline
                                       ? _darkInk
                                       : const Color(0xFF065F46),
@@ -874,10 +879,10 @@ class _WellnessScreenState extends State<WellnessScreen> {
                         const SizedBox(width: 6),
                         Text(
                           '· ${loggedBy.isNotEmpty ? '${loggedBy[0].toUpperCase()}${loggedBy.substring(1)}' : 'System'}',
-                          style: TextStyle(
+                          style: const TextStyle(
                             fontSize: 11.5,
                             fontWeight: FontWeight.w600,
-                            color: isAbsence ? _creamMuted : _oliveMuted,
+                            color: _oliveMuted,
                           ),
                         ),
                       ],
@@ -887,7 +892,7 @@ class _WellnessScreenState extends State<WellnessScreen> {
               ),
               Icon(
                 isAbsence ? Icons.cancel_rounded : Icons.info_outline_rounded,
-                color: isAbsence ? const Color(0xFFEF4444) : _darkInk,
+                color: isAbsence ? const Color(0xFFDC2626) : _darkInk,
                 size: 20,
               ),
             ],
@@ -966,7 +971,7 @@ class _WellnessScreenState extends State<WellnessScreen> {
                             style: TextStyle(
                               fontSize: 17,
                               fontWeight: FontWeight.w900,
-                              color: Colors.white,
+                              color: _darkInk,
                             ),
                           ),
                           const SizedBox(height: 3),
@@ -1031,10 +1036,10 @@ class _WellnessScreenState extends State<WellnessScreen> {
                   child: FilledButton(
                     onPressed: () => Navigator.pop(ctx),
                     style: FilledButton.styleFrom(
-                      backgroundColor: _amber,
-                      foregroundColor: _darkInk,
+                      backgroundColor: _darkInk,
+                      foregroundColor: _cream,
                       padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      shape: const StadiumBorder(),
                     ),
                     child: const Text(
                       'Close',
@@ -1078,7 +1083,7 @@ class _WellnessScreenState extends State<WellnessScreen> {
               style: TextStyle(
                 fontSize: 12.5,
                 fontWeight: FontWeight.w800,
-                color: valueColor ?? Colors.white,
+                color: valueColor ?? _darkInk,
               ),
             ),
           ),

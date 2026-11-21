@@ -10,14 +10,14 @@ import 'screens/client_portal_screen.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Edge-to-edge transparent system overlay for immersive responsive experience
+  // Edge-to-edge transparent system overlay for light warm-cream UI
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
-    statusBarIconBrightness: Brightness.light,
-    statusBarBrightness: Brightness.dark,
+    statusBarIconBrightness: Brightness.dark,
+    statusBarBrightness: Brightness.light,
     systemNavigationBarColor: Colors.transparent,
     systemNavigationBarDividerColor: Colors.transparent,
-    systemNavigationBarIconBrightness: Brightness.light,
+    systemNavigationBarIconBrightness: Brightness.dark,
   ));
 
   // Enable edge-to-edge mode

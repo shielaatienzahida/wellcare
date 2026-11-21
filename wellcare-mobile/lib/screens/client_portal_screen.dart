@@ -217,7 +217,7 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                     children: [
                       Text(
                         'Change Default Password',
-                        style: TextStyle(fontSize: 16.5, fontWeight: FontWeight.w800, color: kCream),
+                        style: TextStyle(fontSize: 16.5, fontWeight: FontWeight.w800, color: kTextPrimary),
                       ),
                       SizedBox(height: 2),
                       Text(
@@ -821,9 +821,9 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
         backgroundColor: Colors.transparent,
         builder: (ctx) => Container(
           decoration: const BoxDecoration(
-            color: Color(0xFF0C251C),
+            color: kDarkBg,
             borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xxl)),
-            border: Border(top: BorderSide(color: Color(0xFF153C2C), width: 1.5)),
+            border: Border(top: BorderSide(color: Color(0xFFDCE5DF), width: 1.5)),
           ),
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
           child: SafeArea(
@@ -836,7 +836,7 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                   width: 38,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: const Color(0xFF153C2C),
+                    color: const Color(0xFF839B8B).withValues(alpha: 0.45),
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -845,7 +845,7 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
-                    color: Colors.white,
+                    color: kTextPrimary,
                   ),
                 ),
                 const SizedBox(height: 20),
@@ -854,14 +854,14 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                     width: 42,
                     height: 42,
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF5A623).withOpacity(0.15),
+                      color: kAmber.withValues(alpha: 0.14),
                       borderRadius: BorderRadius.circular(AppRadius.sm),
                     ),
-                    child: const Icon(Icons.photo_library_rounded, color: Color(0xFFF5A623), size: 22),
+                    child: const Icon(Icons.photo_library_rounded, color: kAmber, size: 22),
                   ),
                   title: const Text(
                     'Choose from Gallery',
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+                    style: TextStyle(color: kTextPrimary, fontWeight: FontWeight.w700),
                   ),
                   onTap: () => Navigator.pop(ctx, ImageSource.gallery),
                 ),
@@ -871,14 +871,14 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                     width: 42,
                     height: 42,
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF5A623).withOpacity(0.15),
+                      color: kAmber.withValues(alpha: 0.14),
                       borderRadius: BorderRadius.circular(AppRadius.sm),
                     ),
-                    child: const Icon(Icons.camera_alt_rounded, color: Color(0xFFF5A623), size: 22),
+                    child: const Icon(Icons.camera_alt_rounded, color: kAmber, size: 22),
                   ),
                   title: const Text(
                     'Take a Photo',
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+                    style: TextStyle(color: kTextPrimary, fontWeight: FontWeight.w700),
                   ),
                   onTap: () => Navigator.pop(ctx, ImageSource.camera),
                 ),
@@ -1075,12 +1075,12 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
     );
   }
 
-  // ──────────────────────────────────────── SLIM HEADER ────────────────────────────
+  // ──────────────────────────────────────── SLIM HEADER (60% Cream & 30% Forest Green) ──
   Widget _buildHeader() {
     return Container(
       decoration: const BoxDecoration(
-        color: Color(0xFF061A12),
-        border: Border(bottom: BorderSide(color: Color(0xFF103626), width: 1)),
+        color: Color(0xFFF8F6F1),
+        border: Border(bottom: BorderSide(color: Color(0xFFDCE5DF), width: 1)),
       ),
       child: SafeArea(
         bottom: false,
@@ -1093,9 +1093,9 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                 width: 38,
                 height: 38,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF0C251C),
+                  color: Colors.white,
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: const Color(0xFF153C2C), width: 1.2),
+                  border: Border.all(color: const Color(0xFFDCE5DF), width: 1.2),
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(9),
@@ -1119,7 +1119,7 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w900,
-                            color: Colors.white,
+                            color: Color(0xFF12372A),
                             letterSpacing: -0.4,
                             height: 1.1,
                           ),
@@ -1129,7 +1129,7 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w900,
-                            color: Colors.white,
+                            color: Color(0xFFD58C22),
                             letterSpacing: -0.4,
                             height: 1.1,
                           ),
@@ -1142,7 +1142,7 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                       style: TextStyle(
                         fontSize: 10.5,
                         fontWeight: FontWeight.w600,
-                        color: Color(0xFF9BB3A5),
+                        color: Color(0xFF5D7669),
                         letterSpacing: 0.2,
                       ),
                     ),
@@ -1165,7 +1165,7 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                   width: 38,
                   height: 38,
                   decoration: const BoxDecoration(
-                    color: Color(0xFFF5A623), // Amber
+                    color: Color(0xFFD58C22), // Warm Amber
                     shape: BoxShape.circle,
                   ),
                   clipBehavior: Clip.antiAlias,
@@ -1182,7 +1182,7 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                           style: const TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w900,
-                            color: Color(0xFF071F15),
+                            color: Color(0xFF12372A),
                           ),
                         ),
                 ),
@@ -1208,15 +1208,15 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
             height: 38,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: const Color(0xFF0C251C),
+              color: Colors.white,
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: const Color(0xFF153C2C), width: 1.2),
+              border: Border.all(color: const Color(0xFFDCE5DF), width: 1.2),
             ),
             child: Stack(
               clipBehavior: Clip.none,
               alignment: Alignment.center,
               children: [
-                Icon(icon, color: const Color(0xFFF5EFE6), size: 19),
+                Icon(icon, color: const Color(0xFF12372A), size: 19),
                 if (badge > 0)
                   Positioned(
                     right: 1,
@@ -1225,9 +1225,9 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                       width: 9,
                       height: 9,
                       decoration: BoxDecoration(
-                        color: const Color(0xFFEF4444), // Bright red notification dot
+                        color: const Color(0xFFEF4444),
                         shape: BoxShape.circle,
-                        border: Border.all(color: const Color(0xFF0C251C), width: 1.5),
+                        border: Border.all(color: Colors.white, width: 1.5),
                         boxShadow: const [
                           BoxShadow(
                             color: Color(0xFFEF4444),
@@ -1259,13 +1259,13 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
     return Container(
       height: 66,
       decoration: BoxDecoration(
-        color: const Color(0xFF071E15),
+        color: const Color(0xFF12372A),
         borderRadius: BorderRadius.circular(33),
-        border: Border.all(color: const Color(0xFF133829), width: 1.2),
+        border: Border.all(color: const Color(0xFF1E4D3C), width: 1.2),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.55),
-            blurRadius: 28,
+            color: const Color(0xFF12372A).withValues(alpha: 0.28),
+            blurRadius: 24,
             offset: const Offset(0, 10),
             spreadRadius: -4,
           ),
@@ -1667,10 +1667,10 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                               child: Container(
                                 padding: const EdgeInsets.all(8),
                                 decoration: BoxDecoration(
-                                  color: Colors.white.withValues(alpha: 0.08),
+                                  color: kDarkSurfaceAlt,
                                   shape: BoxShape.circle,
                                 ),
-                                child: const Icon(Icons.close_rounded, size: 20, color: kCream),
+                                child: const Icon(Icons.close_rounded, size: 20, color: kTextPrimary),
                               ),
                             ),
                           ),
@@ -2059,18 +2059,19 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Compact Hero Card — sized down so Personal Information is clearly visible
+          // Compact Hero Card — 30% Deep Forest Green anchor card on 60% Cream
           Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
             decoration: BoxDecoration(
-              color: const Color(0xFFF5EFE6), // Cream
+              gradient: kGradientDarkTeal,
               borderRadius: BorderRadius.circular(22),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.35),
-                  blurRadius: 18,
-                  offset: const Offset(0, 8),
+                  color: const Color(0xFF12372A).withValues(alpha: 0.2),
+                  blurRadius: 20,
+                  offset: const Offset(0, 10),
+                  spreadRadius: -4,
                 ),
               ],
             ),
@@ -2083,7 +2084,7 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                     width: 56,
                     height: 56,
                     decoration: const BoxDecoration(
-                      color: Color(0xFFF5A623), // Amber
+                      color: Color(0xFFD58C22), // Warm Amber
                       shape: BoxShape.circle,
                     ),
                     clipBehavior: Clip.antiAlias,
@@ -2094,7 +2095,7 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                               style: const TextStyle(
                                 fontSize: 20,
                                 fontWeight: FontWeight.w900,
-                                color: Color(0xFF071F15),
+                                color: Color(0xFF12372A),
                               ),
                             ),
                           )
@@ -2121,7 +2122,7 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                         style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w900,
-                          color: Color(0xFF071F15),
+                          color: Color(0xFFF8F6F1),
                           letterSpacing: -0.4,
                         ),
                       ),
@@ -2135,16 +2136,16 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                             '@${_client.username}',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 12.5,
                               fontWeight: FontWeight.w600,
-                              color: Color(0xFF6B7D74),
+                              color: const Color(0xFFF8F6F1).withValues(alpha: 0.72),
                             ),
                           ),
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFF5A623), // Amber
+                              color: const Color(0xFFD58C22), // Warm Amber
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(
@@ -2152,7 +2153,7 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                               style: const TextStyle(
                                 fontSize: 10.5,
                                 fontWeight: FontWeight.w900,
-                                color: Color(0xFF071F15),
+                                color: Color(0xFF12372A),
                                 letterSpacing: 0.4,
                               ),
                             ),
@@ -2166,20 +2167,23 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF071F15),
+                            color: Colors.white.withValues(alpha: 0.14),
                             borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: const Color(0xFFF8F6F1).withValues(alpha: 0.28),
+                            ),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(Icons.photo_camera_outlined, size: 12, color: Color(0xFFF5EFE6)),
+                              const Icon(Icons.photo_camera_outlined, size: 12, color: Color(0xFFF8F6F1)),
                               const SizedBox(width: 5),
                               Text(
                                 _profilePhotoBytes == null ? 'Upload photo' : 'Change photo',
                                 style: const TextStyle(
                                   fontSize: 10.5,
                                   fontWeight: FontWeight.w700,
-                                  color: Color(0xFFF5EFE6),
+                                  color: Color(0xFFF8F6F1),
                                 ),
                               ),
                             ],
@@ -2287,7 +2291,7 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                             style: TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w800,
-                              color: kCream,
+                              color: kTextPrimary,
                               letterSpacing: -0.2,
                             ),
                           ),
@@ -2341,19 +2345,19 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
   /// Enrolled / not-enrolled indicator with Add / Delete Fingerprint actions.
   Widget _fingerprintStatusCard() {
     final enrolled = _client.fingerprintEnrolled;
-    final accent = enrolled ? const Color(0xFF10B981) : const Color(0xFFF5A623);
+    final accent = enrolled ? const Color(0xFF0F766E) : const Color(0xFFD58C22);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
       decoration: BoxDecoration(
-        color: const Color(0xFF0C251C),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: accent.withValues(alpha: enrolled ? 0.3 : 0.35),
+          color: const Color(0xFFDCE5DF),
           width: 1.2,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.2),
+            color: const Color(0xFF12372A).withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 3),
           ),
@@ -2378,7 +2382,7 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 const Text(
                   'Fingerprint status',
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF9BB3A5)),
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF5D7669)),
                 ),
                 const SizedBox(height: 2),
                 Text(
@@ -2400,18 +2404,16 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                 child: FilledButton.icon(
                   onPressed: () => _showAddFingerprintDialog(),
                   style: FilledButton.styleFrom(
-                    backgroundColor: enrolled ? const Color(0xFF133628) : kAmber,
-                    foregroundColor: enrolled ? kCream : const Color(0xFF071F15),
+                    backgroundColor: const Color(0xFF12372A),
+                    foregroundColor: const Color(0xFFF8F6F1),
                     padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
                     elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      side: enrolled ? BorderSide(color: accent.withValues(alpha: 0.35)) : BorderSide.none,
-                    ),
+                    shape: const StadiumBorder(),
                   ),
                   icon: Icon(
                     enrolled ? Icons.refresh_rounded : Icons.add_rounded,
                     size: 16,
+                    color: const Color(0xFFD58C22),
                   ),
                   label: Text(
                     enrolled ? 'Re-enroll Fingerprint' : 'Add Fingerprint',
@@ -2424,10 +2426,10 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                 OutlinedButton.icon(
                   onPressed: () => _confirmDeleteFingerprint(),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFFF87171),
-                    side: BorderSide(color: const Color(0xFFF87171).withValues(alpha: 0.45)),
+                    foregroundColor: const Color(0xFFDC2626),
+                    side: BorderSide(color: const Color(0xFFDC2626).withValues(alpha: 0.45)),
                     padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    shape: const StadiumBorder(),
                   ),
                   icon: const Icon(Icons.delete_outline_rounded, size: 16),
                   label: const Text(
@@ -2469,7 +2471,7 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
             const Expanded(
               child: Text(
                 'Delete Fingerprint?',
-                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: kCream),
+                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: kTextPrimary),
               ),
             ),
           ],
@@ -3014,7 +3016,7 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                         style: const TextStyle(
                             fontSize: 48,
                             fontWeight: FontWeight.w900,
-                            color: kTextPrimary,
+                            color: kCream,
                             height: 1,
                             letterSpacing: -1.5)),
                     const SizedBox(width: 8),
@@ -3022,23 +3024,23 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                         style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w700,
-                            color: kTurquoiseLight)),
+                            color: kAmberLight)),
                   ],
                 ),
                 const SizedBox(height: 4),
-                const Text('Recorded alkaline therapy sessions',
+                Text('Recorded alkaline therapy sessions',
                     style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
-                        color: kTextTertiary)),
+                        color: kCream.withValues(alpha: 0.72))),
                 const SizedBox(height: 18),
                 ClipRRect(
                   borderRadius: BorderRadius.circular(AppRadius.pill),
                   child: LinearProgressIndicator(
                     value: progress,
                     minHeight: 8,
-                    backgroundColor: Colors.white.withValues(alpha: 0.1),
-                    valueColor: const AlwaysStoppedAnimation<Color>(kTurquoiseLight),
+                    backgroundColor: Colors.white.withValues(alpha: 0.14),
+                    valueColor: const AlwaysStoppedAnimation<Color>(kAmber),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -3049,14 +3051,14 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                       toNext == 0
                           ? '10-session milestone reached! 🌟'
                           : '$toNext more session${toNext == 1 ? '' : 's'} to next milestone',
-                      style: const TextStyle(fontSize: 11, color: kTextTertiary),
+                      style: TextStyle(fontSize: 11, color: kCream.withValues(alpha: 0.75)),
                     ),
                     Text(
                       '${(progress * 100).round()}%',
                       style: const TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
-                          color: kTurquoiseLight),
+                          color: kAmberLight),
                     ),
                   ],
                 ),
@@ -3068,7 +3070,7 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                   padding: const EdgeInsets.symmetric(vertical: 18),
                   child: Container(
                     height: 1,
-                    color: Colors.white.withValues(alpha: 0.12),
+                    color: Colors.white.withValues(alpha: 0.14),
                   ),
                 ),
 
@@ -3077,11 +3079,11 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                     Container(
                       padding: const EdgeInsets.all(6),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF14B8A6).withValues(alpha: 0.18),
+                        color: kAmber.withValues(alpha: 0.2),
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(Icons.local_drink_rounded,
-                          size: 15, color: kTurquoiseLight),
+                          size: 15, color: kAmberLight),
                     ),
                     const SizedBox(width: 8),
                     const Expanded(
@@ -3092,7 +3094,7 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                         style: TextStyle(
                           fontSize: 10.5,
                           fontWeight: FontWeight.w800,
-                          color: kTurquoiseLight,
+                          color: kAmberLight,
                           letterSpacing: 1.1,
                         ),
                       ),
@@ -3101,19 +3103,19 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.08),
+                        color: Colors.white.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(AppRadius.pill),
                         border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.15),
+                          color: Colors.white.withValues(alpha: 0.18),
                           width: 1,
                         ),
                       ),
-                      child: const Text(
+                      child: Text(
                         '1 Liter / bottle',
                         style: TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.w600,
-                          color: kTextTertiary,
+                          color: kCream.withValues(alpha: 0.85),
                         ),
                       ),
                     ),
@@ -3129,28 +3131,28 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                         decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.22),
+                          color: Colors.black.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(AppRadius.md),
                           border: Border.all(
-                            color: const Color(0xFF14B8A6).withValues(alpha: 0.2),
+                            color: Colors.white.withValues(alpha: 0.12),
                             width: 1,
                           ),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('Total Volume',
+                            Text('Total Volume',
                                 style: TextStyle(
                                     fontSize: 11,
                                     fontWeight: FontWeight.w600,
-                                    color: kTextTertiary)),
+                                    color: kCream.withValues(alpha: 0.72))),
                             const SizedBox(height: 4),
                             Text(
                               '$totalLiters L',
                               style: const TextStyle(
                                 fontSize: 20,
                                 fontWeight: FontWeight.w900,
-                                color: kTextPrimary,
+                                color: kCream,
                                 letterSpacing: -0.5,
                               ),
                             ),
@@ -3174,28 +3176,28 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                         decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.22),
+                          color: Colors.black.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(AppRadius.md),
                           border: Border.all(
-                            color: const Color(0xFF14B8A6).withValues(alpha: 0.2),
+                            color: Colors.white.withValues(alpha: 0.12),
                             width: 1,
                           ),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('Bottles Consumed',
+                            Text('Bottles Consumed',
                                 style: TextStyle(
                                     fontSize: 11,
                                     fontWeight: FontWeight.w600,
-                                    color: kTextTertiary)),
+                                    color: kCream.withValues(alpha: 0.72))),
                             const SizedBox(height: 4),
                             Text(
                               '$bottleUnits ${bottleUnits == '1' ? 'Bottle' : 'Bottles'}',
                               style: const TextStyle(
                                 fontSize: 20,
                                 fontWeight: FontWeight.w900,
-                                color: kTextPrimary,
+                                color: kCream,
                                 letterSpacing: -0.5,
                               ),
                             ),
@@ -3205,7 +3207,7 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                               style: TextStyle(
                                 fontSize: 10.5,
                                 fontWeight: FontWeight.w600,
-                                color: kTurquoiseLight,
+                                color: kAmberLight,
                               ),
                             ),
                           ],
@@ -3224,9 +3226,9 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
             width: double.infinity,
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: kDarkSurfaceAlt,
+              color: Colors.white,
               borderRadius: BorderRadius.circular(AppRadius.lg),
-              border: Border.all(color: const Color(0xFF1B5E5B), width: 1.2),
+              border: Border.all(color: const Color(0xFFDCE5DF), width: 1.2),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -3392,10 +3394,10 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                     width: double.infinity,
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                     decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.2),
+                      color: kDarkSurfaceAlt,
                       borderRadius: BorderRadius.circular(AppRadius.md),
                       border: Border.all(
-                        color: const Color(0xFF38BDF8).withValues(alpha: 0.2),
+                        color: const Color(0xFF0EA5E9).withValues(alpha: 0.25),
                         width: 1,
                       ),
                     ),
@@ -3489,9 +3491,9 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
               width: double.infinity,
               padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
-                color: kDarkSurfaceAlt,
+                color: Colors.white,
                 borderRadius: BorderRadius.circular(AppRadius.lg),
-                border: Border.all(color: const Color(0xFF1B5E5B), width: 1.2),
+                border: Border.all(color: const Color(0xFFDCE5DF), width: 1.2),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -3676,9 +3678,9 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
             width: double.infinity,
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: kDarkSurfaceAlt,
+              color: Colors.white,
               borderRadius: BorderRadius.circular(AppRadius.lg),
-              border: Border.all(color: const Color(0xFF1B5E5B)),
+              border: Border.all(color: const Color(0xFFDCE5DF)),
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -3762,8 +3764,8 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
               Expanded(
                 child: _reportStatCard(
                   icon: Icons.how_to_reg_rounded,
-                  iconColor: const Color(0xFF6EE7B7),
-                  iconBg: const Color(0xFF123B2A),
+                  iconColor: const Color(0xFF0F766E),
+                  iconBg: const Color(0xFFE6F4EF),
                   value: checkins.toString(),
                   label: 'Check-ins',
                   subtext: 'Active attendance',
@@ -3773,8 +3775,8 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
               Expanded(
                 child: _reportStatCard(
                   icon: Icons.event_busy_rounded,
-                  iconColor: const Color(0xFFF87171),
-                  iconBg: const Color(0xFF2C1A1C),
+                  iconColor: const Color(0xFFDC2626),
+                  iconBg: const Color(0xFFFEE2E2),
                   value: absences.toString(),
                   label: 'Absences',
                   subtext: absences == 0 ? 'Perfect record' : 'Recorded absences',
@@ -3788,8 +3790,8 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
               Expanded(
                 child: _reportStatCard(
                   icon: Icons.water_drop_rounded,
-                  iconColor: const Color(0xFF38BDF8),
-                  iconBg: const Color(0xFF0F2E36),
+                  iconColor: const Color(0xFF0284C7),
+                  iconBg: const Color(0xFFE0F2FE),
                   value: alkaline.toString(),
                   label: 'Alkaline sessions',
                   subtext: '${(alkaline * 1.0).toStringAsFixed(1)} L total intake',
@@ -3799,8 +3801,8 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
               Expanded(
                 child: _reportStatCard(
                   icon: Icons.event_available_rounded,
-                  iconColor: const Color(0xFFF5A623),
-                  iconBg: const Color(0xFF2E2412),
+                  iconColor: const Color(0xFFD58C22),
+                  iconBg: const Color(0xFFFEF3DC),
                   value: totalVisits.toString(),
                   label: 'Total visits',
                   subtext: 'Recorded history logs',
@@ -3816,9 +3818,9 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
             width: double.infinity,
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
-              color: const Color(0xFF0C251C),
+              color: Colors.white,
               borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: const Color(0xFF153C2C), width: 1.2),
+              border: Border.all(color: const Color(0xFFDCE5DF), width: 1.2),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -3834,29 +3836,29 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                           style: TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w800,
-                            color: Colors.white,
+                            color: Color(0xFF12372A),
                           ),
                         ),
                         SizedBox(height: 2),
                         Text(
                           'Client sessions recorded per day',
-                          style: TextStyle(fontSize: 11, color: Color(0xFF9BB3A5)),
+                          style: TextStyle(fontSize: 11, color: Color(0xFF5D7669)),
                         ),
                       ],
                     ),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF5A623).withOpacity(0.18),
+                        color: const Color(0xFFD58C22).withValues(alpha: 0.14),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: const Color(0xFFF5A623).withOpacity(0.4)),
+                        border: Border.all(color: const Color(0xFFD58C22).withValues(alpha: 0.4)),
                       ),
                       child: Text(
                         'Total: $totalVisits',
                         style: const TextStyle(
                           fontSize: 10.5,
                           fontWeight: FontWeight.w800,
-                          color: Color(0xFFF5A623),
+                          color: Color(0xFFD58C22),
                         ),
                       ),
                     ),
@@ -3887,8 +3889,8 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                                   fontSize: 10,
                                   fontWeight: count > 0 ? FontWeight.w800 : FontWeight.w500,
                                   color: isToday
-                                      ? const Color(0xFFF5A623)
-                                      : (count > 0 ? Colors.white : const Color(0xFF5A6E63)),
+                                      ? const Color(0xFFD58C22)
+                                      : (count > 0 ? const Color(0xFF12372A) : const Color(0xFF839B8B)),
                                 ),
                               ),
                               const SizedBox(height: 6),
@@ -3900,13 +3902,13 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                                 height: count == 0 ? 6 : (fraction * 75).clamp(12.0, 75.0),
                                 decoration: BoxDecoration(
                                   color: count == 0
-                                      ? const Color(0xFF133628)
-                                      : (isToday ? const Color(0xFFF5A623) : const Color(0xFFD4972C)),
+                                      ? const Color(0xFFEBE7DC)
+                                      : (isToday ? const Color(0xFFD58C22) : const Color(0xFF12372A)),
                                   borderRadius: BorderRadius.circular(6),
                                   boxShadow: isToday && count > 0
                                       ? [
                                           BoxShadow(
-                                            color: const Color(0xFFF5A623).withOpacity(0.4),
+                                            color: const Color(0xFFD58C22).withValues(alpha: 0.35),
                                             blurRadius: 10,
                                             offset: const Offset(0, 2),
                                           ),
@@ -3921,7 +3923,7 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                                 style: TextStyle(
                                   fontSize: 10,
                                   fontWeight: isToday ? FontWeight.w800 : FontWeight.w600,
-                                  color: isToday ? const Color(0xFFF5A623) : const Color(0xFF9BB3A5),
+                                  color: isToday ? const Color(0xFFD58C22) : const Color(0xFF5D7669),
                                 ),
                               ),
                             ],
@@ -3935,14 +3937,14 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                 const SizedBox(height: 14),
                 Row(
                   children: [
-                    const Icon(Icons.show_chart_rounded, size: 16, color: Color(0xFFF5A623)),
+                    const Icon(Icons.show_chart_rounded, size: 16, color: Color(0xFFD58C22)),
                     const SizedBox(width: 6),
                     Text(
                       'Peak day: $maxActivity activity event${maxActivity == 1 ? '' : 's'}',
                       style: const TextStyle(
                         fontSize: 11.5,
                         fontWeight: FontWeight.w700,
-                        color: Color(0xFFF5A623),
+                        color: Color(0xFFD58C22),
                       ),
                     ),
                   ],
@@ -3958,9 +3960,9 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
             width: double.infinity,
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
-              color: const Color(0xFF0C251C),
+              color: Colors.white,
               borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: const Color(0xFF153C2C), width: 1.2),
+              border: Border.all(color: const Color(0xFFDCE5DF), width: 1.2),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -3970,13 +3972,13 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                   style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w800,
-                    color: Colors.white,
+                    color: Color(0xFF12372A),
                   ),
                 ),
                 const SizedBox(height: 2),
                 const Text(
                   'Check-in consistency vs recorded absences',
-                  style: TextStyle(fontSize: 11, color: Color(0xFF9BB3A5)),
+                  style: TextStyle(fontSize: 11, color: Color(0xFF5D7669)),
                 ),
                 const SizedBox(height: 16),
 
@@ -4025,7 +4027,7 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                           style: const TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w700,
-                            color: Colors.white,
+                            color: Color(0xFF12372A),
                           ),
                         ),
                       ],
@@ -4046,7 +4048,7 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                           style: const TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w700,
-                            color: Colors.white,
+                            color: Color(0xFF12372A),
                           ),
                         ),
                       ],
@@ -4056,7 +4058,7 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                       style: const TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w900,
-                        color: Color(0xFFF5A623),
+                        color: Color(0xFFD58C22),
                       ),
                     ),
                   ],
@@ -4072,9 +4074,9 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
             width: double.infinity,
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: const Color(0xFF0C251C),
+              color: Colors.white,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFF153C2C), width: 1.2),
+              border: Border.all(color: const Color(0xFFDCE5DF), width: 1.2),
             ),
             child: Row(
               children: [
@@ -4082,12 +4084,12 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                   width: 38,
                   height: 38,
                   decoration: BoxDecoration(
-                    color: const Color(0xFF133628),
+                    color: const Color(0xFFFEF3DC),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: const Icon(
                     Icons.schedule_rounded,
-                    color: Color(0xFFF5A623),
+                    color: Color(0xFFD58C22),
                     size: 20,
                   ),
                 ),
@@ -4098,12 +4100,12 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                     children: [
                       const Text(
                         'Last recorded activity',
-                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF9BB3A5)),
+                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF5D7669)),
                       ),
                       const SizedBox(height: 2),
                       Text(
                         _client.lastSeen.isEmpty ? 'No visit recorded yet' : _client.lastSeen,
-                        style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800, color: Colors.white),
+                        style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800, color: Color(0xFF12372A)),
                       ),
                     ],
                   ),
@@ -4130,9 +4132,9 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFF0C251C),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF153C2C), width: 1.2),
+        border: Border.all(color: const Color(0xFFDCE5DF), width: 1.2),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -4152,7 +4154,7 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
             style: const TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.w900,
-              color: Colors.white,
+              color: Color(0xFF12372A),
               height: 1.1,
             ),
           ),
@@ -4164,7 +4166,7 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
             style: const TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w700,
-              color: Colors.white,
+              color: Color(0xFF12372A),
             ),
           ),
           const SizedBox(height: 2),
@@ -4175,7 +4177,7 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
             style: const TextStyle(
               fontSize: 10,
               fontWeight: FontWeight.w500,
-              color: Color(0xFF9BB3A5),
+              color: Color(0xFF5D7669),
             ),
           ),
         ],
@@ -4370,13 +4372,13 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
   Widget _infoCard(List<Widget> rows) {
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF0C251C),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF153C2C), width: 1.2),
+        border: Border.all(color: const Color(0xFFDCE5DF), width: 1.2),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.25),
-            blurRadius: 14,
+            color: const Color(0xFF12372A).withValues(alpha: 0.05),
+            blurRadius: 12,
             offset: const Offset(0, 4),
           ),
         ],
@@ -4424,7 +4426,7 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
       decoration: BoxDecoration(
         color: Colors.transparent,
-        border: last ? null : const Border(bottom: BorderSide(color: Color(0xFF133628), width: 1)),
+        border: last ? null : const Border(bottom: BorderSide(color: Color(0xFFEBEFE8), width: 1)),
       ),
       child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
         // Amber badge icon container for EVERY row
@@ -4432,14 +4434,14 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
           width: 34,
           height: 34,
           decoration: BoxDecoration(
-            color: const Color(0xFFF5A623).withOpacity(0.12),
+            color: const Color(0xFFD58C22).withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(8),
             border: Border.all(
-              color: const Color(0xFFF5A623).withOpacity(0.28),
+              color: const Color(0xFFD58C22).withValues(alpha: 0.28),
               width: 1,
             ),
           ),
-          child: Icon(icon, size: 16, color: const Color(0xFFF5A623)),
+          child: Icon(icon, size: 16, color: const Color(0xFFD58C22)),
         ),
         const SizedBox(width: 12),
         SizedBox(
@@ -4449,7 +4451,7 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
             style: const TextStyle(
               fontSize: 12.5,
               fontWeight: FontWeight.w600,
-              color: Color(0xFF9BB3A5),
+              color: Color(0xFF5D7669),
             ),
           ),
         ),
@@ -4460,16 +4462,16 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF5A623).withOpacity(0.18),
+                      color: const Color(0xFFD58C22).withValues(alpha: 0.16),
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: const Color(0xFFF5A623).withOpacity(0.4), width: 1),
+                      border: Border.all(color: const Color(0xFFD58C22).withValues(alpha: 0.4), width: 1),
                     ),
                     child: Text(
                       value,
                       style: const TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w900,
-                        color: Color(0xFFF5A623),
+                        color: Color(0xFF12372A),
                         letterSpacing: 0.6,
                       ),
                     ),
@@ -4480,7 +4482,7 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                   style: const TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
-                    color: Color(0xFFF5EFE6), // Cream text
+                    color: Color(0xFF12372A),
                   ),
                   textAlign: TextAlign.right,
                 ),
