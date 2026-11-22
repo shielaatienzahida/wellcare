@@ -611,7 +611,7 @@ ThemeData heiwaTheme() {
         disabledForegroundColor: Colors.white70,
         elevation: 0,
         shadowColor: Colors.transparent,
-        minimumSize: const Size.fromHeight(52),
+        minimumSize: const Size(0, 48),
         padding: const EdgeInsets.symmetric(horizontal: 22),
         shape: const RoundedRectangleBorder(borderRadius: AppRadius.buttonBR),
         textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
@@ -622,7 +622,7 @@ ThemeData heiwaTheme() {
       style: OutlinedButton.styleFrom(
         foregroundColor: kEmerald,
         backgroundColor: Colors.transparent,
-        minimumSize: const Size.fromHeight(52),
+        minimumSize: const Size(0, 46),
         side: const BorderSide(color: Color(0xFF839B8B)),
         shape: const RoundedRectangleBorder(borderRadius: AppRadius.buttonBR),
         textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800),

@@ -2364,6 +2364,7 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
         ],
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(children: [
@@ -2406,6 +2407,7 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                   style: FilledButton.styleFrom(
                     backgroundColor: const Color(0xFF12372A),
                     foregroundColor: const Color(0xFFF8F6F1),
+                    minimumSize: const Size(0, 42),
                     padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
                     elevation: 0,
                     shape: const StadiumBorder(),
@@ -2417,6 +2419,8 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                   ),
                   label: Text(
                     enrolled ? 'Re-enroll Fingerprint' : 'Add Fingerprint',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
                   ),
                 ),
@@ -2427,8 +2431,9 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                   onPressed: () => _confirmDeleteFingerprint(),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: const Color(0xFFDC2626),
+                    minimumSize: const Size(0, 42),
                     side: BorderSide(color: const Color(0xFFDC2626).withValues(alpha: 0.45)),
-                    padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
+                    padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
                     shape: const StadiumBorder(),
                   ),
                   icon: const Icon(Icons.delete_outline_rounded, size: 16),
@@ -2503,6 +2508,7 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
 
     try {
       bool deletedOnServer = false;
+      String deleteMsg = 'Fingerprint removed from your account.';
       try {
         final res = await deleteApi(
           '/fingerprint/me',
@@ -2510,7 +2516,12 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
         );
         if (res.statusCode == 200) {
           final data = jsonDecode(res.body);
-          if (data['success'] == true) deletedOnServer = true;
+          if (data['success'] == true) {
+            deletedOnServer = true;
+            if (data['message'] != null && data['message'].toString().isNotEmpty) {
+              deleteMsg = data['message'].toString();
+            }
+          }
         }
       } catch (_) {}
 
@@ -2535,9 +2546,9 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
       if (mounted) {
         setState(() => _client = updatedClient);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Fingerprint removed from your account.'),
-            backgroundColor: Color(0xFFDC2626),
+          SnackBar(
+            content: Text(deleteMsg),
+            backgroundColor: const Color(0xFFDC2626),
           ),
         );
       }
@@ -2558,6 +2569,7 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
     String? sessionId;
     int? capturedId;
     String? errorMsg;
+    bool? hardwareOnline;
     Timer? pollTimer;
 
     void stopPolling() {
@@ -2570,6 +2582,19 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
       barrierDismissible: false,
       builder: (dialogCtx) => StatefulBuilder(
         builder: (ctx, setDialogState) {
+          // Check live Arduino / ESP32 scanner status once when dialog opens
+          if (hardwareOnline == null) {
+            hardwareOnline = false;
+            getApi('/fingerprint/device-status').then((res) {
+              if (res.statusCode == 200) {
+                final d = jsonDecode(res.body);
+                if (dialogCtx.mounted) {
+                  setDialogState(() => hardwareOnline = d['online'] == true);
+                }
+              }
+            }).catchError((_) {});
+          }
+
           Future<void> saveFingerprint(int? fpId) async {
             setDialogState(() {
               status = 'saving';
@@ -2690,11 +2715,11 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
           }
 
           return AlertDialog(
-            backgroundColor: kDarkSurface,
+            backgroundColor: kDarkBg,
             surfaceTintColor: Colors.transparent,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppRadius.lg),
-              side: BorderSide(color: kAmber.withValues(alpha: 0.4), width: 1.2),
+              borderRadius: BorderRadius.circular(22),
+              side: BorderSide(color: const Color(0xFF839B8B).withValues(alpha: 0.45), width: 1.2),
             ),
             title: Row(
               children: [
@@ -2702,7 +2727,7 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                   width: 42,
                   height: 42,
                   decoration: BoxDecoration(
-                    color: kAmber.withValues(alpha: 0.16),
+                    color: kAmber.withValues(alpha: 0.14),
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(color: kAmber.withValues(alpha: 0.35)),
                   ),
@@ -2712,7 +2737,7 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                 const Expanded(
                   child: Text(
                     'Enroll Fingerprint',
-                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: kCream),
+                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900, color: kTextPrimary),
                   ),
                 ),
               ],
@@ -2721,7 +2746,42 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const SizedBox(height: 6),
+                  // Live Arduino/ESP32 Hardware Status Pill
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: (hardwareOnline == true ? const Color(0xFF0F766E) : kAmber).withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(99),
+                      border: Border.all(
+                        color: (hardwareOnline == true ? const Color(0xFF0F766E) : kAmber).withValues(alpha: 0.35),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 7,
+                          height: 7,
+                          decoration: BoxDecoration(
+                            color: hardwareOnline == true ? const Color(0xFF10B981) : kAmber,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          hardwareOnline == true
+                              ? 'Arduino Scanner Online'
+                              : 'Arduino Scanner Standby / Offline',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                            color: hardwareOnline == true ? const Color(0xFF0F766E) : kAmber,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 14),
                   Container(
                     width: 84,
                     height: 84,
@@ -2749,10 +2809,10 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                   const SizedBox(height: 16),
                   Text(
                     status == 'waiting'
-                        ? 'Place your finger on the scanner...'
+                        ? 'Place your finger on the Arduino scanner...'
                         : status == 'saving'
-                            ? 'Registering fingerprint...'
-                            : 'Register your biometric fingerprint for quick check-ins at the wellness center.',
+                            ? 'Saving fingerprint slot...'
+                            : 'Register your biometric fingerprint via the Arduino scanner for quick check-ins.',
                     textAlign: TextAlign.center,
                     style: const TextStyle(fontSize: 13, height: 1.45, color: kTextSecondary),
                   ),
@@ -2786,14 +2846,15 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                       child: FilledButton.icon(
                         onPressed: startHardwareScan,
                         style: FilledButton.styleFrom(
-                          backgroundColor: kAmber,
-                          foregroundColor: const Color(0xFF071F15),
+                          backgroundColor: const Color(0xFF12372A),
+                          foregroundColor: kCream,
+                          minimumSize: const Size(0, 44),
                           padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          shape: const StadiumBorder(),
                         ),
-                        icon: const Icon(Icons.sensors_rounded, size: 18),
+                        icon: const Icon(Icons.sensors_rounded, size: 18, color: kAmber),
                         label: const Text(
-                          'Scan via Center Hardware',
+                          'Scan via Arduino Scanner',
                           style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
                         ),
                       ),
@@ -2804,12 +2865,13 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                       child: OutlinedButton.icon(
                         onPressed: () => saveFingerprint(null),
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: kTurquoiseLight,
-                          side: BorderSide(color: kTurquoiseLight.withValues(alpha: 0.45)),
+                          foregroundColor: const Color(0xFF12372A),
+                          minimumSize: const Size(0, 44),
+                          side: const BorderSide(color: Color(0xFF839B8B)),
                           padding: const EdgeInsets.symmetric(vertical: 11),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          shape: const StadiumBorder(),
                         ),
-                        icon: const Icon(Icons.touch_app_rounded, size: 18),
+                        icon: const Icon(Icons.touch_app_rounded, size: 18, color: kAmber),
                         label: const Text(
                           'Quick Register on Device',
                           style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12.5),

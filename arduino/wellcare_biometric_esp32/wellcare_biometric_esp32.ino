@@ -98,6 +98,8 @@ void checkPendingEnrollment();
 bool enrollFingerprint(int id, const String &clientName);
 int getNextFreeId();
 void sendEnrollmentSuccess(String sessionId, int fingerprintId);
+void checkPendingDeletion();
+void sendDeletionConfirm(String deleteId, int fingerprintId);
 
 // =========================================================================
 // OLED HELPER FUNCTION
@@ -318,10 +320,11 @@ void loop() {
     return;
   }
 
-  // 3. Poll for Web Enrollment session (Staff Portal '+ Add Client' or 'Enroll Fingerprint')
+  // 3. Poll for Web/Mobile Enrollment & Deletion sessions
   if (millis() - lastEnrollPoll > POLL_INTERVAL_MS) {
     lastEnrollPoll = millis();
     checkPendingEnrollment();
+    checkPendingDeletion();
   }
 
   // 4. Check for Fingerprint Verification (Daily Attendance)
@@ -723,5 +726,89 @@ void sendEnrollmentSuccess(String sessionId, int fingerprintId) {
 
   int httpCode = http.POST(body);
   Serial.printf("Server enrollment notify HTTP status: %d\n", httpCode);
+  http.end();
+}
+
+// =========================================================================
+// POLL SERVER FOR FINGERPRINT DELETION REQUESTS (MOBILE APP / WEB PORTAL)
+// =========================================================================
+void checkPendingDeletion() {
+  if (WiFi.status() != WL_CONNECTED) return;
+
+  HTTPClient http;
+  WiFiClient client;
+  WiFiClientSecure secureClient;
+  String url = String(SERVER_BASE_URL) + "/fingerprint/delete/pending?device_key=" + String(DEVICE_KEY);
+
+  setupHttpClient(http, client, secureClient, url, 4000);
+
+  int httpCode = http.GET();
+  if (httpCode == HTTP_CODE_OK) {
+    String payload = http.getString();
+    StaticJsonDocument<512> doc;
+    DeserializationError err = deserializeJson(doc, payload);
+
+    if (!err && doc["success"] == true && doc["pending"] == true) {
+      String deleteId = doc["delete_id"].as<String>();
+      int fpId = doc["fingerprint_id"].as<int>();
+
+      Serial.println("\n========================================");
+      Serial.println(">> FINGERPRINT DELETE REQUEST RECEIVED <<");
+      Serial.printf("Deleting Slot #%d (Job: %s)\n", fpId, deleteId.c_str());
+      Serial.println("========================================");
+
+      showOLED("DELETING PRINT", "Slot #" + String(fpId), "Removing...");
+      beep(100);
+
+      uint8_t p = finger.deleteModel(fpId);
+      if (p == FINGERPRINT_OK) {
+        Serial.printf("✓ Deleted fingerprint slot #%d from sensor memory!\n", fpId);
+        sendDeletionConfirm(deleteId, fpId);
+        beep(80); delay(60); beep(80);
+        showOLED("PRINT DELETED!", "Slot #" + String(fpId), "Removed OK!");
+        delay(2000);
+      } else {
+        Serial.printf("! Sensor deleteModel(%d) returned code: %d (confirming anyway)\n", fpId, p);
+        sendDeletionConfirm(deleteId, fpId);
+        showOLED("DELETE SYNCED", "Slot #" + String(fpId), "Cleared!");
+        delay(1800);
+      }
+      showReadyScreen();
+    }
+  }
+
+  http.end();
+}
+
+// =========================================================================
+// NOTIFY SERVER THAT FINGERPRINT SLOT WAS DELETED ON HARDWARE
+// =========================================================================
+void sendDeletionConfirm(String deleteId, int fingerprintId) {
+  int retryCount = 0;
+  while (WiFi.status() != WL_CONNECTED && retryCount < 10) {
+    wifiMulti.run();
+    delay(400);
+    yield();
+    retryCount++;
+  }
+
+  HTTPClient http;
+  WiFiClient client;
+  WiFiClientSecure secureClient;
+  String url = String(SERVER_BASE_URL) + "/fingerprint/delete/confirm";
+
+  setupHttpClient(http, client, secureClient, url, 10000);
+  http.addHeader("Content-Type", "application/json");
+
+  StaticJsonDocument<256> doc;
+  doc["delete_id"] = deleteId;
+  doc["fingerprint_id"] = fingerprintId;
+  doc["device_key"] = DEVICE_KEY;
+
+  String body;
+  serializeJson(doc, body);
+
+  int httpCode = http.POST(body);
+  Serial.printf("Server deletion confirm HTTP status: %d\n", httpCode);
   http.end();
 }

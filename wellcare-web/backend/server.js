@@ -229,8 +229,9 @@ async function initDB() {
   await migrate(db);
 }
 
-// ── In-memory pending fingerprint enrollment sessions ──
+// ── In-memory pending fingerprint enrollment & deletion sessions (Arduino/ESP32) ──
 const pendingEnrollments = new Map();
+const pendingDeletions = new Map();
 
 // Auth middleware
 async function auth(req, res, next) {
@@ -1373,13 +1374,82 @@ app.get('/api/v1/fingerprint', auth, isAdmin, async (req, res) => {
   res.json({ success: true, fingerprints: rows });
 });
 
+// ── Arduino/ESP32 Hardware Fingerprint Delete Queue ──
+app.get('/api/v1/fingerprint/delete/pending', deviceApiLimiter, (req, res) => {
+  const deviceKey = req.query.device_key || req.headers['x-device-key'];
+  if (deviceKey !== DEVICE_KEY) return res.status(401).json({ success: false, message: 'Invalid device key' });
+  lastDeviceHeartbeat = Date.now();
+
+  const now = Date.now();
+  for (const [id, job] of pendingDeletions.entries()) {
+    // Expire unacknowledged delete jobs after 10 minutes
+    if (now - job.createdAt > 600000) {
+      pendingDeletions.delete(id);
+      continue;
+    }
+    if (job.status === 'pending') {
+      return res.json({
+        success: true,
+        pending: true,
+        delete_id: id,
+        fingerprint_id: job.fingerprint_id,
+      });
+    }
+  }
+  res.json({ success: true, pending: false });
+});
+
+app.post('/api/v1/fingerprint/delete/confirm', deviceApiLimiter, (req, res) => {
+  const { delete_id, fingerprint_id, device_key } = req.body;
+  const key = device_key || req.headers['x-device-key'];
+  if (key !== DEVICE_KEY) return res.status(401).json({ success: false, message: 'Invalid device key' });
+  lastDeviceHeartbeat = Date.now();
+
+  if (delete_id && pendingDeletions.has(delete_id)) {
+    pendingDeletions.delete(delete_id);
+  } else if (fingerprint_id !== undefined) {
+    for (const [id, job] of pendingDeletions.entries()) {
+      if (Number(job.fingerprint_id) === Number(fingerprint_id)) {
+        pendingDeletions.delete(id);
+      }
+    }
+  }
+  res.json({ success: true, message: 'Hardware fingerprint deletion confirmed' });
+});
+
 app.delete('/api/v1/fingerprint/me', auth, async (req, res) => {
   if (req.user.role !== 'client') return res.status(403).json({ success: false, message: 'Forbidden: Client access required' });
   try {
+    const [existing] = await db.execute('SELECT fingerprint_id FROM fingerprints WHERE client_id = ?', [req.user.id]);
+    const deletedFpId = existing.length ? Number(existing[0].fingerprint_id) : null;
+
     await db.execute('DELETE FROM fingerprints WHERE client_id = ?', [req.user.id]);
     await db.execute('UPDATE clients SET fingerprint_enrolled = FALSE WHERE id = ?', [req.user.id]);
+
+    // Queue hardware slot deletion for Arduino/ESP32 sensor
+    let queuedForHardware = false;
+    if (deletedFpId !== null && !isNaN(deletedFpId)) {
+      const deleteId = `del_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+      pendingDeletions.set(deleteId, {
+        delete_id: deleteId,
+        fingerprint_id: deletedFpId,
+        client_id: req.user.id,
+        status: 'pending',
+        createdAt: Date.now(),
+      });
+      queuedForHardware = true;
+    }
+
     const [updated] = await db.execute('SELECT * FROM clients WHERE id = ?', [req.user.id]);
-    res.json({ success: true, message: 'Fingerprint removed successfully.', client: updated.length ? formatClient(updated[0]) : null });
+    res.json({
+      success: true,
+      message: queuedForHardware
+        ? `Fingerprint slot #${deletedFpId} removed and queued for Arduino sensor deletion.`
+        : 'Fingerprint removed successfully.',
+      deleted_fingerprint_id: deletedFpId,
+      queued_for_hardware: queuedForHardware,
+      client: updated.length ? formatClient(updated[0]) : null,
+    });
   } catch (err) {
     console.error('Failed to delete client fingerprint:', err);
     res.status(500).json({ success: false, message: 'Failed to delete fingerprint' });
@@ -1417,9 +1487,21 @@ app.post('/api/v1/fingerprint/me/enroll', auth, async (req, res) => {
 });
 
 app.delete('/api/v1/fingerprint/:client_id', auth, isAdminOrStaff, async (req, res) => {
+  const [existing] = await db.execute('SELECT fingerprint_id FROM fingerprints WHERE client_id = ?', [req.params.client_id]);
+  const deletedFpId = existing.length ? Number(existing[0].fingerprint_id) : null;
   await db.execute('DELETE FROM fingerprints WHERE client_id = ?', [req.params.client_id]);
   await db.execute('UPDATE clients SET fingerprint_enrolled = FALSE WHERE id = ?', [req.params.client_id]);
-  res.json({ success: true });
+  if (deletedFpId !== null && !isNaN(deletedFpId)) {
+    const deleteId = `del_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    pendingDeletions.set(deleteId, {
+      delete_id: deleteId,
+      fingerprint_id: deletedFpId,
+      client_id: Number(req.params.client_id),
+      status: 'pending',
+      createdAt: Date.now(),
+    });
+  }
+  res.json({ success: true, deleted_fingerprint_id: deletedFpId });
 });
 
 // ── MESSAGES ──────────────────────────────────────────
