@@ -71,6 +71,8 @@ export default function Reports() {
   const [reportPageSize, setReportPageSize] = useState(10);
   const [clientSort, setClientSort] = useState({ sortBy: 'name', direction: 'asc' });
   const [clientSortDraft, setClientSortDraft] = useState({ sortBy: 'name', direction: 'asc' });
+  const [fingerprintFilter, setFingerprintFilter] = useState('all'); // 'all' | 'enrolled' | 'not_enrolled'
+  const [fingerprintFilterDraft, setFingerprintFilterDraft] = useState('all');
   const [showClientSortPanel, setShowClientSortPanel] = useState(false);
   const [clientSortPanelPosition, setClientSortPanelPosition] = useState({ left: 8, top: 8 });
   const clientSortPanelRef = useRef(null);
@@ -108,7 +110,7 @@ export default function Reports() {
   }, [load]);
 
   // Reset to page 1 when filter or data changes
-  useEffect(() => { setReportPage(1); }, [reportFilter, clients.length, staffList.length, clientSort, staffSort]);
+  useEffect(() => { setReportPage(1); }, [reportFilter, fingerprintFilter, clients.length, staffList.length, clientSort, staffSort]);
 
   useEffect(() => {
     if (!showClientSortPanel && !showStaffSortPanel) return undefined;
@@ -135,6 +137,11 @@ export default function Reports() {
   }, [showClientSortPanel, showStaffSortPanel]);
 
   const filteredClients = [...clients]
+    .filter((c) => {
+      if (fingerprintFilter === 'enrolled') return !!c.fingerprint_enrolled;
+      if (fingerprintFilter === 'not_enrolled') return !c.fingerprint_enrolled;
+      return true;
+    })
     .sort((first, second) => {
       const direction = clientSort.direction === 'asc' ? 1 : -1;
       if (clientSort.sortBy === 'client_id') {
@@ -142,6 +149,12 @@ export default function Reports() {
       }
       if (clientSort.sortBy === 'alkaline') return (Number(first.total_bottles || 0) - Number(second.total_bottles || 0)) * direction;
       if (clientSort.sortBy === 'attendance') return (Number(first.total_checkins || 0) - Number(second.total_checkins || 0)) * direction;
+      if (clientSort.sortBy === 'fingerprint') {
+        const fp1 = first.fingerprint_enrolled ? 1 : 0;
+        const fp2 = second.fingerprint_enrolled ? 1 : 0;
+        if (fp1 !== fp2) return (fp1 - fp2) * direction;
+        return String(first.full_name || '').localeCompare(String(second.full_name || ''), undefined, { numeric: true, sensitivity: 'base' });
+      }
       return String(first.full_name || '').localeCompare(String(second.full_name || ''), undefined, { numeric: true, sensitivity: 'base' }) * direction;
     });
 
@@ -159,6 +172,7 @@ export default function Reports() {
       top: availableBelow >= panelHeight ? bounds.bottom + 7 : Math.max(8, bounds.top - panelHeight - 7),
     });
     setClientSortDraft(clientSort);
+    setFingerprintFilterDraft(fingerprintFilter);
     setShowClientSortPanel(true);
   };
 
@@ -988,15 +1002,68 @@ export default function Reports() {
                   </div>
                   {reportFilter === 'clients' ? (
                     <>
-                      <button type="button" className="client-record-filter-toggle" onClick={toggleClientSortPanel} aria-label="Toggle client sorting options" aria-expanded={showClientSortPanel} aria-controls="admin-client-sort-panel" title="Sort clients">
+                      {/* Quick Registered Fingerprint Filter Pills */}
+                      <div style={{ display: 'flex', gap: '5px', background: 'rgba(4,106,56,0.04)', borderRadius: '10px', padding: '4px', flexWrap: 'wrap' }}>
+                        {[
+                          { key: 'all', label: 'All', count: clients.length },
+                          { key: 'enrolled', label: 'Registered FP', count: enrolled },
+                          { key: 'not_enrolled', label: 'Not Registered', count: notEnrolled },
+                        ].map((fp) => (
+                          <button
+                            key={fp.key}
+                            type="button"
+                            onClick={() => { setFingerprintFilter(fp.key); setFingerprintFilterDraft(fp.key); }}
+                            style={{
+                              padding: '5px 11px',
+                              borderRadius: '7px',
+                              border: 'none',
+                              fontSize: '0.75rem',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                              transition: 'all 0.15s',
+                              background: fingerprintFilter === fp.key
+                                ? (fp.key === 'not_enrolled' ? '#dc2626' : 'var(--emerald)')
+                                : 'transparent',
+                              color: fingerprintFilter === fp.key
+                                ? '#fff'
+                                : (fp.key === 'not_enrolled' ? '#b91c1c' : 'var(--emerald)'),
+                            }}
+                          >
+                            {fp.label} <span style={{ opacity: 0.75, fontSize: '0.7rem' }}>({fp.count})</span>
+                          </button>
+                        ))}
+                      </div>
+
+                      <button type="button" className="client-record-filter-toggle" onClick={toggleClientSortPanel} aria-label="Toggle client sorting options" aria-expanded={showClientSortPanel} aria-controls="admin-client-sort-panel" title="Sort & filter clients">
                         <SlidersHorizontal size={17} />
                       </button>
                       {showClientSortPanel && createPortal(
                         <div id="admin-client-sort-panel" ref={clientSortPanelRef} className="client-record-filter-panel" style={clientSortPanelPosition}>
-                          <h3 className="client-filter-panel-title">Sort Clients</h3>
+                          <h3 className="client-filter-panel-title">Sort & Filter Clients</h3>
+                          <div className="client-filter-row">
+                            <span className="client-filter-row-label">Fingerprint Filter</span>
+                            <div className="client-filter-choice-list">
+                              {[
+                                ['all', `All Clients (${clients.length})`],
+                                ['enrolled', `Registered Fingerprint (${enrolled})`],
+                                ['not_enrolled', `Not Registered (${notEnrolled})`],
+                              ].map(([val, label]) => (
+                                <label key={val} className="client-filter-option">
+                                  <input
+                                    type="radio"
+                                    name="admin-client-fp-filter"
+                                    checked={fingerprintFilterDraft === val}
+                                    onChange={() => setFingerprintFilterDraft(val)}
+                                  />
+                                  <span>{label}</span>
+                                </label>
+                              ))}
+                            </div>
+                          </div>
                           {[
                             { key: 'name', title: 'Names', options: [['asc', 'A–Z'], ['desc', 'Z–A']] },
                             { key: 'client_id', title: 'Client ID', options: [['asc', 'Lowest to Highest'], ['desc', 'Highest to Lowest']] },
+                            { key: 'fingerprint', title: 'Fingerprint Sort', options: [['desc', 'Registered first'], ['asc', 'Not Registered first']] },
                             { key: 'alkaline', title: 'Alkaline', options: [['asc', 'Lowest to Highest'], ['desc', 'Highest to Lowest']] },
                             { key: 'attendance', title: 'Attendance', options: [['desc', 'More visits'], ['asc', 'Low visits']] },
                           ].map(group => (
@@ -1013,8 +1080,8 @@ export default function Reports() {
                             </div>
                           ))}
                           <div className="client-filter-panel-footer">
-                            <button type="button" className="client-filter-clear" onClick={() => { const initialSort = { sortBy: 'name', direction: 'asc' }; setClientSort(initialSort); setClientSortDraft(initialSort); setShowClientSortPanel(false); }}>Clear</button>
-                            <button type="button" className="client-filter-apply" onClick={() => { setClientSort(clientSortDraft); setShowClientSortPanel(false); }}>Apply</button>
+                            <button type="button" className="client-filter-clear" onClick={() => { const initialSort = { sortBy: 'name', direction: 'asc' }; setClientSort(initialSort); setClientSortDraft(initialSort); setFingerprintFilter('all'); setFingerprintFilterDraft('all'); setShowClientSortPanel(false); }}>Clear</button>
+                            <button type="button" className="client-filter-apply" onClick={() => { setClientSort(clientSortDraft); setFingerprintFilter(fingerprintFilterDraft); setShowClientSortPanel(false); }}>Apply</button>
                           </div>
                         </div>,
                         document.body
