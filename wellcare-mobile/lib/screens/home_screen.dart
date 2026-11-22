@@ -698,99 +698,106 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               if (!_hasCheckedInToday)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 10),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFEF2F2),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () => widget.onSwitchTab?.call(1), // Wellness page
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: const Color(0xFFEF4444).withValues(alpha: 0.35), width: 1.2),
-                      boxShadow: [
-                        BoxShadow(
-                          color: _darkInk.withValues(alpha: 0.05),
-                          blurRadius: 8,
-                          offset: const Offset(0, 3),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFEF2F2),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: const Color(0xFFEF4444).withValues(alpha: 0.35), width: 1.2),
+                          boxShadow: [
+                            BoxShadow(
+                              color: _darkInk.withValues(alpha: 0.05),
+                              blurRadius: 8,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 38,
-                          height: 38,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFEF4444).withValues(alpha: 0.14),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: const Icon(
-                            Icons.event_busy_rounded,
-                            color: Color(0xFFDC2626),
-                            size: 20,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 38,
+                              height: 38,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFEF4444).withValues(alpha: 0.14),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: const Icon(
+                                Icons.event_busy_rounded,
+                                color: Color(0xFFDC2626),
+                                size: 20,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(
-                                    _formatVisitDate(DateTime.now().toIso8601String()),
-                                    style: const TextStyle(
-                                      fontSize: 13.5,
-                                      fontWeight: FontWeight.w800,
-                                      color: _darkInk,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFEF4444).withValues(alpha: 0.16),
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    child: const Text(
-                                      'TODAY',
-                                      style: TextStyle(
-                                        fontSize: 9,
-                                        fontWeight: FontWeight.w900,
-                                        color: Color(0xFFDC2626),
+                                  Row(
+                                    children: [
+                                      Text(
+                                        _formatVisitDate(DateTime.now().toIso8601String()),
+                                        style: const TextStyle(
+                                          fontSize: 13.5,
+                                          fontWeight: FontWeight.w800,
+                                          color: _darkInk,
+                                        ),
                                       ),
-                                    ),
+                                      const SizedBox(width: 6),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFEF4444).withValues(alpha: 0.16),
+                                          borderRadius: BorderRadius.circular(4),
+                                        ),
+                                        child: const Text(
+                                          'TODAY',
+                                          style: TextStyle(
+                                            fontSize: 9,
+                                            fontWeight: FontWeight.w900,
+                                            color: Color(0xFFDC2626),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 2),
+                                  const Row(
+                                    children: [
+                                      Text(
+                                        'Absent',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w800,
+                                          color: Color(0xFFDC2626),
+                                        ),
+                                      ),
+                                      SizedBox(width: 6),
+                                      Text(
+                                        '· No check-in logged today',
+                                        style: TextStyle(
+                                          fontSize: 11.5,
+                                          fontWeight: FontWeight.w600,
+                                          color: _creamMuted,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 2),
-                              const Row(
-                                children: [
-                                  Text(
-                                    'Absent',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w800,
-                                      color: Color(0xFFDC2626),
-                                    ),
-                                  ),
-                                  SizedBox(width: 6),
-                                  Text(
-                                    '· No check-in logged today',
-                                    style: TextStyle(
-                                      fontSize: 11.5,
-                                      fontWeight: FontWeight.w600,
-                                      color: _creamMuted,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
+                            ),
+                            const Icon(
+                              Icons.chevron_right_rounded,
+                              color: Color(0xFFDC2626),
+                              size: 20,
+                            ),
+                          ],
                         ),
-                        const Icon(
-                          Icons.cancel_rounded,
-                          color: Color(0xFFDC2626),
-                          size: 20,
-                        ),
-                      ],
+                      ),
                     ),
                   ),
                 ),
@@ -810,11 +817,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     final displayDate = _formatVisitDate(rawDate);
     final type = (visit['type'] ?? 'Visit').toString();
     final loggedBy = (visit['logged_by'] ?? 'Staff').toString();
+    final typeLower = type.toLowerCase();
+    final isAlkaline = typeLower.contains('alkaline') || typeLower.contains('water');
 
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: () => widget.onSwitchTab?.call(3), // Switch to Alkaline
+        onTap: () => widget.onSwitchTab?.call(isAlkaline ? 3 : 1), // Alkaline -> 3, Check-in/Absent -> Wellness (1)
         borderRadius: BorderRadius.circular(16),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -1047,76 +1056,88 @@ class _AllVisitsPaginationModalState extends State<_AllVisitsPaginationModal> {
                         final type = (item['type'] ?? 'Visit').toString();
                         final loggedBy = (item['logged_by'] ?? 'Staff').toString();
                         final itemNumber = startIndex + index + 1;
+                        final typeLower = type.toLowerCase();
+                        final isAlkaline = typeLower.contains('alkaline') || typeLower.contains('water');
 
-                        return Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                          decoration: BoxDecoration(
-                            color: _HomeScreenState._cardDark,
+                        return Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: () {
+                              Navigator.pop(context);
+                              widget.onSwitchTab?.call(isAlkaline ? 3 : 1);
+                            },
                             borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: _HomeScreenState._cardBorder, width: 1.1),
-                          ),
-                          child: Row(
-                            children: [
-                              // Number index badge
-                              Container(
-                                width: 28,
-                                height: 28,
-                                decoration: BoxDecoration(
-                                  color: _HomeScreenState._iconBoxDark,
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(color: _HomeScreenState._cardBorder),
-                                ),
-                                alignment: Alignment.center,
-                                child: Text(
-                                  '$itemNumber',
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w800,
-                                    color: _HomeScreenState._amber,
-                                  ),
-                                ),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                              decoration: BoxDecoration(
+                                color: _HomeScreenState._cardDark,
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(color: _HomeScreenState._cardBorder, width: 1.1),
                               ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      displayDate,
+                              child: Row(
+                                children: [
+                                  // Number index badge
+                                  Container(
+                                    width: 28,
+                                    height: 28,
+                                    decoration: BoxDecoration(
+                                      color: _HomeScreenState._iconBoxDark,
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(color: _HomeScreenState._cardBorder),
+                                    ),
+                                    alignment: Alignment.center,
+                                    child: Text(
+                                      '$itemNumber',
                                       style: const TextStyle(
-                                        fontSize: 13.5,
+                                        fontSize: 11,
                                         fontWeight: FontWeight.w800,
-                                        color: _HomeScreenState._darkInk,
+                                        color: _HomeScreenState._amber,
                                       ),
                                     ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      '$type · Logged by ${loggedBy[0].toUpperCase()}${loggedBy.substring(1)}',
-                                      style: const TextStyle(
-                                        fontSize: 11.5,
-                                        fontWeight: FontWeight.w600,
-                                        color: _HomeScreenState._creamMuted,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF10B981).withOpacity(0.15),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: const Text(
-                                  'Recorded',
-                                  style: TextStyle(
-                                    fontSize: 10.5,
-                                    fontWeight: FontWeight.w800,
-                                    color: Color(0xFF34D399),
                                   ),
-                                ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          displayDate,
+                                          style: const TextStyle(
+                                            fontSize: 13.5,
+                                            fontWeight: FontWeight.w800,
+                                            color: _HomeScreenState._darkInk,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          '$type · Logged by ${loggedBy[0].toUpperCase()}${loggedBy.substring(1)}',
+                                          style: const TextStyle(
+                                            fontSize: 11.5,
+                                            fontWeight: FontWeight.w600,
+                                            color: _HomeScreenState._creamMuted,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF10B981).withOpacity(0.15),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: const Text(
+                                      'Recorded',
+                                      style: TextStyle(
+                                        fontSize: 10.5,
+                                        fontWeight: FontWeight.w800,
+                                        color: Color(0xFF0F766E),
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ],
+                            ),
                           ),
                         );
                       },
