@@ -31,32 +31,35 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
 
   bool _notificationsCleared = false;
   final Set<String> _readNotifIds = {};
+  final Set<String> _clearedNotifIds = {};
+  int _unreadMsgCount = 0;
+  final Set<String> _readMsgIds = {};
   Timer? _pollTimer;
 
   int get _unreadNotifCount {
-    if (_notificationsCleared) return 0;
     final all = _buildNotificationsList();
     return all.where((n) => !_readNotifIds.contains(n['id'] as String)).length;
   }
 
   List<Map<String, dynamic>> _buildNotificationsList() {
-    if (_notificationsCleared) return [];
     final list = <Map<String, dynamic>>[];
 
     // 0. First-login / default password security alert
     if (_client.mustChangePassword) {
       const pwdAlertId = 'security_change_password';
-      list.add({
-        'id': pwdAlertId,
-        'icon': Icons.lock_reset_rounded,
-        'iconColor': kAmber,
-        'title': 'Security Alert: Change Password',
-        'time': 'Action Required',
-        'body': 'You are using your default password. Tap to change it now.',
-        'fullDetail': 'For your account security, please update your default initial password to a new personal password.',
-        'read': _readNotifIds.contains(pwdAlertId),
-        'isPasswordAlert': true,
-      });
+      if (!_clearedNotifIds.contains(pwdAlertId)) {
+        list.add({
+          'id': pwdAlertId,
+          'icon': Icons.lock_reset_rounded,
+          'iconColor': kAmber,
+          'title': 'Security Alert: Change Password',
+          'time': 'Action Required',
+          'body': 'You are using your default password. Tap to change it now.',
+          'fullDetail': 'For your account security, please update your default initial password to a new personal password.',
+          'read': _readNotifIds.contains(pwdAlertId),
+          'isPasswordAlert': true,
+        });
+      }
     }
 
     // 1. Dynamic notifications from attendance records
@@ -65,6 +68,7 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
       final dateRaw = (v['date'] ?? v['created_at'] ?? '').toString();
       final dateStr = _formatDisplayDate(dateRaw);
       final id = 'attendance_${v['id'] ?? dateRaw}';
+      if (_clearedNotifIds.contains(id)) continue;
 
       final isCheckin = type.toLowerCase().contains('check-in') ||
           type.toLowerCase().contains('visit') ||
@@ -87,7 +91,7 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
         list.add({
           'id': id,
           'icon': Icons.water_drop_rounded,
-          'iconColor': const Color(0xFF38BDF8),
+          'iconColor': const Color(0xFF0284C7),
           'title': 'Alkaline Therapy Logged',
           'time': dateStr,
           'body': '1.0 L Alkaline water session recorded.',
@@ -98,17 +102,19 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
     }
 
     // 2. Default milestone notification
-    final milestoneId = 'milestone_goal';
-    list.add({
-      'id': milestoneId,
-      'icon': Icons.star_rounded,
-      'iconColor': Colors.orange,
-      'title': 'Wellness Member',
-      'time': 'Active',
-      'body': 'Welcome to Heiwa WellCare Center!',
-      'fullDetail': 'Thank you for being an active member of Heiwa WellCare Center. Check your daily hydration and attendance anytime.',
-      'read': _readNotifIds.contains(milestoneId),
-    });
+    const milestoneId = 'milestone_goal';
+    if (!_clearedNotifIds.contains(milestoneId)) {
+      list.add({
+        'id': milestoneId,
+        'icon': Icons.star_rounded,
+        'iconColor': Colors.orange,
+        'title': 'Wellness Member',
+        'time': 'Active',
+        'body': 'Welcome to Heiwa WellCare Center!',
+        'fullDetail': 'Thank you for being an active member of Heiwa WellCare Center. Check your daily hydration and attendance anytime.',
+        'read': _readNotifIds.contains(milestoneId),
+      });
+    }
 
     return list;
   }
@@ -117,14 +123,20 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
   late final Animation<double> _fadeAnim;
 
   String get _readNotifsStorageKey => 'heiwa_read_notifs_${_client.id}';
+  String get _clearedNotifsStorageKey => 'heiwa_cleared_notifs_${_client.id}';
+  String get _readMsgsStorageKey => 'heiwa_read_msgs_${_client.id}';
 
   Future<void> _loadReadNotifications() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final saved = prefs.getStringList(_readNotifsStorageKey);
-      if (saved != null && mounted) {
+      final savedRead = prefs.getStringList(_readNotifsStorageKey);
+      final savedCleared = prefs.getStringList(_clearedNotifsStorageKey);
+      final savedReadMsgs = prefs.getStringList(_readMsgsStorageKey);
+      if (mounted) {
         setState(() {
-          _readNotifIds.addAll(saved);
+          if (savedRead != null) _readNotifIds.addAll(savedRead);
+          if (savedCleared != null) _clearedNotifIds.addAll(savedCleared);
+          if (savedReadMsgs != null) _readMsgIds.addAll(savedReadMsgs);
         });
       }
     } catch (_) {}
@@ -146,6 +158,38 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
     } catch (_) {}
   }
 
+  Future<void> _persistClearedNotifications(Iterable<String> notifIds) async {
+    _clearedNotifIds.addAll(notifIds);
+    _readNotifIds.addAll(notifIds);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList(_clearedNotifsStorageKey, _clearedNotifIds.toList());
+      await prefs.setStringList(_readNotifsStorageKey, _readNotifIds.toList());
+    } catch (_) {}
+  }
+
+  Future<void> _refreshUnreadMessagesCount() async {
+    try {
+      final res = await getApi('/messages', headers: {
+        'Authorization': 'Bearer ${_client.token}',
+      });
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        if (data['success'] == true && mounted) {
+          final msgs = (data['messages'] as List<dynamic>? ?? []);
+          final unread = msgs.where((m) {
+            final sender = (m['sender'] ?? '').toString();
+            if (sender != 'admin' && sender != 'staff') return false;
+            final isServerRead = m['read_by_client'] == true || m['read_by_client'] == 1;
+            final isLocalRead = _readMsgIds.contains((m['id'] ?? '').toString());
+            return !isServerRead && !isLocalRead;
+          }).length;
+          setState(() => _unreadMsgCount = unread);
+        }
+      }
+    } catch (_) {}
+  }
+
   bool _firstLoginAlertShown = false;
 
   @override
@@ -155,12 +199,15 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
     _fadeCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 260));
     _fadeAnim = CurvedAnimation(parent: _fadeCtrl, curve: Curves.easeOut);
     _fadeCtrl.forward();
-    _loadReadNotifications();
+    _loadReadNotifications().then((_) => _refreshUnreadMessagesCount());
     _refreshData();
     _refreshVisitHistory();
     _loadProfilePhoto();
     // Start background polling — silently syncs every 10 seconds
-    _pollTimer = Timer.periodic(const Duration(seconds: 10), (_) => _silentPoll());
+    _pollTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+      _silentPoll();
+      _refreshUnreadMessagesCount();
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkAndShowFirstLoginAlert();
     });
@@ -1153,7 +1200,7 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
               // Boxed action icons
               _headerIcon(Icons.search_rounded, 'Search', () => _showWellnessSearch(context)),
               const SizedBox(width: 6),
-              _headerIcon(Icons.chat_bubble_outline_rounded, 'Messages', () => _showMessagesModal(context)),
+              _headerIcon(Icons.chat_bubble_outline_rounded, 'Messages', () => _showMessagesModal(context), badge: _unreadMsgCount),
               const SizedBox(width: 6),
               _headerIcon(Icons.notifications_none_rounded, 'Notifications', () => _showNotificationsModal(context), badge: _unreadNotifCount),
               const SizedBox(width: 8),
@@ -1442,7 +1489,7 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                 _drawerTile(
                   icon: Icons.chat_bubble_outline_rounded,
                   label: 'Messages',
-                  badge: '2',
+                  badge: _unreadMsgCount > 0 ? '$_unreadMsgCount' : null,
                   onTap: () {
                     Navigator.pop(context);
                     _showMessagesModal(context);
@@ -1451,7 +1498,7 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                 _drawerTile(
                   icon: Icons.notifications_none_rounded,
                   label: 'Notifications',
-                  badge: '3',
+                  badge: _unreadNotifCount > 0 ? '$_unreadNotifCount' : null,
                   badgeColor: AppColors.warning,
                   onTap: () {
                     Navigator.pop(context);
@@ -1553,8 +1600,17 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => _MessagesModalContent(client: _client),
-    );
+      builder: (ctx) => _MessagesModalContent(
+        client: _client,
+        onMessagesRead: (readIds) {
+          if (!mounted) return;
+          setState(() {
+            _readMsgIds.addAll(readIds);
+            _unreadMsgCount = 0;
+          });
+        },
+      ),
+    ).then((_) => _refreshUnreadMessagesCount());
   }
 
   // ──────────────────────────────────────── EDIT PROFILE MODAL ───────────────
@@ -1639,10 +1695,16 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                             const SizedBox(width: 4),
                             TextButton.icon(
                               onPressed: () {
+                                final ids = notifs.map((n) => n['id'] as String).toList();
+                                _persistClearedNotifications(ids);
                                 setModalState(() {
+                                  _clearedNotifIds.addAll(ids);
+                                  _readNotifIds.addAll(ids);
                                   _notificationsCleared = true;
                                 });
                                 setState(() {
+                                  _clearedNotifIds.addAll(ids);
+                                  _readNotifIds.addAll(ids);
                                   _notificationsCleared = true;
                                 });
                               },
@@ -4743,7 +4805,8 @@ class _WellnessSearchDelegate extends SearchDelegate<void> {
 // ─── Real-time Messaging Modal Content ─────────────────────────────────────────
 class _MessagesModalContent extends StatefulWidget {
   final ClientModel client;
-  const _MessagesModalContent({required this.client});
+  final void Function(Iterable<String> readIds)? onMessagesRead;
+  const _MessagesModalContent({required this.client, this.onMessagesRead});
 
   @override
   State<_MessagesModalContent> createState() => _MessagesModalContentState();
@@ -4753,9 +4816,12 @@ class _MessagesModalContentState extends State<_MessagesModalContent> {
   String _recipient = 'admin'; // 'admin' | 'staff'
   final TextEditingController _msgCtrl = TextEditingController();
   List<dynamic> _messages = [];
+  final Set<String> _localReadIds = {};
   bool _loading = true;
   bool _sending = false;
   Timer? _timer;
+
+  String get _readMsgsStorageKey => 'heiwa_read_msgs_${widget.client.id}';
 
   static const List<Map<String, String>> _faqSuggestions = [
     {
@@ -4783,8 +4849,18 @@ class _MessagesModalContentState extends State<_MessagesModalContent> {
   @override
   void initState() {
     super.initState();
-    _fetchMessages();
+    _loadLocalReadIds().then((_) => _fetchMessages());
     _timer = Timer.periodic(const Duration(seconds: 3), (_) => _fetchMessages());
+  }
+
+  Future<void> _loadLocalReadIds() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final saved = prefs.getStringList(_readMsgsStorageKey);
+      if (saved != null && mounted) {
+        setState(() => _localReadIds.addAll(saved));
+      }
+    } catch (_) {}
   }
 
   @override
@@ -4814,6 +4890,25 @@ class _MessagesModalContentState extends State<_MessagesModalContent> {
   }
 
   Future<void> _markAllAsRead() async {
+    // 1. Immediately persist all current message IDs locally so read state survives re-login
+    final ids = _messages.map((m) => (m['id'] ?? '').toString()).where((id) => id.isNotEmpty).toList();
+    _localReadIds.addAll(ids);
+    if (mounted) {
+      setState(() {
+        _messages = _messages.map((m) {
+          final copy = Map<String, dynamic>.from(m as Map);
+          copy['read_by_client'] = true;
+          return copy;
+        }).toList();
+      });
+    }
+    widget.onMessagesRead?.call(ids);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList(_readMsgsStorageKey, _localReadIds.toList());
+    } catch (_) {}
+
+    // 2. Sync to backend PostgreSQL so it also persists across devices
     try {
       await patchApi(
         '/messages/read',
@@ -4873,8 +4968,8 @@ class _MessagesModalContentState extends State<_MessagesModalContent> {
     final adminMsgs = _messages.where((m) => m['recipient'] == 'admin' || m['sender'] == 'admin').toList();
     final staffMsgs = _messages.where((m) => m['recipient'] == 'staff' || m['sender'] == 'staff').toList();
 
-    final adminUnread = adminMsgs.where((m) => m['sender'] == 'admin' && m['read_by_client'] != true && m['read_by_client'] != 1).length;
-    final staffUnread = staffMsgs.where((m) => m['sender'] == 'staff' && m['read_by_client'] != true && m['read_by_client'] != 1).length;
+    final adminUnread = adminMsgs.where((m) => m['sender'] == 'admin' && m['read_by_client'] != true && m['read_by_client'] != 1 && !_localReadIds.contains((m['id'] ?? '').toString())).length;
+    final staffUnread = staffMsgs.where((m) => m['sender'] == 'staff' && m['read_by_client'] != true && m['read_by_client'] != 1 && !_localReadIds.contains((m['id'] ?? '').toString())).length;
 
     final adminLastId = adminMsgs.isNotEmpty ? (int.tryParse((adminMsgs.last['id'] ?? '0').toString()) ?? 0) : 0;
     final staffLastId = staffMsgs.isNotEmpty ? (int.tryParse((staffMsgs.last['id'] ?? '0').toString()) ?? 0) : 0;
@@ -5084,10 +5179,10 @@ class _MessagesModalContentState extends State<_MessagesModalContent> {
                                 children: [
                                   Text(
                                     msg['text'] ?? '',
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 13,
                                       height: 1.35,
-                                      color: Colors.white,
+                                      color: isMe ? Colors.white : kTextPrimary,
                                     ),
                                   ),
                                   const SizedBox(height: 5),
@@ -5185,7 +5280,7 @@ class _MessagesModalContentState extends State<_MessagesModalContent> {
                     maxLines: 3,
                     textInputAction: TextInputAction.send,
                     onSubmitted: (_) => _sendMessage(),
-                    style: const TextStyle(color: Colors.white, fontSize: 13.5),
+                    style: const TextStyle(color: kTextPrimary, fontSize: 13.5),
                     decoration: InputDecoration(
                       hintText: 'Message ${_recipient == 'admin' ? 'Admin' : 'Staff'}...',
                       hintStyle: const TextStyle(color: kTextTertiary, fontSize: 12.5),
