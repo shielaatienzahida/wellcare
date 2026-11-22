@@ -5782,6 +5782,47 @@ class _EditProfileModalContentState extends State<_EditProfileModalContent> {
     }
   }
 
+  Future<void> _pickBirthdate() async {
+    final now = DateTime.now();
+    DateTime initial = DateTime(now.year - 20, now.month, now.day);
+    final raw = _birthdateCtrl.text.trim();
+    final parsed = DateTime.tryParse(raw);
+    if (parsed != null && !parsed.isAfter(now) && parsed.year >= 1900) {
+      initial = parsed;
+    }
+
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: DateTime(1900, 1, 1),
+      lastDate: now,
+      helpText: 'Select Birthdate',
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: Color(0xFF12372A),
+              onPrimary: Color(0xFFF8F6F1),
+              surface: Color(0xFFF8F6F1),
+              onSurface: Color(0xFF12372A),
+            ),
+            dialogTheme: const DialogThemeData(backgroundColor: Color(0xFFF8F6F1)),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null && mounted) {
+      final y = picked.year.toString().padLeft(4, '0');
+      final m = picked.month.toString().padLeft(2, '0');
+      final d = picked.day.toString().padLeft(2, '0');
+      setState(() {
+        _birthdateCtrl.text = '$y-$m-$d';
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -5883,6 +5924,13 @@ class _EditProfileModalContentState extends State<_EditProfileModalContent> {
                     controller: _birthdateCtrl,
                     label: 'Birthdate (YYYY-MM-DD)',
                     icon: Icons.cake_rounded,
+                    readOnly: true,
+                    onTap: _pickBirthdate,
+                    suffixIcon: IconButton(
+                      onPressed: _pickBirthdate,
+                      tooltip: 'Select birthdate',
+                      icon: const Icon(Icons.calendar_month_rounded, size: 20, color: kEmerald),
+                    ),
                     errorText: _birthdateError,
                     onChanged: (_) => setState(() {}),
                   ),
@@ -6177,6 +6225,9 @@ class _EditProfileModalContentState extends State<_EditProfileModalContent> {
     required String label,
     required IconData icon,
     bool isPassword = false,
+    bool readOnly = false,
+    VoidCallback? onTap,
+    Widget? suffixIcon,
     String? errorText,
     ValueChanged<String>? onChanged,
     TextInputType? keyboardType,
@@ -6202,6 +6253,8 @@ class _EditProfileModalContentState extends State<_EditProfileModalContent> {
           TextField(
             controller: controller,
             obscureText: isPassword,
+            readOnly: readOnly,
+            onTap: onTap,
             keyboardType: keyboardType,
             inputFormatters: inputFormatters,
             textCapitalization: textCapitalization,
@@ -6220,6 +6273,7 @@ class _EditProfileModalContentState extends State<_EditProfileModalContent> {
                 color: kTextTertiary,
               ),
               prefixIcon: Icon(icon, size: 19, color: hasError ? const Color(0xFFEF4444) : kAmber),
+              suffixIcon: suffixIcon,
               filled: true,
               fillColor: kDarkSurfaceAlt,
               contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
