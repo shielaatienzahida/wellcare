@@ -40,6 +40,7 @@
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
+#include <time.h>
 
 // Brownout & Watchdog protection headers
 #include "soc/soc.h"
@@ -78,7 +79,12 @@ const int BUZZER_PIN = 32;
 // Set to true for Passive Buzzer (green exposed PCB on bottom)
 #define BUZZER_IS_PASSIVE false
 
-// Timing
+// Timing & Working Hours (7:00 AM - 7:00 PM Philippine Standard Time, UTC+8)
+const int WORK_START_HOUR = 7;   // 7:00 AM
+const int WORK_END_HOUR   = 19;  // 7:00 PM (19:00)
+const long GMT_OFFSET_SEC = 8 * 3600; // Asia/Manila UTC+8
+bool ntpSynced = false;
+
 unsigned long lastEnrollPoll = 0;
 const unsigned long POLL_INTERVAL_MS = 2000;
 unsigned long lastWiFiRetry = 0;
@@ -90,6 +96,8 @@ void showOLED(const String &header, const String &line1 = "", const String &line
 void beep(int ms = 80);
 bool tryConnectSensor();
 void connectToWiFi();
+void syncTimeWithNTP();
+bool isWithinWorkingHours();
 void scanNearbyNetworks();
 void showReadyScreen();
 void checkFingerprintVerification();
@@ -288,7 +296,34 @@ void setup() {
 }
 
 void showReadyScreen() {
-  showOLED("WELLCARE ATTENDANCE", "Ready for Scan", ">> Place Finger <<");
+  if (ntpSynced && !isWithinWorkingHours()) {
+    showOLED("WELLCARE (CLOSED)", "Working Hours:", "7:00 AM - 7:00 PM");
+  } else {
+    showOLED("WELLCARE ATTENDANCE", "Open: 7AM - 7PM", ">> Place Finger <<");
+  }
+}
+
+void syncTimeWithNTP() {
+  if (WiFi.status() != WL_CONNECTED) return;
+  configTime(GMT_OFFSET_SEC, 0, "pool.ntp.org", "time.nist.gov");
+  struct tm timeinfo;
+  if (getLocalTime(&timeinfo, 3000)) {
+    ntpSynced = true;
+    Serial.printf("✓ NTP Time Synced (PH UTC+8): %04d-%02d-%02d %02d:%02d:%02d\n",
+                  timeinfo.tm_year + 1900, timeinfo.tm_mon + 1, timeinfo.tm_mday,
+                  timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
+  } else {
+    Serial.println("! NTP sync pending (server will still enforce 7AM-7PM).");
+  }
+}
+
+bool isWithinWorkingHours() {
+  struct tm timeinfo;
+  if (!getLocalTime(&timeinfo, 100)) {
+    return true; // If clock not synced yet, let backend enforce 7AM-7PM
+  }
+  ntpSynced = true;
+  return (timeinfo.tm_hour >= WORK_START_HOUR && timeinfo.tm_hour < WORK_END_HOUR);
 }
 
 // =========================================================================
@@ -411,7 +446,8 @@ void connectToWiFi() {
     Serial.println(WiFi.localIP());
     showOLED("WIFI CONNECTED!", "SSID: " + WiFi.SSID(), "IP: " + WiFi.localIP().toString());
     beep(150); // Beep confirmation on Wi-Fi connection
-    delay(1500);
+    syncTimeWithNTP();
+    delay(1200);
   } else {
     wifiFailCount++;
     Serial.println("\n✗ Could not connect to hotspot yet. Retrying in 8s...");
@@ -431,6 +467,21 @@ void checkFingerprintVerification() {
   uint8_t p = finger.getImage();
   if (p != FINGERPRINT_OK) {
     return; // No finger placed
+  }
+
+  // Enforce working hours (7:00 AM - 7:00 PM PH time) right on the ESP32
+  if (ntpSynced && !isWithinWorkingHours()) {
+    beep(250);
+    showOLED("OUTSIDE HOURS", "Open: 7AM - 7PM", "Come back at 7AM");
+    Serial.println("! Scan rejected: Outside working hours (7:00 AM - 7:00 PM).");
+    delay(2500);
+    showReadyScreen();
+    unsigned long liftTimeout = millis() + 3000;
+    while (finger.getImage() != FINGERPRINT_NOFINGER && millis() < liftTimeout) {
+      delay(60);
+      yield();
+    }
+    return;
   }
 
   showOLED("SCANNING...", "Reading finger...", "Hold still");
@@ -521,9 +572,9 @@ void sendAttendanceCheckIn(int fingerprintId) {
       bool alreadyCheckedIn = responseDoc["already_checked_in"] | false;
 
       if (alreadyCheckedIn) {
-        // Informative single tone if already scanned today (1 check-in per day limit)
+        // Informative single tone if already scanned today (resets next working day at 7AM)
         beep(250);
-        showOLED("ALREADY LOGGED!", String(clientName), "1 check-in per day");
+        showOLED("ALREADY LOGGED!", String(clientName), "Next: Tomorrow 7AM");
         Serial.printf(">>> %s IS ALREADY CHECKED IN TODAY (Total Visits: %d) <<<\n\n", clientName, checkins);
         delay(3000);
       } else {
@@ -533,6 +584,12 @@ void sendAttendanceCheckIn(int fingerprintId) {
         Serial.printf(">>> WELCOME %s! Total Visits: %d <<<\n\n", clientName, checkins);
         delay(3000);
       }
+    } else if (!error && responseDoc["outside_working_hours"] == true) {
+      // Server-enforced working hours (7:00 AM - 7:00 PM)
+      beep(250);
+      showOLED("OUTSIDE HOURS", "Open: 7AM - 7PM", "Come back at 7AM");
+      Serial.println("! Server rejected check-in: Outside working hours (7:00 AM - 7:00 PM).");
+      delay(2500);
     } else {
       // Finger exists on optical sensor but not in DB
       beep(300);

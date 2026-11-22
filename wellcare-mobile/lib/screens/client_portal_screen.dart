@@ -2482,7 +2482,7 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
           ],
         ),
         content: const Text(
-          'Are you sure you want to remove your enrolled fingerprint from your account? You can re-enroll anytime.',
+          'Are you sure you want to delete your fingerprint? This will remove it from your account and from the Arduino biometric scanner. You can re-enroll anytime via the Arduino scanner.',
           style: TextStyle(fontSize: 13, height: 1.45, color: kTextSecondary),
         ),
         actions: [
@@ -2856,25 +2856,6 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                         label: const Text(
                           'Scan via Arduino Scanner',
                           style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton.icon(
-                        onPressed: () => saveFingerprint(null),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: const Color(0xFF12372A),
-                          minimumSize: const Size(0, 44),
-                          side: const BorderSide(color: Color(0xFF839B8B)),
-                          padding: const EdgeInsets.symmetric(vertical: 11),
-                          shape: const StadiumBorder(),
-                        ),
-                        icon: const Icon(Icons.touch_app_rounded, size: 18, color: kAmber),
-                        label: const Text(
-                          'Quick Register on Device',
-                          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12.5),
                         ),
                       ),
                     ),

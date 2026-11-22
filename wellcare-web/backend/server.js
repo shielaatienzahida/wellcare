@@ -1293,6 +1293,20 @@ app.post('/api/v1/fingerprint/verify', async (req, res) => {
   const dateStr = now.toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Manila' });
   const todayIso = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' }); // YYYY-MM-DD in Manila time
 
+  // Enforce center working hours: 7:00 AM - 7:00 PM (Asia/Manila, UTC+8)
+  // Attendance resets automatically the next working day starting at 7:00 AM
+  const rawManilaHour = Number(new Intl.DateTimeFormat('en-US', { hour: 'numeric', hour12: false, timeZone: 'Asia/Manila' }).format(now));
+  const manilaHour = rawManilaHour === 24 ? 0 : rawManilaHour;
+  if (manilaHour < 7 || manilaHour >= 19) {
+    return res.json({
+      success: false,
+      outside_working_hours: true,
+      message: 'Attendance is only allowed during working hours (7:00 AM - 7:00 PM).',
+      working_hours: '7:00 AM - 7:00 PM',
+      date: dateStr,
+    });
+  }
+
   if (clientRows.length > 0) {
     const client = clientRows[0];
 
