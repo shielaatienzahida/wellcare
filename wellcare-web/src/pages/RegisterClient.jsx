@@ -148,6 +148,14 @@ export default function RegisterClient() {
           setCapturedFingerprintId(res.fingerprint_id);
           setFpStatus('success');
           clearInterval(interval);
+        } else if (res.status === 'duplicate') {
+          setFpStatus('error');
+          setEnrollSessionId(null);
+          setErrorMessage(
+            res.message ||
+              `This fingerprint is already registered (Meron na) in Slot #${res.fingerprint_id}. Please use a different finger.`
+          );
+          clearInterval(interval);
         } else if (res.status === 'expired' || res.status === 'error') {
           setFpStatus('error');
           setErrorMessage('Enrollment session timed out. Please try again.');

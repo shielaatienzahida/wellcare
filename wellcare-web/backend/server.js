@@ -227,6 +227,30 @@ function createMailTransport() {
 async function initDB() {
   await db.init();
   await migrate(db);
+  try {
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS failed_attendance_attempts (
+        id SERIAL PRIMARY KEY,
+        reason TEXT NOT NULL,
+        fingerprint_id INTEGER,
+        details TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+  } catch (err) {
+    console.warn('Could not ensure failed_attendance_attempts table:', err.message);
+  }
+}
+
+async function recordFailedAttendance(reason, fingerprintId = null, details = '') {
+  try {
+    await db.execute(
+      'INSERT INTO failed_attendance_attempts (reason, fingerprint_id, details) VALUES (?, ?, ?)',
+      [reason, fingerprintId !== undefined && fingerprintId !== null && Number(fingerprintId) >= 0 ? Number(fingerprintId) : null, details || '']
+    );
+  } catch (err) {
+    console.warn('Failed to log failed attendance attempt:', err.message);
+  }
 }
 
 // ── In-memory pending fingerprint enrollment & deletion sessions (Arduino/ESP32) ──
@@ -1196,7 +1220,13 @@ app.post('/api/v1/fingerprint/enroll/cancel/:session_id', auth, (req, res) => {
 app.get('/api/v1/fingerprint/enroll/status/:session_id', auth, (req, res) => {
   const session = pendingEnrollments.get(req.params.session_id);
   if (!session) return res.json({ success: true, status: 'expired' });
-  res.json({ success: true, status: session.status, fingerprint_id: session.fingerprint_id });
+  res.json({
+    success: true,
+    status: session.status,
+    fingerprint_id: session.fingerprint_id,
+    message: session.message || null,
+    existing_owner: session.existing_owner || null,
+  });
 });
 
 app.get('/api/v1/fingerprint/enroll/pending', (req, res) => {
@@ -1213,7 +1243,46 @@ app.get('/api/v1/fingerprint/enroll/pending', (req, res) => {
   res.json({ success: true, pending: false });
 });
 
-app.post('/api/v1/fingerprint/enroll/capture', (req, res) => {
+app.post('/api/v1/fingerprint/enroll/duplicate', async (req, res) => {
+  const { session_id, fingerprint_id, device_key } = req.body;
+  const key = device_key || req.headers['x-device-key'];
+  if (key !== (process.env.DEVICE_KEY || 'heiwa_device')) {
+    return res.status(401).json({ success: false, message: 'Invalid device key' });
+  }
+  lastDeviceHeartbeat = Date.now();
+  const session = pendingEnrollments.get(session_id);
+  if (!session) return res.status(404).json({ success: false, message: 'Session not found or expired' });
+
+  let ownerName = '';
+  try {
+    const parsedId = Number(fingerprint_id);
+    const [cRows] = await db.execute(
+      'SELECT c.full_name FROM clients c JOIN fingerprints f ON c.id = f.client_id WHERE f.fingerprint_id = ?',
+      [parsedId]
+    );
+    if (cRows.length > 0) {
+      ownerName = cRows[0].full_name;
+    } else {
+      const [sRows] = await db.execute(
+        'SELECT s.name FROM staff s JOIN staff_fingerprints sf ON s.id = sf.staff_id WHERE sf.fingerprint_id = ?',
+        [parsedId]
+      );
+      if (sRows.length > 0) ownerName = `${sRows[0].name} (Staff)`;
+    }
+  } catch (_) {}
+
+  session.status = 'duplicate';
+  session.fingerprint_id = Number(fingerprint_id);
+  session.existing_owner = ownerName || `Slot #${fingerprint_id}`;
+  session.message = ownerName
+    ? `This fingerprint is already registered (Meron na) to ${ownerName} (Slot #${fingerprint_id}).`
+    : `This fingerprint is already registered (Meron na) in Slot #${fingerprint_id}.`;
+
+  console.log(`⚠️ Duplicate fingerprint detected for session ${session_id}: slot #${fingerprint_id} (${session.existing_owner})`);
+  res.json({ success: true, status: 'duplicate', message: session.message });
+});
+
+app.post('/api/v1/fingerprint/enroll/capture', async (req, res) => {
   const { session_id, fingerprint_id, device_key } = req.body;
   if (device_key !== (process.env.DEVICE_KEY || 'heiwa_device')) {
     return res.status(401).json({ success: false, message: 'Invalid device key' });
@@ -1221,11 +1290,76 @@ app.post('/api/v1/fingerprint/enroll/capture', (req, res) => {
   lastDeviceHeartbeat = Date.now();
   const session = pendingEnrollments.get(session_id);
   if (!session) return res.status(404).json({ success: false, message: 'Session not found or expired' });
-  
+
+  const parsedId = Number(fingerprint_id);
+  try {
+    const [existingClient] = await db.execute(
+      'SELECT c.full_name FROM clients c JOIN fingerprints f ON c.id = f.client_id WHERE f.fingerprint_id = ?',
+      [parsedId]
+    );
+    const [existingStaff] = await db.execute(
+      'SELECT s.name FROM staff s JOIN staff_fingerprints sf ON s.id = sf.staff_id WHERE sf.fingerprint_id = ?',
+      [parsedId]
+    );
+    if (existingClient.length || existingStaff.length) {
+      const ownerName = existingClient.length ? existingClient[0].full_name : `${existingStaff[0].name} (Staff)`;
+      session.status = 'duplicate';
+      session.fingerprint_id = parsedId;
+      session.existing_owner = ownerName;
+      session.message = `This fingerprint is already registered (Meron na) to ${ownerName} (Slot #${parsedId}).`;
+      return res.status(409).json({ success: false, status: 'duplicate', message: session.message });
+    }
+  } catch (_) {}
+
   session.status = 'captured';
-  session.fingerprint_id = Number(fingerprint_id);
+  session.fingerprint_id = parsedId;
   console.log(`🟢 Fingerprint captured for session ${session_id}: fingerprint_id=${fingerprint_id}`);
   res.json({ success: true, message: 'Fingerprint captured' });
+});
+
+// ── Failed Biometric Attendance Attempts (Reported by ESP32 / Verify Endpoint) ──
+app.post('/api/v1/fingerprint/failed-attempt', deviceApiLimiter, async (req, res) => {
+  const { reason, fingerprint_id, details, device_key } = req.body;
+  const key = device_key || req.headers['x-device-key'];
+  if (key !== DEVICE_KEY) return res.status(401).json({ success: false, message: 'Invalid device key' });
+  lastDeviceHeartbeat = Date.now();
+
+  await recordFailedAttendance(
+    reason || 'Unrecognized fingerprint scan',
+    fingerprint_id,
+    details || 'ESP32 Biometric Kiosk'
+  );
+  res.json({ success: true, message: 'Failed attendance attempt recorded' });
+});
+
+app.get('/api/v1/admin/failed-attempts', auth, isAdmin, async (req, res) => {
+  try {
+    const [rows] = await db.execute(
+      'SELECT id, reason, fingerprint_id, details, created_at FROM failed_attendance_attempts ORDER BY created_at DESC LIMIT 50'
+    );
+    res.json({ success: true, attempts: rows });
+  } catch (err) {
+    console.error('Error fetching failed attempts:', err);
+    res.status(500).json({ success: false, message: 'Could not load failed attendance attempts' });
+  }
+});
+
+app.delete('/api/v1/admin/failed-attempts/:id', auth, isAdmin, async (req, res) => {
+  try {
+    await db.execute('DELETE FROM failed_attendance_attempts WHERE id = ?', [req.params.id]);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Could not delete failed attempt' });
+  }
+});
+
+app.delete('/api/v1/admin/failed-attempts', auth, isAdmin, async (req, res) => {
+  try {
+    await db.execute('DELETE FROM failed_attendance_attempts');
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Could not clear failed attempts' });
+  }
 });
 
 app.post('/api/v1/fingerprint/enroll', auth, isAdminOrStaff, async (req, res) => {
@@ -1298,6 +1432,11 @@ app.post('/api/v1/fingerprint/verify', async (req, res) => {
   const rawManilaHour = Number(new Intl.DateTimeFormat('en-US', { hour: 'numeric', hour12: false, timeZone: 'Asia/Manila' }).format(now));
   const manilaHour = rawManilaHour === 24 ? 0 : rawManilaHour;
   if (manilaHour < 7 || manilaHour >= 19) {
+    await recordFailedAttendance(
+      'Attendance attempt outside working hours (7:00 AM - 7:00 PM)',
+      fingerprint_id,
+      `Scanned at ${dateStr}`
+    );
     return res.json({
       success: false,
       outside_working_hours: true,
@@ -1378,6 +1517,11 @@ app.post('/api/v1/fingerprint/verify', async (req, res) => {
     });
   }
 
+  await recordFailedAttendance(
+    'Unmatched fingerprint slot in database',
+    fingerprint_id,
+    `Slot #${fingerprint_id} scanned at ${dateStr} but not linked to any client or staff`
+  );
   res.status(404).json({ success: false, message: 'No client or staff matched this fingerprint' });
 });
 

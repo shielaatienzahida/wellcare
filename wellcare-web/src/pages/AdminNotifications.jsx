@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, CheckCheck, Trash2, UserRound, Users, ShieldAlert, CheckCircle, XCircle } from 'lucide-react';
+import { Bell, CheckCheck, Trash2, UserRound, Users, ShieldAlert, CheckCircle, XCircle, AlertTriangle, Fingerprint } from 'lucide-react';
 import { api } from '../api';
 import AdminLayout from '../components/AdminLayout';
 import ClientDetailModal from '../components/ClientDetailModal';
@@ -11,6 +11,7 @@ export default function AdminNotifications() {
   const stateKey = `heiwa_admin_notifications_${adminSession.username || 'admin'}`;
   const [clients, setClients] = useState([]);
   const [resetRequests, setResetRequests] = useState([]);
+  const [failedAttempts, setFailedAttempts] = useState([]);
   const [selectedClientModal, setSelectedClientModal] = useState(null);
   const [actionLoading, setActionLoading] = useState({});
   const [loading, setLoading] = useState(true);
@@ -30,15 +31,19 @@ export default function AdminNotifications() {
 
   const loadData = useCallback(async () => {
     try {
-      const [clientRes, resetRes] = await Promise.allSettled([
+      const [clientRes, resetRes, failedRes] = await Promise.allSettled([
         api.getClients(),
         api.getResetRequests(),
+        api.getFailedAttempts(),
       ]);
       if (clientRes.status === 'fulfilled') {
         setClients(clientRes.value.clients || []);
       }
       if (resetRes.status === 'fulfilled') {
         setResetRequests(resetRes.value.requests || []);
+      }
+      if (failedRes.status === 'fulfilled') {
+        setFailedAttempts(failedRes.value.attempts || []);
       }
       setLoadError('');
     } catch (error) {
@@ -91,10 +96,25 @@ export default function AdminNotifications() {
   const visibleClients = recentClients.filter(client => !notificationState.deletedIds.includes(String(client.id)));
   const unreadClients = visibleClients.filter(client => !notificationState.readIds.includes(String(client.id)));
 
+  const visibleFailedAttempts = failedAttempts.filter(
+    attempt => !notificationState.deletedIds.includes(`fail_${attempt.id}`)
+  );
+  const unreadFailedAttempts = visibleFailedAttempts.filter(
+    attempt => !notificationState.readIds.includes(`fail_${attempt.id}`)
+  );
+  const totalVisible = visibleClients.length + visibleFailedAttempts.length;
+  const totalUnread = unreadClients.length + unreadFailedAttempts.length;
+
   const markAllRead = () => {
     saveNotificationState({
       ...notificationState,
-      readIds: [...new Set([...notificationState.readIds, ...visibleClients.map(client => String(client.id))])]
+      readIds: [
+        ...new Set([
+          ...notificationState.readIds,
+          ...visibleClients.map(client => String(client.id)),
+          ...visibleFailedAttempts.map(attempt => `fail_${attempt.id}`),
+        ]),
+      ],
     });
   };
 
@@ -103,6 +123,26 @@ export default function AdminNotifications() {
     saveNotificationState({
       ...notificationState,
       deletedIds: [...new Set([...notificationState.deletedIds, id])]
+    });
+  };
+
+  const deleteFailedAttemptNotification = async (attemptId) => {
+    const key = `fail_${attemptId}`;
+    saveNotificationState({
+      ...notificationState,
+      deletedIds: [...new Set([...notificationState.deletedIds, key])],
+    });
+    setFailedAttempts(prev => prev.filter(a => a.id !== attemptId));
+    try {
+      await api.deleteFailedAttempt(attemptId);
+    } catch {}
+  };
+
+  const markFailedAttemptRead = (attemptId) => {
+    const key = `fail_${attemptId}`;
+    saveNotificationState({
+      ...notificationState,
+      readIds: [...new Set([...notificationState.readIds, key])],
     });
   };
 
@@ -118,11 +158,23 @@ export default function AdminNotifications() {
     }
   };
 
-  const deleteAll = () => {
+  const deleteAll = async () => {
     saveNotificationState({
       ...notificationState,
-      deletedIds: [...new Set([...notificationState.deletedIds, ...visibleClients.map(client => String(client.id))])]
+      deletedIds: [
+        ...new Set([
+          ...notificationState.deletedIds,
+          ...visibleClients.map(client => String(client.id)),
+          ...visibleFailedAttempts.map(attempt => `fail_${attempt.id}`),
+        ]),
+      ],
     });
+    if (visibleFailedAttempts.length > 0) {
+      setFailedAttempts([]);
+      try {
+        await api.clearFailedAttempts();
+      } catch {}
+    }
   };
 
   const formatTime = value => {
@@ -140,11 +192,11 @@ export default function AdminNotifications() {
           <div>
             <p className="page-eyebrow">Updates</p>
             <h2 className="page-title">Notifications</h2>
-            <p className="page-sub">Recent client registrations from the staff portal.</p>
+            <p className="page-sub">Recent client registrations, password reset requests, and failed attendance attempts.</p>
           </div>
-          {!loading && !loadError && visibleClients.length > 0 && (
+          {!loading && !loadError && totalVisible > 0 && (
             <div style={{ display: 'flex', gap: 9, flexWrap: 'wrap' }}>
-              <button type="button" onClick={markAllRead} disabled={unreadClients.length === 0} style={actionButtonStyle}>
+              <button type="button" onClick={markAllRead} disabled={totalUnread === 0} style={actionButtonStyle}>
                 <CheckCheck size={16} /> Mark all as read
               </button>
               <button type="button" onClick={deleteAll} style={{ ...actionButtonStyle, color: '#b91c1c', borderColor: '#fecaca' }}>
@@ -249,19 +301,131 @@ export default function AdminNotifications() {
             </div>
           )}
 
+          {/* ── Failed Biometric Attendance Attempts ── */}
+          {visibleFailedAttempts.length > 0 && (
+            <div style={{ marginBottom: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0' }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24, borderRadius: '50%', background: '#fee2e2', color: '#dc2626' }}>
+                  <AlertTriangle size={14} />
+                </span>
+                <h3 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: '#991b1b' }}>
+                  Failed Attendance Attempts ({visibleFailedAttempts.length})
+                </h3>
+              </div>
+              {visibleFailedAttempts.map(attempt => {
+                const isUnread = !notificationState.readIds.includes(`fail_${attempt.id}`);
+                return (
+                  <div
+                    key={`fail_${attempt.id}`}
+                    onClick={() => markFailedAttemptRead(attempt.id)}
+                    style={{
+                      background: isUnread ? '#fef2f2' : '#fff5f5',
+                      border: isUnread ? '1.5px solid #fca5a5' : '1px solid #fecaca',
+                      borderRadius: 14,
+                      padding: '14px 18px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 14,
+                      cursor: 'pointer',
+                      boxShadow: isUnread ? '0 4px 14px rgba(220, 38, 38, 0.08)' : 'none',
+                    }}
+                  >
+                    <div style={{
+                      width: 44,
+                      height: 44,
+                      borderRadius: 12,
+                      background: '#fee2e2',
+                      color: '#dc2626',
+                      display: 'grid',
+                      placeItems: 'center',
+                      flexShrink: 0,
+                    }}>
+                      <Fingerprint size={22} />
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 3 }}>
+                        <span style={{ fontWeight: 800, fontSize: 14.5, color: '#991b1b' }}>
+                          Failed Attendance Attempt
+                        </span>
+                        {isUnread && (
+                          <span style={{
+                            background: '#dc2626',
+                            color: '#fff',
+                            fontSize: 10.5,
+                            fontWeight: 800,
+                            padding: '2px 8px',
+                            borderRadius: 9999,
+                            letterSpacing: '0.04em',
+                          }}>
+                            NEW
+                          </span>
+                        )}
+                        {attempt.fingerprint_id !== null && attempt.fingerprint_id !== undefined && (
+                          <span style={{
+                            background: '#fee2e2',
+                            color: '#991b1b',
+                            fontSize: 11.5,
+                            fontWeight: 700,
+                            padding: '2px 8px',
+                            borderRadius: 6,
+                          }}>
+                            Slot #{attempt.fingerprint_id}
+                          </span>
+                        )}
+                        <span style={{ fontSize: 12, color: '#64748b', marginLeft: 'auto' }}>
+                          {formatTime(attempt.created_at)}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: 13.5, color: '#7f1d1d', fontWeight: 600 }}>
+                        {attempt.reason}
+                      </div>
+                      {attempt.details && (
+                        <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
+                          {attempt.details}
+                        </div>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={e => {
+                        e.stopPropagation();
+                        deleteFailedAttemptNotification(attempt.id);
+                      }}
+                      title="Delete alert"
+                      style={{
+                        width: 36,
+                        height: 36,
+                        display: 'grid',
+                        placeItems: 'center',
+                        borderRadius: 9,
+                        border: '1px solid #fecaca',
+                        background: '#fff',
+                        color: '#dc2626',
+                        cursor: 'pointer',
+                        flexShrink: 0,
+                      }}
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
           {loading ? (
             <div className="table-glass" style={{ padding: 40, textAlign: 'center' }}>
               <div style={{ width: 52, height: 52, margin: '0 auto 14px', display: 'grid', placeItems: 'center', borderRadius: 16, background: '#ecfdf5', color: '#059669' }}><Bell size={24} /></div>
               <strong style={{ display: 'block', fontSize: 16, color: '#0f172a' }}>Loading notifications</strong>
-              <p style={{ margin: '6px 0 0', color: '#64748b', fontSize: 14 }}>Checking for recent client registrations...</p>
+              <p style={{ margin: '6px 0 0', color: '#64748b', fontSize: 14 }}>Checking for recent client registrations and alerts...</p>
             </div>
           ) : loadError ? (
             <div className="table-glass" style={{ padding: 40, textAlign: 'center' }}>
               <strong style={{ display: 'block', fontSize: 16, color: '#b91c1c' }}>Notifications unavailable</strong>
               <p style={{ margin: '6px 0 16px', color: '#64748b', fontSize: 14 }}>{loadError}</p>
-              <button type="button" className="btn-primary" onClick={loadClients}>Try again</button>
+              <button type="button" className="btn-primary" onClick={loadData}>Try again</button>
             </div>
-          ) : visibleClients.length === 0 ? (
+          ) : totalVisible === 0 && resetRequests.length === 0 ? (
             <div className="table-glass" style={{ padding: 48, textAlign: 'center' }}>
               <div style={{ width: 56, height: 56, margin: '0 auto 16px', display: 'grid', placeItems: 'center', borderRadius: 16, background: '#ecfdf5', color: '#059669' }}><Bell size={26} /></div>
               <strong style={{ display: 'block', fontSize: 17, color: '#0f172a' }}>You're all caught up!</strong>

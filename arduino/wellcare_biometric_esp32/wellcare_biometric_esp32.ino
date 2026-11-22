@@ -102,10 +102,12 @@ void scanNearbyNetworks();
 void showReadyScreen();
 void checkFingerprintVerification();
 void sendAttendanceCheckIn(int fingerprintId);
+void reportFailedAttendance(const String &reason, int fpId = -1);
 void checkPendingEnrollment();
-bool enrollFingerprint(int id, const String &clientName);
+int enrollFingerprint(int id, const String &clientName, int &duplicateSlotId);
 int getNextFreeId();
 void sendEnrollmentSuccess(String sessionId, int fingerprintId);
+void sendEnrollmentDuplicate(String sessionId, int existingFingerprintId);
 void checkPendingDeletion();
 void sendDeletionConfirm(String deleteId, int fingerprintId);
 
@@ -474,6 +476,7 @@ void checkFingerprintVerification() {
     beep(250);
     showOLED("OUTSIDE HOURS", "Open: 7AM - 7PM", "Come back at 7AM");
     Serial.println("! Scan rejected: Outside working hours (7:00 AM - 7:00 PM).");
+    reportFailedAttendance("Attendance attempt outside working hours (7:00 AM - 7:00 PM)");
     delay(2500);
     showReadyScreen();
     unsigned long liftTimeout = millis() + 3000;
@@ -490,6 +493,7 @@ void checkFingerprintVerification() {
     // Messy or partial scan: brief alert beep
     beep(180);
     showOLED("SCAN ERROR", "Messy image", "Try again");
+    reportFailedAttendance("Failed attendance scan (messy or partial fingerprint image)");
     delay(1000);
     showReadyScreen();
     return;
@@ -501,15 +505,17 @@ void checkFingerprintVerification() {
     showOLED("MATCH FOUND!", "ID: #" + String(finger.fingerID), "Logging check-in...");
     sendAttendanceCheckIn(finger.fingerID);
   } else if (p == FINGERPRINT_NOTFOUND) {
-    // Finger not found in sensor: 3 alert beeps
+    // Finger not found in sensor: 3 alert beeps + report to Admin Notifications
     beep(90); delay(70); beep(90); delay(70); beep(90);
     showOLED("NOT RECOGNIZED", "No match in system", "Register client 1st");
-    Serial.println("! Finger scanned but not found in sensor database. Please register client on Web first.");
+    Serial.println("! Finger scanned but not found in sensor database. Reporting failed attempt to Admin...");
+    reportFailedAttendance("Unrecognized fingerprint scan during attendance");
     delay(2000);
     showReadyScreen();
   } else {
     beep(250);
     showOLED("MATCH ERROR", "Please try again", "");
+    reportFailedAttendance("Fingerprint sensor match error");
     delay(1000);
     showReadyScreen();
   }
@@ -646,10 +652,16 @@ void checkPendingEnrollment() {
         return;
       }
 
-      bool success = enrollFingerprint(newId, clientName);
-      if (success) {
+      int duplicateSlotId = -1;
+      int enrollResult = enrollFingerprint(newId, clientName, duplicateSlotId);
+      if (enrollResult == 1) {
         sendEnrollmentSuccess(sessionId, newId);
         showOLED("ENROLL SUCCESS!", "ID #" + String(newId), "Registered to Web!");
+        delay(3000);
+      } else if (enrollResult == 2) {
+        sendEnrollmentDuplicate(sessionId, duplicateSlotId);
+        beep(90); delay(70); beep(90); delay(70); beep(90);
+        showOLED("ALREADY EXISTS!", "Slot #" + String(duplicateSlotId), "Duplicate print!");
         delay(3000);
       } else {
         showOLED("ENROLL FAILED", "Scan cancelled", "Try again from Web");
@@ -673,10 +685,11 @@ int getNextFreeId() {
 }
 
 // =========================================================================
-// ENROLLMENT PROCESS (2-STEP SCAN WITH OLED PROMPTS & TIMEOUTS)
+// ENROLLMENT PROCESS (RETURNS: 1 = OK, 2 = DUPLICATE FOUND, 0 = FAILED)
 // =========================================================================
-bool enrollFingerprint(int id, const String &clientName) {
+int enrollFingerprint(int id, const String &clientName, int &duplicateSlotId) {
   int p = -1;
+  duplicateSlotId = -1;
   String shortName = clientName.length() > 12 ? clientName.substring(0, 12) : clientName;
 
   showOLED("ENROLL: " + shortName, "Step 1/2: Scan", ">> Place Finger <<");
@@ -688,7 +701,7 @@ bool enrollFingerprint(int id, const String &clientName) {
     p = finger.getImage();
     if (millis() > timeout) {
       Serial.println("Enrollment step 1 timed out.");
-      return false;
+      return 0;
     }
     delay(50);
     yield();
@@ -697,7 +710,15 @@ bool enrollFingerprint(int id, const String &clientName) {
   p = finger.image2Tz(1);
   if (p != FINGERPRINT_OK) {
     Serial.println("Image conversion 1 failed.");
-    return false;
+    return 0;
+  }
+
+  // DUPLICATE CHECK: Verify this finger is NOT already enrolled on the sensor!
+  if (finger.fingerSearch() == FINGERPRINT_OK) {
+    duplicateSlotId = finger.fingerID;
+    Serial.printf("⚠️ DUPLICATE FINGERPRINT! Already stored in Slot #%d (Confidence: %d)\n",
+                  finger.fingerID, finger.confidence);
+    return 2;
   }
 
   beep(80);
@@ -720,7 +741,7 @@ bool enrollFingerprint(int id, const String &clientName) {
     p = finger.getImage();
     if (millis() > timeout) {
       Serial.println("Enrollment step 2 timed out.");
-      return false;
+      return 0;
     }
     delay(50);
     yield();
@@ -729,7 +750,7 @@ bool enrollFingerprint(int id, const String &clientName) {
   p = finger.image2Tz(2);
   if (p != FINGERPRINT_OK) {
     Serial.println("Image conversion 2 failed.");
-    return false;
+    return 0;
   }
 
   // Create & Store model
@@ -738,17 +759,17 @@ bool enrollFingerprint(int id, const String &clientName) {
     showOLED("ENROLL FAILED", "Prints did not match", "Try again!");
     Serial.println("Fingerprints did not match.");
     delay(2000);
-    return false;
+    return 0;
   }
 
   p = finger.storeModel(id);
   if (p == FINGERPRINT_OK) {
     beep(80); delay(50); beep(80);
     Serial.printf("✓ Fingerprint successfully saved in Slot #%d!\n", id);
-    return true;
+    return 1;
   } else {
     Serial.println("Failed to store model in sensor memory.");
-    return false;
+    return 0;
   }
 }
 
@@ -867,5 +888,60 @@ void sendDeletionConfirm(String deleteId, int fingerprintId) {
 
   int httpCode = http.POST(body);
   Serial.printf("Server deletion confirm HTTP status: %d\n", httpCode);
+  http.end();
+}
+
+// =========================================================================
+// NOTIFY SERVER OF DUPLICATE FINGERPRINT DURING ENROLLMENT
+// =========================================================================
+void sendEnrollmentDuplicate(String sessionId, int existingFingerprintId) {
+  if (WiFi.status() != WL_CONNECTED) return;
+
+  HTTPClient http;
+  WiFiClient client;
+  WiFiClientSecure secureClient;
+  String url = String(SERVER_BASE_URL) + "/fingerprint/enroll/duplicate";
+
+  setupHttpClient(http, client, secureClient, url, 8000);
+  http.addHeader("Content-Type", "application/json");
+
+  StaticJsonDocument<256> doc;
+  doc["session_id"] = sessionId;
+  doc["fingerprint_id"] = existingFingerprintId;
+  doc["device_key"] = DEVICE_KEY;
+
+  String body;
+  serializeJson(doc, body);
+
+  int httpCode = http.POST(body);
+  Serial.printf("Server duplicate notify HTTP status: %d\n", httpCode);
+  http.end();
+}
+
+// =========================================================================
+// REPORT FAILED ATTENDANCE SCAN TO ADMIN NOTIFICATIONS
+// =========================================================================
+void reportFailedAttendance(const String &reason, int fpId) {
+  if (WiFi.status() != WL_CONNECTED) return;
+
+  HTTPClient http;
+  WiFiClient client;
+  WiFiClientSecure secureClient;
+  String url = String(SERVER_BASE_URL) + "/fingerprint/failed-attempt";
+
+  setupHttpClient(http, client, secureClient, url, 5000);
+  http.addHeader("Content-Type", "application/json");
+
+  StaticJsonDocument<256> doc;
+  doc["reason"] = reason;
+  if (fpId >= 0) doc["fingerprint_id"] = fpId;
+  doc["details"] = "ESP32 Biometric Scanner";
+  doc["device_key"] = DEVICE_KEY;
+
+  String body;
+  serializeJson(doc, body);
+
+  int httpCode = http.POST(body);
+  Serial.printf("Failed attempt logged to admin (HTTP %d): %s\n", httpCode, reason.c_str());
   http.end();
 }

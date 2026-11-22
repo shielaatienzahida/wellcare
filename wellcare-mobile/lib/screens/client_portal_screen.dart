@@ -2753,6 +2753,13 @@ class _ClientPortalScreenState extends State<ClientPortalScreen>
                       stopPolling();
                       capturedId = int.tryParse(stData['fingerprint_id'].toString());
                       await saveFingerprint(capturedId);
+                    } else if (stData['status'] == 'duplicate') {
+                      stopPolling();
+                      setDialogState(() {
+                        status = 'error';
+                        errorMsg = stData['message']?.toString() ??
+                            'This fingerprint is already registered (Meron na).';
+                      });
                     } else if (stData['status'] == 'expired') {
                       stopPolling();
                       setDialogState(() {

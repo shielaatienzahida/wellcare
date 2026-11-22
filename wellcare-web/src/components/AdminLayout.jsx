@@ -23,9 +23,11 @@ export default function AdminLayout({ children, unreadMsgCount = 0 }) {
           notifState = JSON.parse(localStorage.getItem(stateKey) || '{"readIds":[],"deletedIds":[]}');
         } catch {}
 
-        const [clientsRes, archRes] = await Promise.all([
+        const [clientsRes, archRes, failedRes, resetRes] = await Promise.all([
           api.getClients().catch(() => ({ clients: [] })),
           api.getArchivedStaff().catch(() => ({ staff: [] })),
+          api.getFailedAttempts().catch(() => ({ attempts: [] })),
+          api.getResetRequests().catch(() => ({ requests: [] })),
         ]);
 
         const clients = clientsRes.clients || [];
@@ -34,8 +36,14 @@ export default function AdminLayout({ children, unreadMsgCount = 0 }) {
           .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
           .slice(0, 30);
         const visible = recent.filter(c => !notifState.deletedIds.includes(String(c.id)));
-        const unread = visible.filter(c => !notifState.readIds.includes(String(c.id)));
-        setNotificationCount(unread.length);
+        const unreadClients = visible.filter(c => !notifState.readIds.includes(String(c.id)));
+
+        const failedAttempts = (failedRes.attempts || []).filter(
+          a => !notifState.deletedIds.includes(`fail_${a.id}`) && !notifState.readIds.includes(`fail_${a.id}`)
+        );
+        const pendingResets = (resetRes.requests || []).length;
+
+        setNotificationCount(unreadClients.length + failedAttempts.length + pendingResets);
         setArchivedCount((archRes.staff || []).length);
       } catch {
         // quiet error

@@ -79,20 +79,20 @@ async function fetchAPI(endpoint, options = {}) {
 
 export const api = {
   // AUTH
-  login: (username, password) => 
+  login: (username, password) =>
     fetchAPI('/login', { method: 'POST', body: JSON.stringify({ username, password }) }),
   requestPasswordReset: (data) => fetchAPI('/password-reset/request', { method: 'POST', body: JSON.stringify(data) }),
   verifyPasswordReset: (resetKey, otp) => fetchAPI('/password-reset/verify', { method: 'POST', body: JSON.stringify({ resetKey, otp }) }),
 
   // CLIENTS
   getClients: () => fetchAPI('/clients'),
-  registerClient: (clientData) => 
+  registerClient: (clientData) =>
     fetchAPI('/clients', { method: 'POST', body: JSON.stringify(clientData) }),
-  updateClient: (id, clientData) => 
+  updateClient: (id, clientData) =>
     fetchAPI(`/clients/${id}`, { method: 'PUT', body: JSON.stringify(clientData) }),
-  deleteClient: (id) => 
+  deleteClient: (id) =>
     fetchAPI(`/clients/${id}`, { method: 'DELETE' }),
-  archiveClient: (id) => 
+  archiveClient: (id) =>
     fetchAPI(`/clients/${id}/archive`, { method: 'POST' }),
   restoreClient: (id) =>
     fetchAPI(`/clients/archived/${id}/restore`, { method: 'POST' }),
@@ -102,13 +102,13 @@ export const api = {
 
   // CLIENT PORTAL (Self)
   getMyProfile: () => fetchAPI('/clients/me'),
-  updateMyProfile: (data) => 
+  updateMyProfile: (data) =>
     fetchAPI('/clients/me', { method: 'PATCH', body: JSON.stringify(data) }),
   getMyHistory: () => fetchAPI('/clients/me/history'),
 
   // SESSION LOGS
   getClientHistory: (id) => fetchAPI(`/clients/${id}/history`),
-  logSession: (id, type) => 
+  logSession: (id, type) =>
     fetchAPI(`/clients/${id}/log`, { method: 'POST', body: JSON.stringify({ type }) }),
 
   // STAFF
@@ -120,16 +120,16 @@ export const api = {
   updateMyStaffProfile: (data) =>
     fetchAPI('/staff/me', { method: 'PATCH', body: JSON.stringify(data) }),
   getStaffMonitoring: () => fetchAPI('/staff/monitoring'),
-  addStaff: (data) => 
+  addStaff: (data) =>
     fetchAPI('/staff', { method: 'POST', body: JSON.stringify(data) }),
-  deleteStaff: (id) => 
+  deleteStaff: (id) =>
     fetchAPI(`/staff/${id}`, { method: 'DELETE' }),
 
   // MESSAGES
   getMessages: () => fetchAPI('/messages'),
-  sendMessage: (data) => 
+  sendMessage: (data) =>
     fetchAPI('/messages', { method: 'POST', body: JSON.stringify(data) }),
-  markMessagesRead: (client_id) => 
+  markMessagesRead: (client_id) =>
     fetchAPI('/messages/read', { method: 'PATCH', body: JSON.stringify({ client_id }) }),
 
   // FINGERPRINT ENROLLMENT
@@ -175,9 +175,12 @@ export const api = {
     return fetchAPI(`/attendance/summary${query ? `?${query}` : ''}`);
   },
 
-  // ADMIN PASSWORD RESET REQUESTS
+  // ADMIN PASSWORD RESET REQUESTS & FAILED BIOMETRIC ATTEMPTS
   getResetRequests: () => fetchAPI('/admin/reset-requests'),
   approveResetRequest: (id) => fetchAPI(`/admin/reset-requests/${id}/approve`, { method: 'POST' }),
   rejectResetRequest: (id) => fetchAPI(`/admin/reset-requests/${id}/reject`, { method: 'POST' }),
+  getFailedAttempts: () => fetchAPI('/admin/failed-attempts'),
+  deleteFailedAttempt: (id) => fetchAPI(`/admin/failed-attempts/${id}`, { method: 'DELETE' }),
+  clearFailedAttempts: () => fetchAPI('/admin/failed-attempts', { method: 'DELETE' }),
 };
 
